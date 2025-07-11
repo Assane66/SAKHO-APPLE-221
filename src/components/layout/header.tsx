@@ -10,7 +10,7 @@ export function Header() {
         <div className="mr-4 flex items-center">
           <Link href="/" className="flex items-center space-x-2">
             <Smartphone className="h-6 w-6 text-primary" />
-            <span className="font-bold font-headline">Khalil Premium</span>
+            <span className="font-bold font-headline">Khalil Apple</span>
           </Link>
         </div>
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">

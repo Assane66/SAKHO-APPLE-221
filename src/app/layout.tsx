@@ -5,7 +5,7 @@ import { Footer } from '@/components/layout/footer';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Khalil Premium',
+  title: 'Khalil Apple',
   description: 'Premium iPhone Store in Sénégal with AI-powered trade-in.',
 };
 

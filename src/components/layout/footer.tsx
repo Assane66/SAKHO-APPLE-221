@@ -9,7 +9,7 @@ export function Footer() {
           <div className="space-y-2">
             <Link href="/" className="flex items-center space-x-2">
               <Smartphone className="h-6 w-6 text-primary" />
-              <span className="text-lg font-bold font-headline">Khalil Premium</span>
+              <span className="text-lg font-bold font-headline">Khalil Apple</span>
             </Link>
             <p className="text-sm">
               Votre expert iPhone au Sénégal. Qualité et service garantis.

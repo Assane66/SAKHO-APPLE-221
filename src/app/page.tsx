@@ -45,7 +45,7 @@ export default function Home() {
             <div className="flex flex-col justify-center space-y-4">
               <div className="space-y-2">
                 <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline">
-                  Bienvenue chez Khalil Premium
+                  Bienvenue chez Khalil Apple
                 </h1>
                 <p className="max-w-[600px] text-muted-foreground md:text-xl">
                   Votre destination N°1 pour les iPhones neufs et reconditionnés au Sénégal. Découvrez nos offres et estimez la valeur de votre ancien appareil.
