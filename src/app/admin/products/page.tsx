@@ -15,6 +15,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import Link from "next/link";
 
 const products = [
   { 
@@ -60,10 +61,12 @@ export default function ProductsPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">Produits</h1>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Ajouter un produit
-        </Button>
+        <Link href="/admin/products/new">
+          <Button>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Ajouter un produit
+          </Button>
+        </Link>
       </div>
 
       <Card>
