@@ -1,23 +1,13 @@
 // src/types/index.ts
 
-export type Variant = {
-  storage: string;
-  price: string;
-};
-
 export type Product = {
   id: string;
   name: string;
   slug: string;
-  basePrice: number;
-  status: 'active' | 'inactive';
   categoryId: string;
   thumbnail: string;
-  description: string;
-  isNew: boolean;
-  hasWarranty: boolean;
+  keywords: string[];
   batteryHealth: string;
-  deliveryInfo: string;
-  variants: Variant[];
+  status: 'active' | 'inactive';
   createdAt?: any; // To accommodate serverTimestamp
 };
