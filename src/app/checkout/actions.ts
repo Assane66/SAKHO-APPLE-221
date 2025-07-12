@@ -30,14 +30,15 @@ export async function createOrder(data: OrderInput): Promise<ActionResult> {
       customerPhone: data.customerPhone,
       customerAddress: data.customerAddress,
       items: data.items.map(item => ({
-        productId: item.productId,
+        id: item.id,
         name: item.name,
         storage: item.storage,
         quantity: item.quantity,
         price: item.price,
+        thumbnail: item.thumbnail
       })),
-      total: data.total, // Store as a number
-      totalFormatted: `${data.total.toLocaleString('fr-FR')} CFA`, // Keep a formatted version for display
+      total: data.total,
+      totalFormatted: `${data.total.toLocaleString('fr-FR')} CFA`,
       status: 'En attente',
       date: serverTimestamp(),
     };
