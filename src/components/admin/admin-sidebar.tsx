@@ -3,9 +3,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Smartphone, Home, Package, ShoppingCart, Repeat, Tag, Percent, ImageIcon, Users, Settings, Zap } from "lucide-react";
+import { Home, Package, ShoppingCart, Repeat, Tag, Percent, ImageIcon, Users, Settings, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import Image from "next/image";
 
 
 const navLinks = [
@@ -28,7 +29,13 @@ export function AdminSidebar({ isMobile = false }) {
     <aside className={cn("fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r bg-background md:flex", { "flex z-50": isMobile })}>
       <div className="flex h-14 items-center border-b px-6">
         <Link href="/" className="flex items-center gap-2 font-semibold">
-          <Smartphone className="h-6 w-6 text-primary" />
+          <Image 
+            src="https://res.cloudinary.com/dm6yuokre/image/upload/v1752163215/IMG-20250710-WA0000-removebg-preview_uunwq2.png"
+            alt="Khalil Apple Logo"
+            width={24}
+            height={24}
+            className="h-6 w-6"
+          />
           <span className="">Khalil Apple</span>
         </Link>
       </div>

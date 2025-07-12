@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Smartphone, MapPin, Phone, Mail } from "lucide-react";
+import { MapPin, Phone, Mail } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import Image from "next/image";
 
 interface SettingsData {
   shopName?: string;
@@ -39,7 +40,13 @@ export async function Footer() {
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
             <Link href="/" className="flex items-center space-x-2">
-              <Smartphone className="h-6 w-6 text-primary" />
+               <Image 
+                src="https://res.cloudinary.com/dm6yuokre/image/upload/v1752163215/IMG-20250710-WA0000-removebg-preview_uunwq2.png"
+                alt="Khalil Apple Logo"
+                width={24}
+                height={24}
+                className="h-6 w-6"
+              />
               <span className="text-lg font-bold font-headline">{shopName}</span>
             </Link>
             <p className="text-sm">

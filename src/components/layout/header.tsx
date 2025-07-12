@@ -2,11 +2,12 @@
 'use client';
 
 import Link from "next/link";
-import { Smartphone, Menu, UserCircle, ShoppingCart } from "lucide-react";
+import { Menu, UserCircle, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useCart } from "@/context/CartContext";
 import { Badge } from "../ui/badge";
+import Image from "next/image";
 
 export function Header() {
   const { cart } = useCart();
@@ -17,7 +18,13 @@ export function Header() {
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex items-center">
           <Link href="/" className="flex items-center space-x-2">
-            <Smartphone className="h-6 w-6 text-primary" />
+            <Image 
+              src="https://res.cloudinary.com/dm6yuokre/image/upload/v1752163215/IMG-20250710-WA0000-removebg-preview_uunwq2.png"
+              alt="Khalil Apple Logo"
+              width={32}
+              height={32}
+              className="h-8 w-8"
+            />
             <span className="font-bold font-headline">Khalil Apple</span>
           </Link>
         </div>

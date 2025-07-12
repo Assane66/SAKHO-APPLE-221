@@ -9,6 +9,9 @@ import { WhatsAppFAB } from '@/components/whatsapp-fab';
 export const metadata: Metadata = {
   title: 'Khalil Apple',
   description: 'Premium iPhone Store in Sénégal with AI-powered trade-in.',
+  icons: {
+    icon: 'https://res.cloudinary.com/dm6yuokre/image/upload/v1752163215/IMG-20250710-WA0000-removebg-preview_uunwq2.png',
+  }
 };
 
 export default function RootLayout({
