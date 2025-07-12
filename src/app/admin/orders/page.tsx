@@ -96,7 +96,7 @@ export default function OrdersPage() {
                     <TableCell className="font-mono">{order.id.substring(0, 7)}</TableCell>
                     <TableCell>{order.customerName}</TableCell>
                     <TableCell>{order.date?.seconds ? new Date(order.date.seconds * 1000).toLocaleDateString() : 'Date non disponible'}</TableCell>
-                    <TableCell>{order.total}</TableCell>
+                    <TableCell>{order.totalFormatted || `${order.total.toLocaleString('fr-FR')} CFA`}</TableCell>
                     <TableCell>
                       <Badge variant={statusColors[order.status as OrderStatus] || 'outline'}>
                         {order.status}

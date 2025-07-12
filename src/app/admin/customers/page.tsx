@@ -34,7 +34,7 @@ export default function CustomersPage() {
 
         if (!phone) return;
 
-        const total = parseFloat(order.total.replace(/[^0-9.-]+/g, "")) || 0;
+        const total = order.total || 0;
 
         if (customerMap.has(phone)) {
           const existingCustomer = customerMap.get(phone)!;

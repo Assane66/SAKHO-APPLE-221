@@ -36,7 +36,8 @@ export async function createOrder(data: OrderInput): Promise<ActionResult> {
         quantity: item.quantity,
         price: item.price,
       })),
-      total: `${data.total.toLocaleString('fr-FR')} CFA`,
+      total: data.total, // Store as a number
+      totalFormatted: `${data.total.toLocaleString('fr-FR')} CFA`, // Keep a formatted version for display
       status: 'En attente',
       date: serverTimestamp(),
     };
