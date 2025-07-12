@@ -1,8 +1,7 @@
-
 // src/app/admin/login/page.tsx
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
@@ -12,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, Mail, Loader2 } from "lucide-react";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
+import { useAuth } from "@/context/AuthContext";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
@@ -20,6 +20,15 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { user, isAdmin, loading } = useAuth();
+
+  // Redirect if already logged in as admin
+  useEffect(() => {
+    if (!loading && user && isAdmin) {
+      router.push('/admin/dashboard');
+    }
+  }, [user, isAdmin, loading, router]);
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,8 +69,16 @@ export default function AdminLoginPage() {
     }
   };
 
+  if (loading || (user && isAdmin)) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-10rem)] bg-secondary/50">
+    <div className="flex items-center justify-center min-h-screen bg-secondary/50">
       <Card className="w-full max-w-sm">
         <form onSubmit={handleLogin}>
           <CardHeader className="text-center">

@@ -16,22 +16,9 @@ const topProducts: any[] = [];
 const recentOrders: any[] = [];
 
 export default function AdminDashboardPage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/admin/login');
-    }
-  }, [user, loading, router]);
-
-  if (loading || !user) {
-    return (
-        <div className="flex items-center justify-center min-h-screen">
-            <p>Chargement...</p>
-        </div>
-    );
-  }
+  
+  // La logique de garde est maintenant dans AdminLayout.tsx
+  // Ce composant ne s'affichera que si l'utilisateur est un admin connecté.
 
   return (
     <div className="space-y-8">
