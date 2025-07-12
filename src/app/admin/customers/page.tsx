@@ -6,12 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 
-const customers = [
-  { id: "CUST-001", name: "Awa Gueye", phone: "77 123 45 67", address: "Dakar, Cité Keur Gorgui", totalSpent: "750,000 CFA" },
-  { id: "CUST-002", name: "Babacar Fall", phone: "78 987 65 43", address: "Thiès, Grand Standing", totalSpent: "1,200,000 CFA" },
-  { id: "CUST-003", name: "Ndeye Diop", phone: "76 111 22 33", address: "Dakar, Point E", totalSpent: "350,000 CFA" },
-  { id: "CUST-004", name: "Mamadou Sow", phone: "70 444 55 66", address: "Saint-Louis, Sanar", totalSpent: "1,550,000 CFA" },
-];
+const customers: any[] = [];
 
 export default function CustomersPage() {
   return (
@@ -40,14 +35,22 @@ export default function CustomersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell className="font-medium">{customer.name}</TableCell>
-                  <TableCell>{customer.phone}</TableCell>
-                  <TableCell>{customer.address}</TableCell>
-                  <TableCell className="font-semibold">{customer.totalSpent}</TableCell>
+              {customers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-24 text-center">
+                    Aucun client trouvé.
+                  </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                customers.map((customer) => (
+                  <TableRow key={customer.id}>
+                    <TableCell className="font-medium">{customer.name}</TableCell>
+                    <TableCell>{customer.phone}</TableCell>
+                    <TableCell>{customer.address}</TableCell>
+                    <TableCell className="font-semibold">{customer.totalSpent}</TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

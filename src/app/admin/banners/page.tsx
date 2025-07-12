@@ -4,17 +4,13 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle, MoreHorizontal, Link as LinkIcon } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Link as LinkIcon, Image as ImageIcon } from "lucide-react";
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-const banners = [
-  { id: 1, name: "Bannière principale - iPhone 15", imageUrl: "https://placehold.co/300x150.png", hint: "iphone hero", link: "/products/iphone-15", status: "Actif" },
-  { id: 2, name: "Promo accessoires", imageUrl: "https://placehold.co/300x150.png", hint: "phone accessory", link: "/categories/accessoires", status: "Actif" },
-  { id: 3, name: "Ancienne bannière soldes", imageUrl: "https://placehold.co/300x150.png", hint: "sale banner", link: "#", status: "Inactif" },
-];
+const banners: any[] = [];
 
 export default function BannersPage() {
   return (
@@ -44,41 +40,49 @@ export default function BannersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {banners.map((banner) => (
-                <TableRow key={banner.id}>
-                  <TableCell>
-                    <Image src={banner.imageUrl} alt={banner.name} data-ai-hint={banner.hint} width={150} height={75} className="rounded-md" />
-                  </TableCell>
-                  <TableCell className="font-medium">{banner.name}</TableCell>
-                  <TableCell>
-                    <Link href={banner.link} className="flex items-center gap-2 text-blue-600 hover:underline">
-                      <LinkIcon className="h-4 w-4" />
-                      {banner.link}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                     <Badge variant={banner.status === 'Actif' ? 'default' : 'secondary'}>
-                      {banner.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Modifier</DropdownMenuItem>
-                        <DropdownMenuItem>Désactiver</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">Supprimer</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {banners.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    Aucune bannière trouvée.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                banners.map((banner) => (
+                  <TableRow key={banner.id}>
+                    <TableCell>
+                      <Image src={banner.imageUrl} alt={banner.name} data-ai-hint={banner.hint} width={150} height={75} className="rounded-md" />
+                    </TableCell>
+                    <TableCell className="font-medium">{banner.name}</TableCell>
+                    <TableCell>
+                      <Link href={banner.link} className="flex items-center gap-2 text-blue-600 hover:underline">
+                        <LinkIcon className="h-4 w-4" />
+                        {banner.link}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                       <Badge variant={banner.status === 'Actif' ? 'default' : 'secondary'}>
+                        {banner.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                       <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem>Modifier</DropdownMenuItem>
+                          <DropdownMenuItem>Désactiver</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600">Supprimer</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

@@ -8,11 +8,7 @@ import { PlusCircle, MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-const promotions = [
-  { id: 1, name: "Promo Rentrée Scolaire", type: "Pourcentage", value: "-10%", startDate: "2024-09-01", endDate: "2024-09-30", status: "Terminée" },
-  { id: 2, name: "Cyber Monday", type: "Montant fixe", value: "-25 000 CFA", startDate: "2024-11-25", endDate: "2024-11-25", status: "Programmée" },
-  { id: 3, name: "Promo Été", type: "Pourcentage", value: "-15%", startDate: "2024-07-01", endDate: "2024-08-31", status: "Active" },
-];
+const promotions: any[] = [];
 
 export default function PromotionsPage() {
   return (
@@ -44,36 +40,44 @@ export default function PromotionsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {promotions.map((promo) => (
-                <TableRow key={promo.id}>
-                  <TableCell className="font-medium">{promo.name}</TableCell>
-                  <TableCell>{promo.type}</TableCell>
-                  <TableCell>{promo.value}</TableCell>
-                  <TableCell>{promo.startDate}</TableCell>
-                  <TableCell>{promo.endDate}</TableCell>
-                  <TableCell>
-                    <Badge variant={promo.status === 'Active' ? 'default' : promo.status === 'Programmée' ? 'secondary' : 'outline'}>
-                      {promo.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Modifier</DropdownMenuItem>
-                        <DropdownMenuItem>Désactiver</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">Supprimer</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {promotions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center">
+                    Aucune promotion trouvée.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                promotions.map((promo) => (
+                  <TableRow key={promo.id}>
+                    <TableCell className="font-medium">{promo.name}</TableCell>
+                    <TableCell>{promo.type}</TableCell>
+                    <TableCell>{promo.value}</TableCell>
+                    <TableCell>{promo.startDate}</TableCell>
+                    <TableCell>{promo.endDate}</TableCell>
+                    <TableCell>
+                      <Badge variant={promo.status === 'Active' ? 'default' : promo.status === 'Programmée' ? 'secondary' : 'outline'}>
+                        {promo.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem>Modifier</DropdownMenuItem>
+                          <DropdownMenuItem>Désactiver</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600">Supprimer</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

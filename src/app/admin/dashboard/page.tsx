@@ -11,28 +11,9 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-const salesData = [
-    { month: "Jan", sales: 4000 },
-    { month: "Fev", sales: 3000 },
-    { month: "Mar", sales: 5000 },
-    { month: "Avr", sales: 4500 },
-    { month: "Mai", sales: 6000 },
-    { month: "Juin", sales: 7500 },
-];
-
-const topProducts = [
-    { id: 1, name: "iPhone 15 Pro", sales: 120 },
-    { id: 2, name: "iPhone 14", sales: 98 },
-    { id: 3, name: "iPhone 15", sales: 85 },
-    { id: 4, name: "iPhone 13 Pro Max", sales: 72 },
-    { id: 5, name: "iPhone SE", sales: 61 },
-];
-
-const recentOrders = [
-    { id: "CMD-001", customer: "Moussa Diop", total: "150 000 CFA", status: "En cours" },
-    { id: "CMD-002", customer: "Awa Ndiaye", total: "750 000 CFA", status: "Livrée" },
-    { id: "CMD-003", customer: "Fatou Fall", total: "550 000 CFA", status: "En attente" },
-];
+const salesData: any[] = [];
+const topProducts: any[] = [];
+const recentOrders: any[] = [];
 
 export default function AdminDashboardPage() {
   const { user, loading } = useAuth();
@@ -63,8 +44,8 @@ export default function AdminDashboardPage() {
             <BarChart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12,450,000 CFA</div>
-            <p className="text-xs text-muted-foreground">+20.1% depuis le mois dernier</p>
+            <div className="text-2xl font-bold">0 CFA</div>
+            <p className="text-xs text-muted-foreground">Aucune donnée pour le mois dernier</p>
           </CardContent>
         </Card>
         <Card>
@@ -73,8 +54,8 @@ export default function AdminDashboardPage() {
             <PieChart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+235</div>
-            <p className="text-xs text-muted-foreground">+10 nouveaux ce mois-ci</p>
+            <div className="text-2xl font-bold">+0</div>
+            <p className="text-xs text-muted-foreground">0 nouveau ce mois-ci</p>
           </CardContent>
         </Card>
         <Card>
@@ -83,8 +64,8 @@ export default function AdminDashboardPage() {
             <LineChart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+89</div>
-            <p className="text-xs text-muted-foreground">+12.5% depuis le mois dernier</p>
+            <div className="text-2xl font-bold">+0</div>
+            <p className="text-xs text-muted-foreground">Aucune donnée pour le mois dernier</p>
           </CardContent>
         </Card>
       </div>
@@ -95,15 +76,21 @@ export default function AdminDashboardPage() {
                 <CardTitle>Ventes des 6 derniers mois</CardTitle>
             </CardHeader>
             <CardContent>
-                <ChartContainer config={{}} className="h-[300px] w-full">
-                    <RechartsLineChart data={salesData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Line type="monotone" dataKey="sales" stroke="hsl(var(--primary))" />
-                    </RechartsLineChart>
-                </ChartContainer>
+              <div className="h-[300px] w-full flex items-center justify-center text-muted-foreground">
+                {salesData.length === 0 ? (
+                  <p>Aucune donnée de vente disponible.</p>
+                ) : (
+                  <ChartContainer config={{}} className="h-[300px] w-full">
+                      <RechartsLineChart data={salesData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="month" />
+                          <YAxis />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Line type="monotone" dataKey="sales" stroke="hsl(var(--primary))" />
+                      </RechartsLineChart>
+                  </ChartContainer>
+                )}
+              </div>
             </CardContent>
         </Card>
 
@@ -121,12 +108,20 @@ export default function AdminDashboardPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {topProducts.map(product => (
+                  {topProducts.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={2} className="h-24 text-center">
+                        Aucun produit vendu.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    topProducts.map(product => (
                         <TableRow key={product.id}>
                             <TableCell className="font-medium">{product.name}</TableCell>
                             <TableCell className="text-right">{product.sales}</TableCell>
                         </TableRow>
-                    ))}
+                    ))
+                  )}
                 </TableBody>
             </Table>
           </CardContent>
@@ -148,18 +143,26 @@ export default function AdminDashboardPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {recentOrders.map(order => (
-                        <TableRow key={order.id}>
-                            <TableCell className="font-mono">{order.id}</TableCell>
-                            <TableCell>{order.customer}</TableCell>
-                            <TableCell>{order.total}</TableCell>
-                            <TableCell>
-                                <Badge variant={order.status === "Livrée" ? "default" : order.status === "En cours" ? "secondary" : "outline"}>
-                                    {order.status}
-                                </Badge>
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                    {recentOrders.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center">
+                          Aucune commande récente.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      recentOrders.map(order => (
+                          <TableRow key={order.id}>
+                              <TableCell className="font-mono">{order.id}</TableCell>
+                              <TableCell>{order.customer}</TableCell>
+                              <TableCell>{order.total}</TableCell>
+                              <TableCell>
+                                  <Badge variant={order.status === "Livrée" ? "default" : order.status === "En cours" ? "secondary" : "outline"}>
+                                      {order.status}
+                                  </Badge>
+                              </TableCell>
+                          </TableRow>
+                      ))
+                    )}
                 </TableBody>
             </Table>
         </CardContent>
