@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Search, MoreHorizontal, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { PlusCircle, Search, MoreHorizontal, ChevronDown, ChevronUp, Loader2, Trash } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from "react";
@@ -17,13 +17,15 @@ import {
 } from "@/components/ui/collapsible"
 import Link from "next/link";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, deleteDoc } from "firebase/firestore";
 import type { Product, Variant } from "@/types";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [openVariants, setOpenVariants] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const q = query(collection(db, "products"));
@@ -41,6 +43,17 @@ export default function ProductsPage() {
 
     return () => unsubscribe();
   }, []);
+  
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) return;
+    
+    try {
+      await deleteDoc(doc(db, "products", id));
+      toast({ title: "Succès", description: "Produit supprimé." });
+    } catch (error) {
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de supprimer le produit." });
+    }
+  };
 
   const toggleVariants = (productId: string) => {
     setOpenVariants(prev => (prev === productId ? null : productId));
@@ -106,9 +119,12 @@ export default function ProductsPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                  <DropdownMenuItem>Modifier</DropdownMenuItem>
-                  <DropdownMenuItem>Désactiver</DropdownMenuItem>
-                  <DropdownMenuItem className="text-red-600">Supprimer</DropdownMenuItem>
+                  <DropdownMenuItem disabled>Modifier</DropdownMenuItem>
+                  <DropdownMenuItem disabled>Désactiver</DropdownMenuItem>
+                  <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(product.id)}>
+                    <Trash className="mr-2 h-4 w-4" />
+                    Supprimer
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </TableCell>
@@ -126,12 +142,18 @@ export default function ProductsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {product.variants?.map((variant: Variant, index: number) => (
+                      {product.variants?.length > 0 ? product.variants.map((variant: Variant, index: number) => (
                         <TableRow key={index}>
                           <TableCell className="pl-8">{variant.storage}</TableCell>
                           <TableCell>{variant.price ? `${parseInt(variant.price, 10).toLocaleString('fr-FR')} CFA` : 'N/A'}</TableCell>
                         </TableRow>
-                      ))}
+                      )) : (
+                        <TableRow>
+                            <TableCell colSpan={2} className="text-center py-4">
+                                Aucune variante pour ce produit.
+                            </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                  </div>
@@ -183,7 +205,7 @@ export default function ProductsPage() {
                     <TableHead>Prix de base</TableHead>
                     <TableHead>Catégorie</TableHead>
                     <TableHead>Statut</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="text-right w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -201,7 +223,7 @@ export default function ProductsPage() {
                     <TableHead>Prix de base</TableHead>
                     <TableHead>Catégorie</TableHead>
                     <TableHead>Statut</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="text-right w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -219,7 +241,7 @@ export default function ProductsPage() {
                     <TableHead>Prix de base</TableHead>
                     <TableHead>Catégorie</TableHead>
                     <TableHead>Statut</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="text-right w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

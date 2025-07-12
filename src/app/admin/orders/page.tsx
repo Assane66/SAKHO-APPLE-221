@@ -5,15 +5,26 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, MoreHorizontal, Loader2 } from "lucide-react";
+import { Download, MoreHorizontal, Loader2, Truck, CheckCircle, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, DocumentData } from 'firebase/firestore';
+import { useToast } from "@/hooks/use-toast";
+
+type OrderStatus = "En attente" | "En cours" | "Livrée" | "Annulée";
+
+const statusColors: Record<OrderStatus, "default" | "secondary" | "outline" | "destructive"> = {
+  "Livrée": "default",
+  "En cours": "secondary",
+  "En attente": "outline",
+  "Annulée": "destructive",
+};
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<DocumentData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     const q = query(collection(db, "orders"));
@@ -29,11 +40,21 @@ export default function OrdersPage() {
     return () => unsubscribe();
   }, []);
 
+  const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
+    try {
+      await updateDoc(doc(db, "orders", orderId), { status });
+      toast({ title: "Succès", description: "Le statut de la commande a été mis à jour." });
+    } catch (error) {
+      console.error(error);
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de mettre à jour le statut." });
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">Commandes</h1>
-        <Button variant="outline">
+        <Button variant="outline" disabled>
           <Download className="mr-2 h-4 w-4" />
           Exporter (CSV)
         </Button>
@@ -74,10 +95,10 @@ export default function OrdersPage() {
                   <TableRow key={order.id}>
                     <TableCell className="font-mono">{order.id.substring(0, 7)}</TableCell>
                     <TableCell>{order.customerName}</TableCell>
-                    <TableCell>{new Date(order.date.seconds * 1000).toLocaleDateString()}</TableCell>
+                    <TableCell>{order.date?.seconds ? new Date(order.date.seconds * 1000).toLocaleDateString() : 'Date non disponible'}</TableCell>
                     <TableCell>{order.total}</TableCell>
                     <TableCell>
-                      <Badge variant={order.status === "Livrée" ? "default" : order.status === "En cours" ? "secondary" : "destructive"}>
+                      <Badge variant={statusColors[order.status as OrderStatus] || 'outline'}>
                         {order.status}
                       </Badge>
                     </TableCell>
@@ -90,11 +111,18 @@ export default function OrdersPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>Voir les détails</DropdownMenuItem>
+                          <DropdownMenuLabel>Changer le statut</DropdownMenuLabel>
+                          {/* <DropdownMenuItem>Voir les détails</DropdownMenuItem> */}
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem>Marquer comme "En cours"</DropdownMenuItem>
-                          <DropdownMenuItem>Marquer comme "Livrée"</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'En attente')}>
+                            <Package className="mr-2 h-4 w-4" /> En attente
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'En cours')}>
+                            <Truck className="mr-2 h-4 w-4" /> En cours
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'Livrée')}>
+                             <CheckCircle className="mr-2 h-4 w-4" /> Livrée
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

@@ -17,11 +17,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, DocumentData } from 'firebase/firestore';
+import { useToast } from "@/hooks/use-toast";
 
 export default function ExchangesPage() {
   const [exchanges, setExchanges] = useState<DocumentData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Assuming trade-in requests are stored in a collection named 'exchanges'
@@ -38,6 +40,17 @@ export default function ExchangesPage() {
 
     return () => unsubscribe();
   }, []);
+
+  const handleMarkAsProcessed = async (id: string) => {
+    try {
+      await updateDoc(doc(db, "exchanges", id), { status: "Traitée" });
+      toast({ title: "Succès", description: "La demande a été marquée comme traitée." });
+    } catch (error) {
+      console.error(error);
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de mettre à jour la demande." });
+    }
+  };
+
 
   return (
     <div className="space-y-8">
@@ -109,8 +122,8 @@ export default function ExchangesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      {exchange.status === 'En attente' && (
-                        <Button size="sm">
+                      {exchange.status !== 'Traitée' && (
+                        <Button size="sm" onClick={() => handleMarkAsProcessed(exchange.id)}>
                           <CheckCircle className="mr-2 h-4 w-4" />
                           Marquer comme traitée
                         </Button>
