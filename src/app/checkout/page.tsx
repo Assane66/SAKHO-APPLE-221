@@ -18,6 +18,7 @@ import Image from 'next/image';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
 
 const checkoutSchema = z.object({
   customerName: z.string().min(2, "Le nom est requis."),
