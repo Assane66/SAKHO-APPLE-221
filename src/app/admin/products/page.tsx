@@ -33,11 +33,12 @@ export default function ProductsPage() {
       setIsLoading(false);
     }, (error) => {
         console.error("Error fetching products: ", error);
+        toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger les produits." });
         setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [toast]);
   
   const handleDelete = async (id: string) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) return;
@@ -59,7 +60,7 @@ export default function ProductsPage() {
     if (isLoading) {
       return (
         <TableRow>
-          <TableCell colSpan={5} className="h-24 text-center">
+          <TableCell colSpan={6} className="h-24 text-center">
             <Loader2 className="mx-auto h-8 w-8 animate-spin" />
             <p>Chargement des produits...</p>
           </TableCell>
@@ -70,7 +71,7 @@ export default function ProductsPage() {
     if (productList.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={5} className="h-24 text-center">
+          <TableCell colSpan={6} className="h-24 text-center">
             Aucun produit trouvé.
           </TableCell>
         </TableRow>
@@ -88,7 +89,9 @@ export default function ProductsPage() {
         </TableCell>
         <TableCell className="font-medium">{product.name}</TableCell>
         <TableCell>{product.categoryId}</TableCell>
-        <TableCell>{product.batteryHealth}</TableCell>
+        <TableCell>
+          {product.variants?.map(v => `${v.storage}`).join(', ') || 'N/A'}
+        </TableCell>
         <TableCell>
           <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>
             {product.status === 'active' ? 'Actif' : 'Inactif'}
@@ -105,7 +108,6 @@ export default function ProductsPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem disabled>Modifier</DropdownMenuItem>
-              <DropdownMenuItem disabled>Désactiver</DropdownMenuItem>
               <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(product.id)}>
                 <Trash className="mr-2 h-4 w-4" />
                 Supprimer
@@ -155,7 +157,7 @@ export default function ProductsPage() {
                     <TableHead className="w-[60px]">Image</TableHead>
                     <TableHead>Nom du produit</TableHead>
                     <TableHead>Catégorie</TableHead>
-                    <TableHead>Batterie</TableHead>
+                    <TableHead>Stockage</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="text-right w-[100px]">Actions</TableHead>
                   </TableRow>
@@ -173,7 +175,7 @@ export default function ProductsPage() {
                     <TableHead className="w-[60px]">Image</TableHead>
                     <TableHead>Nom du produit</TableHead>
                     <TableHead>Catégorie</TableHead>
-                    <TableHead>Batterie</TableHead>
+                    <TableHead>Stockage</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="text-right w-[100px]">Actions</TableHead>
                   </TableRow>
@@ -191,7 +193,7 @@ export default function ProductsPage() {
                     <TableHead className="w-[60px]">Image</TableHead>
                     <TableHead>Nom du produit</TableHead>
                     <TableHead>Catégorie</TableHead>
-                    <TableHead>Batterie</TableHead>
+                    <TableHead>Stockage</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="text-right w-[100px]">Actions</TableHead>
                   </TableRow>

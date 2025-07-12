@@ -7,13 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Loader2, Upload } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload, Trash, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Product } from '@/types';
+import type { Product, ProductVariant } from '@/types';
 import { Textarea } from '@/components/ui/textarea';
 import { uploadImage } from './actions';
 
@@ -27,6 +27,7 @@ export default function NewProductPage() {
   const [thumbnail, setThumbnail] = useState('');
   const [batteryHealth, setBatteryHealth] = useState('');
   const [keywords, setKeywords] = useState('');
+  const [variants, setVariants] = useState<ProductVariant[]>([{ storage: '', price: 0 }]);
   
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -73,15 +74,37 @@ export default function NewProductPage() {
     }
   }
 
+  const handleVariantChange = (index: number, field: keyof ProductVariant, value: string | number) => {
+    const newVariants = [...variants];
+    const variant = newVariants[index];
+    if (field === 'price') {
+        variant[field] = Number(value);
+    } else {
+        variant[field] = value as string;
+    }
+    setVariants(newVariants);
+  };
+
+  const addVariant = () => {
+    setVariants([...variants, { storage: '', price: 0 }]);
+  };
+
+  const removeVariant = (index: number) => {
+    if (variants.length > 1) {
+      const newVariants = variants.filter((_, i) => i !== index);
+      setVariants(newVariants);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    if (!name || !slug || !categoryId || !thumbnail) {
+    if (!name || !slug || !categoryId || !thumbnail || variants.some(v => !v.storage || v.price <= 0)) {
         toast({
             variant: 'destructive',
             title: "Erreur de validation",
-            description: "Tous les champs, y compris la miniature, sont requis.",
+            description: "Veuillez remplir tous les champs et vous assurer que chaque variante a un stockage et un prix valide.",
         });
         setIsLoading(false);
         return;
@@ -96,6 +119,7 @@ export default function NewProductPage() {
         thumbnail,
         batteryHealth,
         keywords: keywords.split(',').map(k => k.trim()).filter(k => k),
+        variants,
         createdAt: serverTimestamp()
       };
 
@@ -202,6 +226,41 @@ export default function NewProductPage() {
             <div className="space-y-2">
                 <Label htmlFor="keywords">Mots-clés</Label>
                 <Textarea id="keywords" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="Séparez les mots-clés par une virgule. Ex: iphone, 11, pro, max" />
+            </div>
+
+            <div className="space-y-4">
+              <Label>Variantes de stockage et prix</Label>
+              {variants.map((variant, index) => (
+                <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
+                   <div className="flex-1 grid grid-cols-2 gap-2">
+                     <Select value={variant.storage} onValueChange={(value) => handleVariantChange(index, 'storage', value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Stockage" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="64GB">64 GB</SelectItem>
+                          <SelectItem value="128GB">128 GB</SelectItem>
+                          <SelectItem value="256GB">256 GB</SelectItem>
+                          <SelectItem value="512GB">512 GB</SelectItem>
+                          <SelectItem value="1TB">1 TB</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        placeholder="Prix (CFA)"
+                        value={variant.price === 0 ? '' : variant.price}
+                        onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
+                      />
+                   </div>
+                  <Button type="button" variant="destructive" size="icon" onClick={() => removeVariant(index)} disabled={variants.length === 1}>
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={addVariant}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Ajouter une variante
+              </Button>
             </div>
 
           </CardContent>
