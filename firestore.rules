@@ -1,0 +1,46 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Allow read/write access to authenticated users on all collections
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Explicit rules for each collection (more secure)
+    match /products/{productId} {
+      allow read: if true; // Anyone can read products
+      allow write: if request.auth != null; // Only authenticated users can write
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true; // Anyone can read categories
+      allow write: if request.auth != null;
+    }
+
+    match /orders/{orderId} {
+      allow read, write: if request.auth != null; // Only admins can see orders
+    }
+
+    match /banners/{bannerId} {
+       allow read: if true; // Anyone can read banners
+       allow write: if request.auth != null;
+    }
+
+    match /exchanges/{exchangeId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /promotions/{promoId} {
+       allow read: if true;
+       allow write: if request.auth != null;
+    }
+
+     match /flashSales/{saleId} {
+       allow read: if true;
+       allow write: if request.auth != null;
+    }
+  }
+}
