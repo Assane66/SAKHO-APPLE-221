@@ -4,6 +4,7 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import './globals.css';
 import { CartProvider } from '@/context/CartContext';
+import { WhatsAppFAB } from '@/components/whatsapp-fab';
 
 export const metadata: Metadata = {
   title: 'Khalil Apple',
@@ -29,6 +30,7 @@ export default function RootLayout({
             <Header />
             <main className="flex-1">{children}</main>
             <Footer />
+            <WhatsAppFAB />
           </div>
           <Toaster />
         </CartProvider>
