@@ -14,12 +14,11 @@ import Image from 'next/image';
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query } from "firebase/firestore";
-import type { Product } from "@/types";
+import type { Product, Variant } from "@/types";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -35,6 +34,9 @@ export default function ProductsPage() {
       });
       setProducts(productsData);
       setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching products: ", error);
+        setIsLoading(false);
     });
 
     return () => unsubscribe();
@@ -74,7 +76,7 @@ export default function ProductsPage() {
     return productList.map((product) => (
       <Collapsible asChild key={product.id}>
         <>
-          <TableRow>
+          <TableRow data-state={openVariants === product.id ? 'open' : 'closed'}>
              <TableCell>
               {product.thumbnail ? (
                 <Image src={product.thumbnail} alt={product.name} width={40} height={40} className="rounded-md object-cover" />
@@ -83,7 +85,7 @@ export default function ProductsPage() {
               )}
             </TableCell>
             <TableCell className="font-medium">{product.name}</TableCell>
-            <TableCell>{product.basePrice.toLocaleString('fr-FR')} CFA</TableCell>
+            <TableCell>{product.basePrice ? `${product.basePrice.toLocaleString('fr-FR')} CFA` : 'N/A'}</TableCell>
             <TableCell>{product.categoryId}</TableCell>
             <TableCell>
               <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>
@@ -124,10 +126,10 @@ export default function ProductsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {product.variants?.map((variant: any, index: number) => (
+                      {product.variants?.map((variant: Variant, index: number) => (
                         <TableRow key={index}>
                           <TableCell className="pl-8">{variant.storage}</TableCell>
-                          <TableCell>{variant.price}</TableCell>
+                          <TableCell>{variant.price ? `${parseInt(variant.price, 10).toLocaleString('fr-FR')} CFA` : 'N/A'}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

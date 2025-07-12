@@ -64,6 +64,16 @@ export default function NewProductPage() {
     e.preventDefault();
     setIsLoading(true);
 
+    if (!basePrice || isNaN(parseFloat(basePrice))) {
+        toast({
+            variant: 'destructive',
+            title: "Erreur de validation",
+            description: "Le prix de base est requis et doit être un nombre.",
+        });
+        setIsLoading(false);
+        return;
+    }
+    
     try {
       const productData: Omit<Product, 'id'> = {
         name,
@@ -149,7 +159,7 @@ export default function NewProductPage() {
               </div>
                <div className="space-y-2">
                 <Label htmlFor="thumbnail">URL de la miniature</Label>
-                <Input id="thumbnail" value={thumbnail} onChange={(e) => setThumbnail(e.target.value)} placeholder="https://res.cloudinary.com/..." />
+                <Input id="thumbnail" value={thumbnail} onChange={(e) => setThumbnail(e.target.value)} placeholder="https://placehold.co/400x400.png" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="status">Statut</Label>
@@ -212,7 +222,8 @@ export default function NewProductPage() {
                       <div className="space-y-2">
                         <Label htmlFor={`price-${index}`}>Prix (CFA)</Label>
                         <Input 
-                          id={`price-${index}`} 
+                          id={`price-${index}`}
+                          type="number" 
                           value={variant.price} 
                           onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
                           placeholder="Ex: 750000"
