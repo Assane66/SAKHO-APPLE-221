@@ -1,16 +1,18 @@
+
 // src/app/admin/login/page.tsx
 'use client';
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, Mail, Loader2 } from "lucide-react";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
@@ -23,12 +25,29 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      toast({
-        title: "Connexion réussie",
-        description: "Vous êtes maintenant connecté.",
-      });
-      router.push('/admin/dashboard');
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Vérifier le rôle de l'utilisateur
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists() && userDoc.data().role === 'admin') {
+        toast({
+          title: "Connexion réussie",
+          description: "Vous êtes maintenant connecté en tant qu'administrateur.",
+        });
+        router.push('/admin/dashboard');
+      } else {
+        // Déconnecter l'utilisateur s'il n'est pas admin
+        await auth.signOut();
+        toast({
+          variant: 'destructive',
+          title: "Accès refusé",
+          description: "Vous n'avez pas les permissions pour accéder à cette page.",
+        });
+      }
+
     } catch (error) {
       console.error("Erreur de connexion:", error);
       toast({

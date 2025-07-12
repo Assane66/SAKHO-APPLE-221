@@ -1,46 +1,83 @@
 
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Allow read/write access to authenticated users on all collections
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    // === UTILISATEURS ===
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Explicit rules for each collection (more secure)
+    // === PRODUITS ===
     match /products/{productId} {
-      allow read: if true; // Anyone can read products
-      allow write: if request.auth != null; // Only authenticated users can write
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
     }
 
+    // === VARIANTES DES PRODUITS ===
+    match /products/{productId}/variants/{variantId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // === CATEGORIES ===
     match /categories/{categoryId} {
-      allow read: if true; // Anyone can read categories
-      allow write: if request.auth != null;
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
     }
 
+    // === COMMANDES ===
     match /orders/{orderId} {
-      allow read, write: if request.auth != null; // Only admins can see orders
+      allow create: if true; // Permettre à n'importe quel utilisateur de créer une commande
+      allow read: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
 
-    match /banners/{bannerId} {
-       allow read: if true; // Anyone can read banners
-       allow write: if request.auth != null;
-    }
-
+    // === DEMANDES D'ÉCHANGE ===
     match /exchanges/{exchangeId} {
-      allow read, write: if request.auth != null;
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
     }
 
+    // === BANNIERES ===
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // === PROMOTIONS ===
     match /promotions/{promoId} {
-       allow read: if true;
-       allow write: if request.auth != null;
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
     }
 
-     match /flashSales/{saleId} {
-       allow read: if true;
-       allow write: if request.auth != null;
+    // === VENTES FLASH ===
+    match /flashSales/{flashId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // === PARAMÈTRES DU SITE ===
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // === CLIENTS (dérivés des commandes) ===
+    // Il n'y a pas de collection "customers" à proprement parler,
+    // donc les règles ici sont pour un cas hypothétique.
+    // L'accès est contrôlé via la collection 'orders'.
+    match /customers/{customerId} {
+      allow read, write: if isAdmin();
+    }
+
+    // === UTILITY FUNCTION ===
+    function isAdmin() {
+      // Pour qu'un utilisateur soit admin, son document dans /users/{uid}
+      // doit exister et contenir le champ role: "admin".
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
   }
 }
