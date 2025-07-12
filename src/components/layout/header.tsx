@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Smartphone, Menu } from "lucide-react";
+import { Smartphone, Menu, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
@@ -28,7 +28,12 @@ export function Header() {
           </Link>
         </nav>
         <div className="flex flex-1 items-center justify-end space-x-4">
-           <Button className="hidden md:inline-flex">Mon Compte</Button>
+           <Link href="/admin/login">
+            <Button variant="ghost" size="icon">
+              <UserCircle className="h-6 w-6" />
+              <span className="sr-only">Admin Login</span>
+            </Button>
+           </Link>
            <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" className="md:hidden">
