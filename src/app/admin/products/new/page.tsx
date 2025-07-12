@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +15,7 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Product } from '@/types';
 import { Textarea } from '@/components/ui/textarea';
+import { uploadImage } from './actions';
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -26,7 +27,11 @@ export default function NewProductPage() {
   const [thumbnail, setThumbnail] = useState('');
   const [batteryHealth, setBatteryHealth] = useState('');
   const [keywords, setKeywords] = useState('');
+  
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [fileName, setFileName] = useState('');
+
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newName = e.target.value;
@@ -34,15 +39,49 @@ export default function NewProductPage() {
     setSlug(newName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setFileName(file.name);
+    setIsUploading(true);
+    
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const result = await uploadImage(formData);
+      if (result.success && result.url) {
+        setThumbnail(result.url);
+        toast({
+          title: "Image téléversée",
+          description: "La miniature du produit a été ajoutée.",
+        });
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error("Erreur de téléversement:", error);
+      toast({
+        variant: 'destructive',
+        title: "Erreur de téléversement",
+        description: "Impossible de téléverser l'image.",
+      });
+      setFileName('');
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    if (!name || !slug || !categoryId) {
+    if (!name || !slug || !categoryId || !thumbnail) {
         toast({
             variant: 'destructive',
             title: "Erreur de validation",
-            description: "Les champs Nom, Slug et Catégorie sont requis.",
+            description: "Tous les champs, y compris la miniature, sont requis.",
         });
         setIsLoading(false);
         return;
@@ -124,10 +163,24 @@ export default function NewProductPage() {
                   </SelectContent>
                 </Select>
               </div>
-               <div className="space-y-2">
-                <Label htmlFor="thumbnail">URL de la miniature</Label>
-                <Input id="thumbnail" value={thumbnail} onChange={(e) => setThumbnail(e.target.value)} placeholder="https://placehold.co/400x400.png" />
+              <div className="space-y-2">
+                <Label htmlFor="thumbnail">Miniature du produit</Label>
+                <Button asChild variant="outline" className="w-full justify-start text-muted-foreground">
+                   <div>
+                        {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                        {isUploading ? 'Téléversement...' : (fileName || "Cliquez pour téléverser une image")}
+                        <input 
+                            type="file" 
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            disabled={isUploading}
+                        />
+                   </div>
+                </Button>
+                {thumbnail && <p className="text-xs text-muted-foreground truncate">URL: {thumbnail}</p>}
               </div>
+
               <div className="space-y-2">
                     <Label htmlFor="battery-health">Santé de la batterie</Label>
                     <Input id="battery-health" value={batteryHealth} onChange={(e) => setBatteryHealth(e.target.value)} placeholder="Ex: 90-100%" />
@@ -153,8 +206,8 @@ export default function NewProductPage() {
 
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={isLoading || isUploading}>
+              {(isLoading || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Enregistrer le produit
             </Button>
           </CardFooter>
