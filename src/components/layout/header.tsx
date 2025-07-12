@@ -45,12 +45,12 @@ export function Header() {
         </nav>
         <div className="flex flex-1 items-center justify-end space-x-2">
            <ThemeToggle />
-           <Link href="/" passHref>
-             <Button variant="ghost" size="icon">
+            <Button asChild variant="ghost" size="icon">
+              <Link href="/">
                 <Search className="h-6 w-6" />
                 <span className="sr-only">Rechercher</span>
-              </Button>
-            </Link>
+              </Link>
+            </Button>
            <Link href="/cart" passHref>
               <Button variant="ghost" size="icon" className="relative">
                 <ShoppingCart className="h-6 w-6" />
