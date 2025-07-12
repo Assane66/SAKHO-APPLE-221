@@ -10,6 +10,9 @@ interface OrderInput {
   customerPhone: string;
   customerAddress: string;
   items: CartItem[];
+  subTotal: number;
+  deliveryMethod: string;
+  deliveryCost: number;
   total: number;
 }
 
@@ -25,18 +28,24 @@ export async function createOrder(data: OrderInput): Promise<ActionResult> {
       throw new Error("Le panier ne peut pas être vide.");
     }
     
+    // Ensure items are plain objects
+    const plainItems = data.items.map(item => ({
+      id: item.id,
+      name: item.name,
+      storage: item.storage,
+      quantity: item.quantity,
+      price: item.price,
+      thumbnail: item.thumbnail
+    }));
+
     const orderData = {
       customerName: data.customerName,
       customerPhone: data.customerPhone,
       customerAddress: data.customerAddress,
-      items: data.items.map(item => ({
-        id: item.id,
-        name: item.name,
-        storage: item.storage,
-        quantity: item.quantity,
-        price: item.price,
-        thumbnail: item.thumbnail
-      })),
+      items: plainItems,
+      subTotal: data.subTotal,
+      deliveryMethod: data.deliveryMethod,
+      deliveryCost: data.deliveryCost,
       total: data.total,
       totalFormatted: `${data.total.toLocaleString('fr-FR')} CFA`,
       status: 'En attente',
@@ -49,6 +58,11 @@ export async function createOrder(data: OrderInput): Promise<ActionResult> {
 
   } catch (error) {
     console.error('Error creating order:', error);
-    return { success: false, error: 'Une erreur est survenue lors de la création de la commande.' };
+    // Check for specific Firestore errors if possible
+    if (error instanceof Error && 'code' in error) {
+       // This is a generic way to show a more specific error, you might need to adapt it
+       return { success: false, error: `Erreur Firestore: ${error.message}` };
+    }
+    return { success: false, error: 'Une erreur est survenue lors de la création de la commande. Veuillez réessayer.' };
   }
 }

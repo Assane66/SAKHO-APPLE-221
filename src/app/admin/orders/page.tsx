@@ -5,11 +5,11 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, MoreHorizontal, Loader2, Truck, CheckCircle, Package } from "lucide-react";
+import { Download, MoreHorizontal, Loader2, Truck, CheckCircle, Package, Store } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, updateDoc, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, DocumentData, orderBy } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 
 type OrderStatus = "En attente" | "En cours" | "Livrée" | "Annulée";
@@ -27,7 +27,7 @@ export default function OrdersPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, "orders"));
+    const q = query(collection(db, "orders"), orderBy("date", "desc"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const ordersData: DocumentData[] = [];
       querySnapshot.forEach((doc) => {
@@ -72,6 +72,7 @@ export default function OrdersPage() {
                 <TableHead>ID Commande</TableHead>
                 <TableHead>Client</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Livraison</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -80,13 +81,13 @@ export default function OrdersPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     <Loader2 className="mx-auto h-8 w-8 animate-spin" />
                   </TableCell>
                 </TableRow>
               ) : orders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     Aucune commande trouvée.
                   </TableCell>
                 </TableRow>
@@ -95,7 +96,13 @@ export default function OrdersPage() {
                   <TableRow key={order.id}>
                     <TableCell className="font-mono">{order.id.substring(0, 7)}</TableCell>
                     <TableCell>{order.customerName}</TableCell>
-                    <TableCell>{order.date?.seconds ? new Date(order.date.seconds * 1000).toLocaleDateString() : 'Date non disponible'}</TableCell>
+                    <TableCell>{order.date?.seconds ? new Date(order.date.seconds * 1000).toLocaleDateString('fr-FR') : 'Date non disponible'}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {order.deliveryMethod === 'Livraison à domicile' ? <Truck className="h-4 w-4" /> : <Store className="h-4 w-4" />}
+                        {order.deliveryMethod}
+                      </div>
+                    </TableCell>
                     <TableCell>{order.totalFormatted || `${order.total.toLocaleString('fr-FR')} CFA`}</TableCell>
                     <TableCell>
                       <Badge variant={statusColors[order.status as OrderStatus] || 'outline'}>
