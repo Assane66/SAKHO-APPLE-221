@@ -2,7 +2,7 @@
 'use client';
 
 import Link from "next/link";
-import { Menu, UserCircle, ShoppingCart } from "lucide-react";
+import { Menu, UserCircle, ShoppingCart, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useCart } from "@/context/CartContext";
@@ -45,6 +45,12 @@ export function Header() {
         </nav>
         <div className="flex flex-1 items-center justify-end space-x-2">
            <ThemeToggle />
+           <Link href="/" passHref>
+             <Button variant="ghost" size="icon">
+                <Search className="h-6 w-6" />
+                <span className="sr-only">Rechercher</span>
+              </Button>
+            </Link>
            <Link href="/cart" passHref>
               <Button variant="ghost" size="icon" className="relative">
                 <ShoppingCart className="h-6 w-6" />
