@@ -27,8 +27,9 @@ service cloud.firestore {
 
     // === COMMANDES ===
     match /orders/{orderId} {
-      allow create: if true; // Autoriser les invités à créer des commandes
-      allow read: if isAdmin() || resource.data.userId == request.auth.uid;
+      // N'importe qui (même non authentifié) peut créer une commande.
+      allow create: if true; 
+      allow read: if isAdmin();
       allow update, delete: if isAdmin();
     }
 
@@ -62,13 +63,13 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // === CLIENTS ===
-    match /customers/{customerId} {
-      allow read, write: if isAdmin();
-    }
+    // === CLIENTS (dérivés des commandes) ===
+    // Il n'est pas nécessaire d'avoir des règles pour une collection qui n'existe pas.
+    // Les données clients sont lues depuis la collection 'orders' par le backend admin.
 
     // === UTILITY FUNCTION ===
     function isAdmin() {
+      // Vérifie si l'utilisateur est authentifié et si son document dans la collection 'users' a le rôle 'admin'.
       return request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
