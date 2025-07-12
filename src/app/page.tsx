@@ -1,42 +1,33 @@
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Filter } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import type { Product } from '@/types';
 
-const products = [
-  {
-    name: "iPhone 15 Pro",
-    description: "Le summum de la technologie.",
-    image: "https://placehold.co/600x600.png",
-    price: "à partir de 750 000 CFA",
-    hint: "iphone front"
-  },
-  {
-    name: "iPhone 15",
-    description: "La puissance au quotidien.",
-    image: "https://placehold.co/600x600.png",
-    price: "à partir de 550 000 CFA",
-    hint: "iphone blue"
-  },
-  {
-    name: "iPhone 14 Pro",
-    description: "Une performance qui dure.",
-    image: "https://placehold.co/600x600.png",
-    price: "à partir de 600 000 CFA",
-    hint: "iphone back"
-  },
-  {
-    name: "iPhone 13",
-    description: "Un classique indémodable.",
-    image: "https://placehold.co/600x600.png",
-    price: "à partir de 350 000 CFA",
-    hint: "iphone side"
-  }
-];
+async function getProducts(): Promise<Product[]> {
+  const productsCol = collection(db, 'products');
+  const q = query(productsCol, where("status", "==", "active"));
+  const productSnapshot = await getDocs(q);
+  const productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+  return productList;
+}
 
-export default function Home() {
+export default async function Home() {
+  const products = await getProducts();
+
+  const getLowestPrice = (variants: Product['variants'] = []) => {
+    if (!variants || variants.length === 0) {
+      return null;
+    }
+    const lowest = Math.min(...variants.map(v => v.price));
+    return lowest.toLocaleString('fr-FR');
+  };
+
   return (
     <div className="flex flex-col">
       <section className="w-full py-12 md:py-24 lg:py-32 bg-secondary/50">
@@ -86,33 +77,40 @@ export default function Home() {
             </div>
           </div>
           <div className="mx-auto grid max-w-5xl items-start gap-6 py-12 lg:grid-cols-4 md:grid-cols-2">
-            {products.map((product) => (
-              <Card key={product.name} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
-                <CardHeader className="p-0">
-                  <Image
-                    src={product.image}
-                    width={600}
-                    height={600}
-                    alt={product.name}
-                    data-ai-hint={product.hint}
-                    className="aspect-square object-cover"
-                  />
-                </CardHeader>
-                <CardContent className="p-4">
-                  <Badge variant="secondary" className="mb-2">Nouveau</Badge>
-                  <CardTitle className="text-lg font-headline">{product.name}</CardTitle>
-                  <CardDescription className="text-sm">{product.description}</CardDescription>
-                </CardContent>
-                <CardFooter className="p-4 pt-0">
-                  <div className="flex flex-col w-full">
-                    <span className="text-md font-semibold text-primary">{product.price}</span>
-                    <Button className="w-full mt-2">
-                      Voir les options
-                    </Button>
-                  </div>
-                </CardFooter>
-              </Card>
-            ))}
+             {products.length === 0 ? (
+              <p className="col-span-full text-center text-muted-foreground">Aucun produit disponible pour le moment.</p>
+            ) : (
+              products.map((product) => (
+                <Card key={product.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
+                  <CardHeader className="p-0">
+                    <Image
+                      src={product.thumbnail || "https://placehold.co/600x600.png"}
+                      width={600}
+                      height={600}
+                      alt={product.name}
+                      data-ai-hint="iphone front"
+                      className="aspect-square object-cover"
+                    />
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <CardTitle className="text-lg font-headline">{product.name}</CardTitle>
+                    <CardDescription className="text-sm h-10">{product.batteryHealth ? `Batterie: ${product.batteryHealth}` : ''}</CardDescription>
+                  </CardContent>
+                  <CardFooter className="p-4 pt-0">
+                    <div className="flex flex-col w-full">
+                       {getLowestPrice(product.variants) ? (
+                        <span className="text-md font-semibold text-primary">à partir de {getLowestPrice(product.variants)} CFA</span>
+                      ) : (
+                         <span className="text-md font-semibold text-muted-foreground">Prix non disponible</span>
+                      )}
+                      <Button className="w-full mt-2">
+                        Voir les options
+                      </Button>
+                    </div>
+                  </CardFooter>
+                </Card>
+              ))
+            )}
           </div>
         </div>
       </section>
