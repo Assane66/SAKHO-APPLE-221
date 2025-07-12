@@ -5,6 +5,7 @@ import { Footer } from '@/components/layout/footer';
 import './globals.css';
 import { CartProvider } from '@/context/CartContext';
 import { WhatsAppFAB } from '@/components/whatsapp-fab';
+import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
   title: 'Khalil Apple',
@@ -28,15 +29,22 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <CartProvider>
-          <div className="relative flex min-h-screen flex-col">
-            <Header />
-            <main className="flex-1">{children}</main>
-            <Footer />
-            <WhatsAppFAB />
-          </div>
-          <Toaster />
-        </CartProvider>
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+        >
+            <CartProvider>
+              <div className="relative flex min-h-screen flex-col">
+                <Header />
+                <main className="flex-1">{children}</main>
+                <Footer />
+                <WhatsAppFAB />
+              </div>
+              <Toaster />
+            </CartProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useCart } from "@/context/CartContext";
 import { Badge } from "../ui/badge";
 import Image from "next/image";
+import { ThemeToggle } from "../theme-toggle";
 
 export function Header() {
   const { cart } = useCart();
@@ -43,6 +44,7 @@ export function Header() {
           </Link>
         </nav>
         <div className="flex flex-1 items-center justify-end space-x-2">
+           <ThemeToggle />
            <Link href="/cart" passHref>
               <Button variant="ghost" size="icon" className="relative">
                 <ShoppingCart className="h-6 w-6" />
