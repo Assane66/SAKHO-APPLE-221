@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, DocumentData } from 'firebase/firestore';
 import type { Product } from '@/types';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 async function getProducts(): Promise<Product[]> {
   const productsCol = collection(db, 'products');
@@ -17,8 +18,17 @@ async function getProducts(): Promise<Product[]> {
   return productList;
 }
 
+async function getActiveBanners(): Promise<DocumentData[]> {
+    const bannersCol = collection(db, 'banners');
+    const q = query(bannersCol, where("status", "==", "Actif"));
+    const bannerSnapshot = await getDocs(q);
+    return bannerSnapshot.docs.map(doc => doc.data());
+}
+
+
 export default async function Home() {
   const products = await getProducts();
+  const banners = await getActiveBanners();
 
   const getLowestPrice = (variants: Product['variants'] = []) => {
     if (!variants || variants.length === 0) {
@@ -54,14 +64,31 @@ export default async function Home() {
                 </Button>
               </div>
             </div>
-            <Image
-              src="https://placehold.co/600x600.png"
-              width="600"
-              height="600"
-              alt="Hero iPhone"
-              data-ai-hint="iphone hero"
-              className="mx-auto aspect-square overflow-hidden rounded-xl object-cover sm:w-full lg:order-last"
-            />
+            <div className="mx-auto w-full lg:order-last">
+                <Carousel className="w-full" opts={{ loop: true }}>
+                  <CarouselContent>
+                    {banners.map((banner, index) => (
+                       <CarouselItem key={index}>
+                         <Link href={banner.link || '#'} target="_blank" rel="noopener noreferrer">
+                           <Card className="overflow-hidden">
+                             <CardContent className="p-0">
+                               <Image
+                                 src={banner.imageUrl}
+                                 width={600}
+                                 height={600}
+                                 alt={banner.name}
+                                 className="mx-auto aspect-square overflow-hidden rounded-xl object-cover"
+                               />
+                             </CardContent>
+                           </Card>
+                         </Link>
+                       </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="left-2" />
+                  <CarouselNext className="right-2" />
+                </Carousel>
+            </div>
           </div>
         </div>
       </section>
