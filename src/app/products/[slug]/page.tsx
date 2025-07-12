@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { AlertCircle, BatteryCharging, CheckCircle, Info, Loader2, ShoppingCart, Truck } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { useCart } from '@/context/CartContext';
 
 async function getProductBySlug(slug: string): Promise<Product | null> {
   const productsRef = collection(db, 'products');
@@ -34,6 +35,7 @@ export default function ProductDetailsPage({ params }: { params: { slug: string 
   const [isLoading, setIsLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const { toast } = useToast();
+  const { addToCart } = useCart();
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -64,11 +66,21 @@ export default function ProductDetailsPage({ params }: { params: { slug: string 
   }
 
   const handleAddToCart = () => {
-    // This is where you would add logic to add the item to a shopping cart.
-    // For now, we'll just show a toast notification.
+    if (!product || !selectedVariant) return;
+    
+    addToCart({
+      id: `${product.id}-${selectedVariant.storage}`,
+      productId: product.id,
+      name: product.name,
+      storage: selectedVariant.storage,
+      price: selectedVariant.price,
+      quantity: 1,
+      thumbnail: product.thumbnail,
+    });
+    
     toast({
-        title: "Ajouté au panier (Fonctionnalité à venir)",
-        description: `${product.name} (${selectedVariant?.storage}) a été ajouté à votre panier.`,
+        title: "Produit ajouté au panier",
+        description: `${product.name} (${selectedVariant.storage}) a été ajouté à votre panier.`,
     });
   };
 

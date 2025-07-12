@@ -1,9 +1,17 @@
+// src/components/layout/header.tsx
+'use client';
+
 import Link from "next/link";
-import { Smartphone, Menu, UserCircle } from "lucide-react";
+import { Smartphone, Menu, UserCircle, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useCart } from "@/context/CartContext";
+import { Badge } from "../ui/badge";
 
 export function Header() {
+  const { cart } = useCart();
+  const itemCount = cart.reduce((total, item) => total + item.quantity, 0);
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
@@ -27,7 +35,18 @@ export function Header() {
             Contact
           </Link>
         </nav>
-        <div className="flex flex-1 items-center justify-end space-x-4">
+        <div className="flex flex-1 items-center justify-end space-x-2">
+           <Link href="/cart" passHref>
+              <Button variant="ghost" size="icon" className="relative">
+                <ShoppingCart className="h-6 w-6" />
+                {itemCount > 0 && (
+                   <Badge variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 rounded-full flex items-center justify-center">
+                    {itemCount}
+                  </Badge>
+                )}
+                <span className="sr-only">Panier</span>
+              </Button>
+            </Link>
            <Link href="/admin/login">
             <Button variant="ghost" size="icon">
               <UserCircle className="h-6 w-6" />

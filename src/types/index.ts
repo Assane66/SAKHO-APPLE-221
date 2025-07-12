@@ -17,3 +17,24 @@ export type Product = {
   variants: ProductVariant[];
   createdAt?: any; // To accommodate serverTimestamp
 };
+
+export interface CartItem {
+  id: string;
+  productId: string;
+  name: string;
+  storage: string;
+  price: number;
+  quantity: number;
+  thumbnail: string;
+}
+
+export interface Order {
+    id?: string;
+    customerName: string;
+    customerPhone: string;
+    customerAddress: string;
+    items: CartItem[];
+    total: number;
+    status: 'En attente' | 'En cours' | 'Livrée' | 'Annulée';
+    date: any; // serverTimestamp
+}
