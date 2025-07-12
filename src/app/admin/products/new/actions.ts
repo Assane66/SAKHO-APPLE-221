@@ -23,11 +23,9 @@ export async function uploadImage(formData: FormData): Promise<{success: boolean
     const buffer = Buffer.from(arrayBuffer);
     const dataURI = `data:${file.type};base64,${buffer.toString('base64')}`;
 
-    // Upload to Cloudinary using upload method which is more robust
+    // Upload to Cloudinary using the preset method, which is more robust for client-side initiated uploads via a server action.
     const uploadResult = await cloudinary.uploader.upload(dataURI, {
-      folder: 'khalil_apple',
-      // The preset can be used for unsigned uploads, but since we have a backend
-      // and secrets, a signed upload is more secure. The folder option is enough.
+      upload_preset: 'khalil_apple', // Use the provided upload preset
     });
     
     if (!uploadResult.secure_url) {
