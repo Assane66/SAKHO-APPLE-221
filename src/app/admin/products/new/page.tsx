@@ -1,13 +1,13 @@
 // src/app/admin/products/new/page.tsx
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Loader2, Upload, Trash, PlusCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, Trash, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -15,8 +15,6 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Product, ProductVariant } from '@/types';
 import { Textarea } from '@/components/ui/textarea';
-import { uploadImage } from './actions';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -31,55 +29,12 @@ export default function NewProductPage() {
   const [variants, setVariants] = useState<ProductVariant[]>([{ storage: '', price: 0 }]);
   
   const [isLoading, setIsLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [fileName, setFileName] = useState('');
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newName = e.target.value;
     setName(newName);
     setSlug(newName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
   };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setFileName(file.name);
-    setIsUploading(true);
-    setUploadError(null);
-    
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const result = await uploadImage(formData);
-      if (result.success && result.url) {
-        setThumbnail(result.url);
-        toast({
-          title: "Image téléversée",
-          description: "La miniature du produit a été ajoutée.",
-        });
-      } else {
-        throw new Error(result.error || 'Upload failed');
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Une erreur inconnue est survenue.";
-      console.error("Erreur de téléversement:", error);
-      setUploadError(errorMessage);
-      toast({
-        variant: 'destructive',
-        title: "Erreur de téléversement",
-        description: "Impossible de téléverser l'image. Voir le message ci-dessous.",
-      });
-      setFileName('');
-      setThumbnail('');
-    } finally {
-      setIsUploading(false);
-    }
-  }
 
   const handleVariantChange = (index: number, field: keyof ProductVariant, value: string | number) => {
     const newVariants = [...variants];
@@ -195,34 +150,9 @@ export default function NewProductPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="thumbnail">Miniature du produit</Label>
-                <input 
-                  type="file"
-                  className="hidden"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept="image/*"
-                  disabled={isUploading}
-                />
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="w-full justify-start text-muted-foreground"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                >
-                  {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                  {isUploading ? 'Téléversement...' : (fileName || "Cliquez pour téléverser une image")}
-                </Button>
-                {thumbnail && <p className="text-xs text-muted-foreground truncate">URL: {thumbnail}</p>}
-                {uploadError && (
-                    <Alert variant="destructive">
-                      <AlertTitle>Erreur d'upload</AlertTitle>
-                      <AlertDescription>{uploadError}</AlertDescription>
-                    </Alert>
-                )}
+                <Label htmlFor="thumbnail">URL de la miniature</Label>
+                <Input id="thumbnail" value={thumbnail} onChange={(e) => setThumbnail(e.target.value)} placeholder="https://exemple.com/image.png" required />
               </div>
-
               <div className="space-y-2">
                     <Label htmlFor="battery-health">Santé de la batterie</Label>
                     <Input id="battery-health" value={batteryHealth} onChange={(e) => setBatteryHealth(e.target.value)} placeholder="Ex: 90-100%" />
@@ -283,8 +213,8 @@ export default function NewProductPage() {
 
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isLoading || isUploading}>
-              {(isLoading || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Enregistrer le produit
             </Button>
           </CardFooter>
