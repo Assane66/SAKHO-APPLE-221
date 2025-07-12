@@ -28,11 +28,11 @@ export function Footer() {
             <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 flex-shrink-0" />
-                    <span>Dakar, Sénégal</span>
+                    <span>Dakar, Médine Rue 37 angle 18</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 flex-shrink-0" />
-                    <a href="tel:+221784513633" className="hover:underline">+221 78 451 36 33</a>
+                    <a href="tel:+221770757183" className="hover:underline">+221 77 075 71 83</a>
                 </div>
                 <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4 flex-shrink-0" />
