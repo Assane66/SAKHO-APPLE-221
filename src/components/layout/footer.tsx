@@ -57,8 +57,8 @@ export async function Footer() {
             <h4 className="font-semibold font-headline">Navigation</h4>
             <ul className="space-y-1">
               <li><Link href="/exchange" className="text-sm hover:underline">Échange</Link></li>
-              <li><Link href="#" className="text-sm hover:underline">Nos Produits</Link></li>
-              <li><Link href="#" className="text-sm hover:underline">Qui sommes-nous?</Link></li>
+              <li><Link href="/products" className="text-sm hover:underline">Nos Produits</Link></li>
+              <li><Link href="/about" className="text-sm hover:underline">Qui sommes-nous?</Link></li>
             </ul>
           </div>
           <div className="space-y-2">

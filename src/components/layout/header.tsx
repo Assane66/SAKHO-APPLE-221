@@ -40,6 +40,9 @@ export function Header() {
           <Link href="/products" className="transition-colors hover:text-foreground/80 text-foreground/60">
             Produits
           </Link>
+          <Link href="/about" className="transition-colors hover:text-foreground/80 text-foreground/60">
+            Qui sommes-nous
+          </Link>
         </nav>
         <div className="flex flex-1 items-center justify-end space-x-2">
            <ThemeToggle />
@@ -78,6 +81,7 @@ export function Header() {
                 <Link href="/" className="font-semibold">Accueil</Link>
                 <Link href="/exchange" className="font-semibold">Échange</Link>
                 <Link href="/products" className="font-semibold">Produits</Link>
+                <Link href="/about" className="font-semibold">Qui sommes-nous</Link>
                </div>
             </SheetContent>
            </Sheet>
