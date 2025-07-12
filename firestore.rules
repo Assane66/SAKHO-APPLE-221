@@ -1,17 +1,77 @@
-rules_version = '2';
 
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Allow public creation of orders, but no public read/update/delete
-    match /orders/{orderId} {
-      allow create: if true;
-      allow read, update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+    // === UTILISATEURS ===
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Allow admins to read/write any other collection
-    match /{document=**} {
-      allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    // === PRODUITS ===
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // === VARIANTES DES PRODUITS ===
+    match /products/{productId}/variants/{variantId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // === CATEGORIES ===
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // === COMMANDES ===
+    match /orders/{orderId} {
+      allow create: if request.auth != null;
+      allow read: if isAdmin() || resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // === DEMANDES D'ÉCHANGE ===
+    match /exchanges/{exchangeId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // === BANNIERES ===
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // === PROMOTIONS ===
+    match /promotions/{promoId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // === VENTES FLASH ===
+    match /flashSales/{flashId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // === PARAMÈTRES DU SITE ===
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // === CLIENTS ===
+    match /customers/{customerId} {
+      allow read, write: if isAdmin();
+    }
+
+    // === UTILITY FUNCTION ===
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
   }
 }
