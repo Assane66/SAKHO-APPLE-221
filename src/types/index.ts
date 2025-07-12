@@ -8,7 +8,16 @@ export type Variant = {
 export type Product = {
   id: string;
   name: string;
-  category: string;
-  status: 'Actif' | 'Inactif';
+  slug: string;
+  basePrice: number;
+  status: 'active' | 'inactive';
+  categoryId: string;
+  thumbnail: string;
+  description: string;
+  isNew: boolean;
+  hasWarranty: boolean;
+  batteryHealth: string;
+  deliveryInfo: string;
   variants: Variant[];
+  createdAt?: any; // To accommodate serverTimestamp
 };

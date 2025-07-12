@@ -11,9 +11,11 @@ import { Trash, PlusCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Product } from '@/types';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 
 type Variant = {
   storage: string;
@@ -23,12 +25,26 @@ type Variant = {
 export default function NewProductPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [productName, setProductName] = useState('');
-  const [category, setCategory] = useState('');
-  const [status, setStatus] = useState<'Actif' | 'Inactif'>('Actif');
+  const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [basePrice, setBasePrice] = useState('');
+  const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [categoryId, setCategoryId] = useState('');
+  const [thumbnail, setThumbnail] = useState('');
+  const [description, setDescription] = useState('');
+  const [isNew, setIsNew] = useState(true);
+  const [hasWarranty, setHasWarranty] = useState(true);
+  const [batteryHealth, setBatteryHealth] = useState('');
+  const [deliveryInfo, setDeliveryInfo] = useState('');
   const [variants, setVariants] = useState<Variant[]>([{ storage: '', price: '' }]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value;
+    setName(newName);
+    setSlug(newName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
+  };
+  
   const handleAddVariant = () => {
     setVariants([...variants, { storage: '', price: '' }]);
   };
@@ -50,17 +66,26 @@ export default function NewProductPage() {
 
     try {
       const productData: Omit<Product, 'id'> = {
-        name: productName,
-        category,
+        name,
+        slug,
+        basePrice: parseFloat(basePrice),
         status,
+        categoryId,
+        thumbnail,
+        description,
+        isNew,
+        hasWarranty,
+        batteryHealth,
+        deliveryInfo,
         variants,
+        createdAt: serverTimestamp()
       };
 
       await addDoc(collection(db, 'products'), productData);
 
       toast({
         title: "Produit ajouté",
-        description: `Le produit "${productName}" a été créé avec succès.`,
+        description: `Le produit "${name}" a été créé avec succès.`,
       });
       router.push('/admin/products');
     } catch (error) {
@@ -96,39 +121,80 @@ export default function NewProductPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="product-name">Nom du produit</Label>
-                <Input id="product-name" value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="Ex: iPhone 15 Pro" required />
+                <Input id="product-name" value={name} onChange={handleNameChange} placeholder="Ex: iPhone 15 Pro" required />
+              </div>
+               <div className="space-y-2">
+                <Label htmlFor="slug">Slug</Label>
+                <Input id="slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="Ex: iphone-15-pro" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="base-price">Prix de base (CFA)</Label>
+                <Input id="base-price" type="number" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} placeholder="Ex: 450000" required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="category">Catégorie</Label>
-                <Select value={category} onValueChange={setCategory} required>
+                <Select value={categoryId} onValueChange={setCategoryId} required>
                   <SelectTrigger id="category">
                     <SelectValue placeholder="Sélectionnez une catégorie" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="iPhone">iPhone</SelectItem>
-                    <SelectItem value="Accessoires">Accessoires</SelectItem>
-                    <SelectItem value="MacBooks">MacBooks</SelectItem>
-                    <SelectItem value="iPads">iPads</SelectItem>
+                    <SelectItem value="iphone-15">iPhone 15 Series</SelectItem>
+                    <SelectItem value="iphone-14">iPhone 14 Series</SelectItem>
+                    <SelectItem value="iphone-13">iPhone 13 Series</SelectItem>
+                    <SelectItem value="accessoires">Accessoires</SelectItem>
+                    <SelectItem value="macbooks">MacBooks</SelectItem>
+                    <SelectItem value="ipads">iPads</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+               <div className="space-y-2">
+                <Label htmlFor="thumbnail">URL de la miniature</Label>
+                <Input id="thumbnail" value={thumbnail} onChange={(e) => setThumbnail(e.target.value)} placeholder="https://res.cloudinary.com/..." />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Statut</Label>
+                <Select value={status} onValueChange={(value) => setStatus(value as 'active' | 'inactive')}>
+                  <SelectTrigger id="status" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Actif</SelectItem>
+                    <SelectItem value="inactive">Inactif</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="status">Statut</Label>
-              <Select value={status} onValueChange={(value) => setStatus(value as 'Actif' | 'Inactif')}>
-                <SelectTrigger id="status" className="w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Actif">Actif</SelectItem>
-                  <SelectItem value="Inactif">Inactif</SelectItem>
-                </SelectContent>
-              </Select>
+                <Label htmlFor="description">Description</Label>
+                <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description détaillée du produit..." />
             </div>
 
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                    <Label htmlFor="battery-health">Santé de la batterie</Label>
+                    <Input id="battery-health" value={batteryHealth} onChange={(e) => setBatteryHealth(e.target.value)} placeholder="Ex: 90-100%" />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="delivery-info">Info livraison</Label>
+                    <Input id="delivery-info" value={deliveryInfo} onChange={(e) => setDeliveryInfo(e.target.value)} placeholder="Ex: Livraison en 24-48h" />
+                </div>
+             </div>
+
+             <div className="flex items-center space-x-8">
+                <div className="flex items-center space-x-2">
+                    <Switch id="is-new" checked={isNew} onCheckedChange={setIsNew} />
+                    <Label htmlFor="is-new">Produit neuf</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <Switch id="has-warranty" checked={hasWarranty} onCheckedChange={setHasWarranty} />
+                    <Label htmlFor="has-warranty">Avec garantie</Label>
+                </div>
+             </div>
+
+
             <div>
-              <Label className="text-lg font-semibold">Variantes</Label>
+              <Label className="text-lg font-semibold">Variantes de stockage</Label>
               <div className="space-y-4 mt-2">
                 {variants.map((variant, index) => (
                   <div key={index} className="flex items-end gap-4 p-4 border rounded-lg bg-muted/50">
@@ -144,12 +210,12 @@ export default function NewProductPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`price-${index}`}>Prix</Label>
+                        <Label htmlFor={`price-${index}`}>Prix (CFA)</Label>
                         <Input 
                           id={`price-${index}`} 
                           value={variant.price} 
                           onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
-                          placeholder="Ex: 750 000 CFA"
+                          placeholder="Ex: 750000"
                           required
                         />
                       </div>

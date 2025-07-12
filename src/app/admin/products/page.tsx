@@ -10,6 +10,7 @@ import { PlusCircle, Search, MoreHorizontal, ChevronDown, ChevronUp, Loader2 } f
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from "react";
+import Image from 'next/image';
 import {
   Collapsible,
   CollapsibleContent,
@@ -43,7 +44,7 @@ export default function ProductsPage() {
     setOpenVariants(prev => (prev === productId ? null : productId));
   };
   
-  const filteredProducts = (status: 'Actif' | 'Inactif' | 'all') => {
+  const filteredProducts = (status: 'active' | 'inactive' | 'all') => {
     if (status === 'all') return products;
     return products.filter(p => p.status === status);
   }
@@ -52,7 +53,7 @@ export default function ProductsPage() {
     if (isLoading) {
       return (
         <TableRow>
-          <TableCell colSpan={5} className="h-24 text-center">
+          <TableCell colSpan={6} className="h-24 text-center">
             <Loader2 className="mx-auto h-8 w-8 animate-spin" />
             <p>Chargement des produits...</p>
           </TableCell>
@@ -63,7 +64,7 @@ export default function ProductsPage() {
     if (productList.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={5} className="h-24 text-center">
+          <TableCell colSpan={6} className="h-24 text-center">
             Aucun produit trouvé.
           </TableCell>
         </TableRow>
@@ -74,22 +75,26 @@ export default function ProductsPage() {
       <Collapsible asChild key={product.id}>
         <>
           <TableRow>
-            <TableCell>
-               <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={() => toggleVariants(product.id)}>
-                  {openVariants === product.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  <span className="sr-only">Toggle Variants</span>
-                </Button>
-               </CollapsibleTrigger>
+             <TableCell>
+              {product.thumbnail ? (
+                <Image src={product.thumbnail} alt={product.name} width={40} height={40} className="rounded-md object-cover" />
+              ) : (
+                <div className="w-10 h-10 bg-muted rounded-md" />
+              )}
             </TableCell>
             <TableCell className="font-medium">{product.name}</TableCell>
-            <TableCell>{product.category}</TableCell>
+            <TableCell>{product.basePrice.toLocaleString('fr-FR')} CFA</TableCell>
+            <TableCell>{product.categoryId}</TableCell>
             <TableCell>
-              <Badge variant={product.status === 'Actif' ? 'default' : 'secondary'}>
-                {product.status}
+              <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>
+                {product.status === 'active' ? 'Actif' : 'Inactif'}
               </Badge>
             </TableCell>
-            <TableCell className="text-right">
+            <TableCell className="text-right flex items-center justify-end">
+                <Button variant="ghost" size="sm" onClick={() => toggleVariants(product.id)}>
+                   {openVariants === product.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  <span className="sr-only">Toggle Variants</span>
+                </Button>
                <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-8 w-8 p-0">
@@ -108,7 +113,7 @@ export default function ProductsPage() {
           </TableRow>
           <CollapsibleContent asChild>
              <TableRow>
-              <TableCell colSpan={5} className="p-0">
+              <TableCell colSpan={6} className="p-0">
                  <div className="p-4 bg-muted/50">
                   <h4 className="font-semibold mb-2 ml-4">Variantes</h4>
                   <Table>
@@ -119,8 +124,8 @@ export default function ProductsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {product.variants.map((variant: any) => (
-                        <TableRow key={variant.storage}>
+                      {product.variants?.map((variant: any, index: number) => (
+                        <TableRow key={index}>
                           <TableCell className="pl-8">{variant.storage}</TableCell>
                           <TableCell>{variant.price}</TableCell>
                         </TableRow>
@@ -171,8 +176,9 @@ export default function ProductsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead className="w-[60px]">Image</TableHead>
                     <TableHead>Nom du produit</TableHead>
+                    <TableHead>Prix de base</TableHead>
                     <TableHead>Catégorie</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -188,32 +194,34 @@ export default function ProductsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead className="w-[60px]">Image</TableHead>
                     <TableHead>Nom du produit</TableHead>
+                    <TableHead>Prix de base</TableHead>
                     <TableHead>Catégorie</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {renderProductRows(filteredProducts('Actif'))}
+                  {renderProductRows(filteredProducts('active'))}
                 </TableBody>
               </Table>
             </TabsContent>
 
             <TabsContent value="inactive" className="mt-4">
-              <Table>
+               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead className="w-[60px]">Image</TableHead>
                     <TableHead>Nom du produit</TableHead>
+                    <TableHead>Prix de base</TableHead>
                     <TableHead>Catégorie</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {renderProductRows(filteredProducts('Inactif'))}
+                  {renderProductRows(filteredProducts('inactive'))}
                 </TableBody>
               </Table>
             </TabsContent>
