@@ -2,9 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, DocumentData } from 'firebase/firestore';
+import { collection, getDocs, query, where, limit } from 'firebase/firestore';
 import type { Product, ProductVariant } from '@/types';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -12,26 +13,44 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { AlertCircle, BatteryCharging, CheckCircle, Info, Loader2, ShoppingCart, Truck } from 'lucide-react';
+import { BatteryCharging, CheckCircle, Loader2, ShoppingCart, Truck } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/context/CartContext';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
-async function getProductBySlug(slug: string): Promise<Product | null> {
+
+async function getProductData(slug: string): Promise<{ product: Product | null, similarProducts: Product[] }> {
   const productsRef = collection(db, 'products');
-  const q = query(productsRef, where('slug', '==', slug), where('status', '==', 'active'));
+  const q = query(productsRef, where('slug', '==', slug), where('status', '==', 'active'), limit(1));
   const querySnapshot = await getDocs(q);
 
   if (querySnapshot.empty) {
-    return null;
+    return { product: null, similarProducts: [] };
   }
 
   const productDoc = querySnapshot.docs[0];
-  return { id: productDoc.id, ...productDoc.data() } as Product;
+  const product = { id: productDoc.id, ...productDoc.data() } as Product;
+  
+  let similarProducts: Product[] = [];
+  if (product.categoryId) {
+      const similarQuery = query(
+          productsRef,
+          where('categoryId', '==', product.categoryId),
+          where('status', '==', 'active'),
+          where('id', '!=', product.id),
+          limit(4)
+      );
+      const similarSnapshot = await getDocs(similarQuery);
+      similarProducts = similarSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+  }
+
+  return { product, similarProducts };
 }
 
 export default function ProductDetailsPage({ params }: { params: { slug: string } }) {
   const [product, setProduct] = useState<Product | null>(null);
+  const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const { toast } = useToast();
@@ -40,10 +59,12 @@ export default function ProductDetailsPage({ params }: { params: { slug: string 
   useEffect(() => {
     const fetchProduct = async () => {
       setIsLoading(true);
-      const fetchedProduct = await getProductBySlug(params.slug);
+      const { product: fetchedProduct, similarProducts: fetchedSimilar } = await getProductData(params.slug);
+      
       setProduct(fetchedProduct);
+      setSimilarProducts(fetchedSimilar);
+
       if (fetchedProduct && fetchedProduct.variants && fetchedProduct.variants.length > 0) {
-        // Sort variants by price ascending and select the first one
         const sortedVariants = [...fetchedProduct.variants].sort((a, b) => a.price - b.price);
         setSelectedVariant(sortedVariants[0]);
       }
@@ -82,6 +103,12 @@ export default function ProductDetailsPage({ params }: { params: { slug: string 
         title: "Produit ajouté au panier",
         description: `${product.name} (${selectedVariant.storage}) a été ajouté à votre panier.`,
     });
+  };
+
+  const getLowestPrice = (variants: Product['variants'] = []) => {
+    if (!variants || variants.length === 0) return null;
+    const lowest = Math.min(...variants.map(v => v.price));
+    return lowest.toLocaleString('fr-FR');
   };
 
   return (
@@ -165,6 +192,48 @@ export default function ProductDetailsPage({ params }: { params: { slug: string 
           </div>
         </div>
       </div>
+      
+      {similarProducts.length > 0 && (
+          <div className="mt-16">
+              <Separator className="my-8" />
+              <h2 className="text-2xl font-bold text-center mb-8 font-headline">Vous pourriez aussi aimer</h2>
+              <div className="grid gap-6 lg:grid-cols-4 md:grid-cols-2">
+                  {similarProducts.map((p) => (
+                      <Card key={p.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
+                          <Link href={`/products/${p.slug}`} className="block">
+                              <CardHeader className="p-0">
+                              <Image
+                                  src={p.thumbnail || "https://placehold.co/600x600.png"}
+                                  width={600}
+                                  height={600}
+                                  alt={p.name}
+                                  data-ai-hint="iphone front"
+                                  className="aspect-square object-cover"
+                              />
+                              </CardHeader>
+                          </Link>
+                          <CardContent className="p-4">
+                              <CardTitle className="text-lg font-headline h-12">
+                                  <Link href={`/products/${p.slug}`}>{p.name}</Link>
+                              </CardTitle>
+                          </CardContent>
+                          <CardFooter className="p-4 pt-0">
+                            <div className="flex flex-col w-full">
+                              {getLowestPrice(p.variants) ? (
+                                  <span className="text-md font-semibold text-primary">à partir de {getLowestPrice(p.variants)} CFA</span>
+                              ) : (
+                                  <span className="text-md font-semibold text-muted-foreground">Prix non disponible</span>
+                              )}
+                              <Link href={`/products/${p.slug}`} className="w-full mt-2" passHref>
+                                  <Button className="w-full">Voir les options</Button>
+                              </Link>
+                            </div>
+                          </CardFooter>
+                      </Card>
+                  ))}
+              </div>
+          </div>
+      )}
     </div>
   );
 }

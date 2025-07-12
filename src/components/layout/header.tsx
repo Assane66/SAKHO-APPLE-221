@@ -36,7 +36,7 @@ export function Header() {
           <Link href="/exchange" className="transition-colors hover:text-foreground/80 text-foreground/60">
             Échange
           </Link>
-          <Link href="#" className="transition-colors hover:text-foreground/80 text-foreground/60">
+          <Link href="/products" className="transition-colors hover:text-foreground/80 text-foreground/60">
             Produits
           </Link>
           <Link href="#" className="transition-colors hover:text-foreground/80 text-foreground/60">
@@ -46,7 +46,7 @@ export function Header() {
         <div className="flex flex-1 items-center justify-end space-x-2">
            <ThemeToggle />
             <Button asChild variant="ghost" size="icon">
-              <Link href="/">
+              <Link href="/products">
                 <Search className="h-6 w-6" />
                 <span className="sr-only">Rechercher</span>
               </Link>
@@ -79,7 +79,7 @@ export function Header() {
                <div className="flex flex-col p-6 space-y-4">
                 <Link href="/" className="font-semibold">Accueil</Link>
                 <Link href="/exchange" className="font-semibold">Échange</Link>
-                <Link href="#" className="font-semibold">Produits</Link>
+                <Link href="/products" className="font-semibold">Produits</Link>
                 <Link href="#" className="font-semibold">Contact</Link>
                </div>
             </SheetContent>
