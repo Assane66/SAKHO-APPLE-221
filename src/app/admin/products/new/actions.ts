@@ -20,28 +20,27 @@ export async function uploadImage(formData: FormData): Promise<{success: boolean
   try {
     // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = new Uint8Array(arrayBuffer);
+    const buffer = Buffer.from(arrayBuffer);
+    const dataURI = `data:${file.type};base64,${buffer.toString('base64')}`;
 
-    // Upload to Cloudinary
-    const uploadResult: any = await new Promise((resolve, reject) => {
-        cloudinary.uploader.upload_stream(
-            {
-                tags: ['product_thumbnail'],
-                folder: 'khalil_apple'
-            },
-            (error, result) => {
-                if (error) {
-                    reject(error);
-                    return;
-                }
-                resolve(result);
-            }
-        ).end(buffer);
+    // Upload to Cloudinary using upload method which is more robust
+    const uploadResult = await cloudinary.uploader.upload(dataURI, {
+      folder: 'khalil_apple',
+      // The preset can be used for unsigned uploads, but since we have a backend
+      // and secrets, a signed upload is more secure. The folder option is enough.
     });
+    
+    if (!uploadResult.secure_url) {
+        throw new Error("Cloudinary did not return a secure URL.");
+    }
 
     return { success: true, url: uploadResult.secure_url };
   } catch (error) {
+    let errorMessage = 'Failed to upload image.';
+    if (error instanceof Error) {
+        errorMessage = error.message;
+    }
     console.error('Cloudinary upload error:', error);
-    return { success: false, error: 'Failed to upload image.' };
+    return { success: false, error: errorMessage };
   }
 }

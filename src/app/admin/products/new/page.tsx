@@ -16,6 +16,7 @@ import { db } from '@/lib/firebase';
 import type { Product, ProductVariant } from '@/types';
 import { Textarea } from '@/components/ui/textarea';
 import { uploadImage } from './actions';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function NewProductPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState('');
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
 
@@ -47,6 +49,7 @@ export default function NewProductPage() {
 
     setFileName(file.name);
     setIsUploading(true);
+    setUploadError(null);
     
     const formData = new FormData();
     formData.append('file', file);
@@ -63,13 +66,16 @@ export default function NewProductPage() {
         throw new Error(result.error || 'Upload failed');
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Une erreur inconnue est survenue.";
       console.error("Erreur de téléversement:", error);
+      setUploadError(errorMessage);
       toast({
         variant: 'destructive',
         title: "Erreur de téléversement",
-        description: "Impossible de téléverser l'image.",
+        description: "Impossible de téléverser l'image. Voir le message ci-dessous.",
       });
       setFileName('');
+      setThumbnail('');
     } finally {
       setIsUploading(false);
     }
@@ -209,6 +215,12 @@ export default function NewProductPage() {
                   {isUploading ? 'Téléversement...' : (fileName || "Cliquez pour téléverser une image")}
                 </Button>
                 {thumbnail && <p className="text-xs text-muted-foreground truncate">URL: {thumbnail}</p>}
+                {uploadError && (
+                    <Alert variant="destructive">
+                      <AlertTitle>Erreur d'upload</AlertTitle>
+                      <AlertDescription>{uploadError}</AlertDescription>
+                    </Alert>
+                )}
               </div>
 
               <div className="space-y-2">
