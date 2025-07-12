@@ -1,7 +1,7 @@
 // src/app/admin/products/new/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,7 @@ export default function NewProductPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,18 +190,23 @@ export default function NewProductPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="thumbnail">Miniature du produit</Label>
-                <Button asChild variant="outline" className="w-full justify-start text-muted-foreground">
-                   <div>
-                        {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                        {isUploading ? 'Téléversement...' : (fileName || "Cliquez pour téléverser une image")}
-                        <input 
-                            type="file" 
-                            className="hidden"
-                            accept="image/*"
-                            onChange={handleFileChange}
-                            disabled={isUploading}
-                        />
-                   </div>
+                <input 
+                  type="file"
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  disabled={isUploading}
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full justify-start text-muted-foreground"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                >
+                  {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                  {isUploading ? 'Téléversement...' : (fileName || "Cliquez pour téléverser une image")}
                 </Button>
                 {thumbnail && <p className="text-xs text-muted-foreground truncate">URL: {thumbnail}</p>}
               </div>
