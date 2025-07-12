@@ -7,10 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash, PlusCircle, ArrowLeft } from 'lucide-react';
+import { Trash, PlusCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { addDoc, collection } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { Product } from '@/types';
 
 type Variant = {
   storage: string;
@@ -22,8 +25,9 @@ export default function NewProductPage() {
   const { toast } = useToast();
   const [productName, setProductName] = useState('');
   const [category, setCategory] = useState('');
-  const [status, setStatus] = useState('Actif');
+  const [status, setStatus] = useState<'Actif' | 'Inactif'>('Actif');
   const [variants, setVariants] = useState<Variant[]>([{ storage: '', price: '' }]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleAddVariant = () => {
     setVariants([...variants, { storage: '', price: '' }]);
@@ -40,20 +44,35 @@ export default function NewProductPage() {
     setVariants(newVariants);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, you would send this data to your backend/database
-    console.log({
-      name: productName,
-      category,
-      status,
-      variants,
-    });
-    toast({
-      title: "Produit ajouté",
-      description: `Le produit "${productName}" a été créé avec succès.`,
-    });
-    router.push('/admin/products');
+    setIsLoading(true);
+
+    try {
+      const productData: Omit<Product, 'id'> = {
+        name: productName,
+        category,
+        status,
+        variants,
+      };
+
+      await addDoc(collection(db, 'products'), productData);
+
+      toast({
+        title: "Produit ajouté",
+        description: `Le produit "${productName}" a été créé avec succès.`,
+      });
+      router.push('/admin/products');
+    } catch (error) {
+      console.error("Erreur lors de l'ajout du produit:", error);
+      toast({
+        variant: 'destructive',
+        title: "Erreur",
+        description: "Une erreur est survenue lors de la création du produit.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -97,7 +116,7 @@ export default function NewProductPage() {
             
             <div className="space-y-2">
               <Label htmlFor="status">Statut</Label>
-              <Select value={status} onValueChange={setStatus}>
+              <Select value={status} onValueChange={(value) => setStatus(value as 'Actif' | 'Inactif')}>
                 <SelectTrigger id="status" className="w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -151,7 +170,10 @@ export default function NewProductPage() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit">Enregistrer le produit</Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Enregistrer le produit
+            </Button>
           </CardFooter>
         </Card>
       </form>
