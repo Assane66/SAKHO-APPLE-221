@@ -82,18 +82,22 @@ export default async function Home() {
             ) : (
               products.map((product) => (
                 <Card key={product.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
-                  <CardHeader className="p-0">
-                    <Image
-                      src={product.thumbnail || "https://placehold.co/600x600.png"}
-                      width={600}
-                      height={600}
-                      alt={product.name}
-                      data-ai-hint="iphone front"
-                      className="aspect-square object-cover"
-                    />
-                  </CardHeader>
+                  <Link href={`/products/${product.slug}`} className="block">
+                    <CardHeader className="p-0">
+                      <Image
+                        src={product.thumbnail || "https://placehold.co/600x600.png"}
+                        width={600}
+                        height={600}
+                        alt={product.name}
+                        data-ai-hint="iphone front"
+                        className="aspect-square object-cover"
+                      />
+                    </CardHeader>
+                  </Link>
                   <CardContent className="p-4">
-                    <CardTitle className="text-lg font-headline">{product.name}</CardTitle>
+                    <CardTitle className="text-lg font-headline">
+                      <Link href={`/products/${product.slug}`}>{product.name}</Link>
+                    </CardTitle>
                     <CardDescription className="text-sm h-10">{product.batteryHealth ? `Batterie: ${product.batteryHealth}` : ''}</CardDescription>
                   </CardContent>
                   <CardFooter className="p-4 pt-0">
@@ -103,9 +107,11 @@ export default async function Home() {
                       ) : (
                          <span className="text-md font-semibold text-muted-foreground">Prix non disponible</span>
                       )}
-                      <Button className="w-full mt-2">
-                        Voir les options
-                      </Button>
+                       <Link href={`/products/${product.slug}`} className="w-full mt-2" passHref>
+                          <Button className="w-full">
+                            Voir les options
+                          </Button>
+                       </Link>
                     </div>
                   </CardFooter>
                 </Card>
