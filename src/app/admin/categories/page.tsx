@@ -1,15 +1,33 @@
 // src/app/admin/categories/page.tsx
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle, MoreHorizontal } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-
-const categories: any[] = [];
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, DocumentData } from 'firebase/firestore';
 
 export default function CategoriesPage() {
+  const [categories, setCategories] = useState<DocumentData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, "categories"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const categoriesData: DocumentData[] = [];
+      querySnapshot.forEach((doc) => {
+        categoriesData.push({ id: doc.id, ...doc.data() });
+      });
+      setCategories(categoriesData);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -35,7 +53,13 @@ export default function CategoriesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {categories.length === 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={3} className="h-24 text-center">
+                    <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+                  </TableCell>
+                </TableRow>
+              ) : categories.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={3} className="h-24 text-center">
                     Aucune catégorie trouvée.
@@ -45,7 +69,7 @@ export default function CategoriesPage() {
                 categories.map((category) => (
                   <TableRow key={category.id}>
                     <TableCell className="font-medium">{category.name}</TableCell>
-                    <TableCell>{category.productCount}</TableCell>
+                    <TableCell>{category.productCount || 0}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

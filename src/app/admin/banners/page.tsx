@@ -1,18 +1,36 @@
 // src/app/admin/banners/page.tsx
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle, MoreHorizontal, Link as LinkIcon, Image as ImageIcon } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Link as LinkIcon, Loader2 } from "lucide-react";
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-
-const banners: any[] = [];
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, DocumentData } from 'firebase/firestore';
 
 export default function BannersPage() {
+  const [banners, setBanners] = useState<DocumentData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, "banners"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const bannersData: DocumentData[] = [];
+      querySnapshot.forEach((doc) => {
+        bannersData.push({ id: doc.id, ...doc.data() });
+      });
+      setBanners(bannersData);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -40,7 +58,13 @@ export default function BannersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {banners.length === 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+                  </TableCell>
+                </TableRow>
+              ) : banners.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
                     Aucune bannière trouvée.
@@ -50,7 +74,7 @@ export default function BannersPage() {
                 banners.map((banner) => (
                   <TableRow key={banner.id}>
                     <TableCell>
-                      <Image src={banner.imageUrl} alt={banner.name} data-ai-hint={banner.hint} width={150} height={75} className="rounded-md" />
+                      <Image src={banner.imageUrl} alt={banner.name} width={150} height={75} className="rounded-md object-cover" />
                     </TableCell>
                     <TableCell className="font-medium">{banner.name}</TableCell>
                     <TableCell>

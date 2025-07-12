@@ -1,16 +1,34 @@
 // src/app/admin/orders/page.tsx
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, MoreHorizontal } from "lucide-react";
+import { Download, MoreHorizontal, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-
-const orders: any[] = [];
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, DocumentData } from 'firebase/firestore';
 
 export default function OrdersPage() {
+  const [orders, setOrders] = useState<DocumentData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, "orders"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const ordersData: DocumentData[] = [];
+      querySnapshot.forEach((doc) => {
+        ordersData.push({ id: doc.id, ...doc.data() });
+      });
+      setOrders(ordersData);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -39,7 +57,13 @@ export default function OrdersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orders.length === 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+                  </TableCell>
+                </TableRow>
+              ) : orders.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center">
                     Aucune commande trouvée.
@@ -48,9 +72,9 @@ export default function OrdersPage() {
               ) : (
                 orders.map((order) => (
                   <TableRow key={order.id}>
-                    <TableCell className="font-mono">{order.id}</TableCell>
-                    <TableCell>{order.customer}</TableCell>
-                    <TableCell>{order.date}</TableCell>
+                    <TableCell className="font-mono">{order.id.substring(0, 7)}</TableCell>
+                    <TableCell>{order.customerName}</TableCell>
+                    <TableCell>{new Date(order.date.seconds * 1000).toLocaleDateString()}</TableCell>
                     <TableCell>{order.total}</TableCell>
                     <TableCell>
                       <Badge variant={order.status === "Livrée" ? "default" : order.status === "En cours" ? "secondary" : "destructive"}>

@@ -1,16 +1,34 @@
 // src/app/admin/promo/page.tsx
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle, MoreHorizontal } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-
-const promotions: any[] = [];
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, DocumentData } from 'firebase/firestore';
 
 export default function PromotionsPage() {
+  const [promotions, setPromotions] = useState<DocumentData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, "promotions"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const promotionsData: DocumentData[] = [];
+      querySnapshot.forEach((doc) => {
+        promotionsData.push({ id: doc.id, ...doc.data() });
+      });
+      setPromotions(promotionsData);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -40,7 +58,13 @@ export default function PromotionsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {promotions.length === 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center">
+                    <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+                  </TableCell>
+                </TableRow>
+              ) : promotions.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center">
                     Aucune promotion trouvée.
@@ -52,8 +76,8 @@ export default function PromotionsPage() {
                     <TableCell className="font-medium">{promo.name}</TableCell>
                     <TableCell>{promo.type}</TableCell>
                     <TableCell>{promo.value}</TableCell>
-                    <TableCell>{promo.startDate}</TableCell>
-                    <TableCell>{promo.endDate}</TableCell>
+                    <TableCell>{new Date(promo.startDate.seconds * 1000).toLocaleDateString()}</TableCell>
+                    <TableCell>{new Date(promo.endDate.seconds * 1000).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <Badge variant={promo.status === 'Active' ? 'default' : promo.status === 'Programmée' ? 'secondary' : 'outline'}>
                         {promo.status}
