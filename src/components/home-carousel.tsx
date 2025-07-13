@@ -13,21 +13,7 @@ interface HomeCarouselProps {
 
 export function HomeCarousel({ banners }: HomeCarouselProps) {
     if (banners.length === 0) {
-        return (
-            <div className="mx-auto w-full lg:order-last">
-                <Card className="overflow-hidden">
-                    <CardContent className="p-0">
-                    <Image
-                        src="https://placehold.co/600x600.png"
-                        width={600}
-                        height={600}
-                        alt="Placeholder Banner"
-                        className="mx-auto aspect-square overflow-hidden rounded-xl object-cover"
-                    />
-                    </CardContent>
-                </Card>
-            </div>
-        )
+        return null;
     }
 
     return (
