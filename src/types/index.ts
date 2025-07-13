@@ -22,11 +22,9 @@ export type Product = {
 
 export type FlashSale = {
   id: string;
-  productId: string;
   productName: string;
   slug: string;
   thumbnail: string;
-  variantStorage: string;
   originalPrice: number;
   discountPrice: number;
   initialStock: number;

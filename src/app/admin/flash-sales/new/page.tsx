@@ -1,53 +1,99 @@
 // src/app/admin/flash-sales/new/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, UploadCloud } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { addDoc, collection, getDocs, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Product, FlashSale } from '@/types';
+import type { FlashSale } from '@/types';
 import { addHours, addDays } from 'date-fns';
+import Image from 'next/image';
+import { Progress } from '@/components/ui/progress';
 
 export default function NewFlashSalePage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [products, setProducts] = useState<Product[]>([]);
 
   // Form state
-  const [selectedProductId, setSelectedProductId] = useState<string>('');
-  const [selectedVariantStorage, setSelectedVariantStorage] = useState<string>('');
+  const [productName, setProductName] = useState('');
+  const [thumbnail, setThumbnail] = useState('');
+  const [originalPrice, setOriginalPrice] = useState<number | ''>('');
   const [discountPrice, setDiscountPrice] = useState<number | ''>('');
   const [initialStock, setInitialStock] = useState<number | ''>('');
   const [duration, setDuration] = useState<string>('');
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      const productsSnapshot = await getDocs(collection(db, 'products'));
-      const productsData = productsSnapshot.docs.map(
-        doc => ({id: doc.id, ...doc.data()} as Product)
-      );
-      setProducts(productsData);
-    };
-    fetchProducts();
-  }, []);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const selectedProduct = products.find(p => p.id === selectedProductId);
-  const selectedVariant = selectedProduct?.variants.find(v => v.storage === selectedVariantStorage);
+  const CLOUDINARY_CLOUD_NAME = 'dm6yuokre';
+  const CLOUDINARY_UPLOAD_PRESET = 'khalil_apple';
+
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    setThumbnail('');
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+    try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, true);
+        
+        xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+                const percentComplete = Math.round((event.loaded / event.total) * 100);
+                setUploadProgress(percentComplete);
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                const response = JSON.parse(xhr.responseText);
+                setThumbnail(response.secure_url);
+                toast({ title: 'Succès', description: 'Image téléversée avec succès.' });
+            } else {
+                 throw new Error(`Upload failed with status: ${xhr.status}`);
+            }
+            setIsUploading(false);
+        };
+        
+        xhr.onerror = () => {
+             toast({ variant: 'destructive', title: 'Erreur', description: "Le téléversement de l'image a échoué. Veuillez vérifier votre console." });
+             console.error('Upload Error:', xhr.statusText);
+             setIsUploading(false);
+        };
+
+        xhr.send(formData);
+
+    } catch (error) {
+        setIsUploading(false);
+        toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de téléverser l'image." });
+        console.error(error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (
-      !selectedProduct ||
-      !selectedVariant ||
+      !productName ||
+      !thumbnail ||
+      !originalPrice ||
       !discountPrice ||
       !initialStock ||
       !duration
@@ -73,13 +119,13 @@ export default function NewFlashSalePage() {
             default: throw new Error('Durée invalide');
         }
 
+        const slug = productName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
         const saleData: Omit<FlashSale, 'id'> = {
-            productId: selectedProduct.id,
-            productName: selectedProduct.name,
-            slug: selectedProduct.slug,
-            thumbnail: selectedProduct.thumbnail,
-            variantStorage: selectedVariant.storage,
-            originalPrice: selectedVariant.price,
+            productName,
+            slug,
+            thumbnail,
+            originalPrice: Number(originalPrice),
             discountPrice: Number(discountPrice),
             initialStock: Number(initialStock),
             sold: 0,
@@ -122,53 +168,54 @@ export default function NewFlashSalePage() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
             <CardContent className="space-y-6">
-                 <div className="space-y-2">
-                  <Label htmlFor="product">Produit</Label>
-                  <Select
-                    value={selectedProductId}
-                    onValueChange={value => {
-                      setSelectedProductId(value);
-                      setSelectedVariantStorage(''); // Reset variant
-                    }}
-                  >
-                    <SelectTrigger id="product">
-                      <SelectValue placeholder="Sélectionner un produit" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map(product => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-2">
+                    <Label htmlFor="productName">Nom du produit</Label>
+                    <Input
+                        id="productName"
+                        value={productName}
+                        onChange={(e) => setProductName(e.target.value)}
+                        placeholder="Ex: Coque en silicone pour iPhone 15"
+                    />
                 </div>
 
-                {selectedProduct && (
-                  <div className="space-y-2">
-                    <Label htmlFor="variant">Variante (Stockage)</Label>
-                    <Select
-                      value={selectedVariantStorage}
-                      onValueChange={setSelectedVariantStorage}
+                <div className="space-y-2">
+                    <Label>Image du produit</Label>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        ref={fileInputRef}
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
                     >
-                      <SelectTrigger id="variant">
-                        <SelectValue placeholder="Sélectionner une variante" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {selectedProduct.variants.map(variant => (
-                          <SelectItem
-                            key={variant.storage}
-                            value={variant.storage}
-                          >
-                            {variant.storage} (Prix original: {variant.price.toLocaleString('fr-FR')} CFA)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                        {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                        {isUploading ? 'Téléversement...' : 'Choisir une image'}
+                    </Button>
+                    {isUploading && <Progress value={uploadProgress} className="mt-2 w-full" />}
+                    {thumbnail && (
+                        <div className="mt-4 aspect-square relative w-40 mx-auto overflow-hidden rounded-md border">
+                            <Image src={thumbnail} alt="Aperçu du produit" fill className="object-cover" />
+                        </div>
+                    )}
+                </div>
             
                 <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="originalPrice">Prix original (CFA)</Label>
+                        <Input
+                            id="originalPrice"
+                            type="number"
+                            value={originalPrice}
+                            onChange={e => setOriginalPrice(Number(e.target.value))}
+                            placeholder="Prix avant la promotion"
+                        />
+                    </div>
                     <div className="space-y-2">
                         <Label htmlFor="discountPrice">Prix promotionnel (CFA)</Label>
                         <Input
@@ -177,9 +224,11 @@ export default function NewFlashSalePage() {
                             value={discountPrice}
                             onChange={e => setDiscountPrice(Number(e.target.value))}
                             placeholder="Nouveau prix"
-                            disabled={!selectedVariant}
                         />
                     </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                      <div className="space-y-2">
                         <Label htmlFor="initialStock">Stock initial</Label>
                         <Input
@@ -188,36 +237,34 @@ export default function NewFlashSalePage() {
                             value={initialStock}
                             onChange={e => setInitialStock(Number(e.target.value))}
                             placeholder="Quantité"
-                            disabled={!selectedVariant}
                         />
                     </div>
-                </div>
-
-                 <div className="space-y-2">
-                  <Label htmlFor="duration">Durée de la vente</Label>
-                  <Select
-                    value={duration}
-                    onValueChange={setDuration}
-                  >
-                    <SelectTrigger id="duration">
-                      <SelectValue placeholder="Choisir une durée" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="24h">24 heures</SelectItem>
-                        <SelectItem value="48h">48 heures</SelectItem>
-                        <SelectItem value="72h">72 heures</SelectItem>
-                        <SelectItem value="7j">7 jours</SelectItem>
-                        <SelectItem value="30j">30 jours</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <div className="space-y-2">
+                        <Label htmlFor="duration">Durée de la vente</Label>
+                        <Select
+                            value={duration}
+                            onValueChange={setDuration}
+                        >
+                            <SelectTrigger id="duration">
+                            <SelectValue placeholder="Choisir une durée" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="24h">24 heures</SelectItem>
+                                <SelectItem value="48h">48 heures</SelectItem>
+                                <SelectItem value="72h">72 heures</SelectItem>
+                                <SelectItem value="7j">7 jours</SelectItem>
+                                <SelectItem value="30j">30 jours</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
             </CardContent>
             <CardFooter>
-                 <Button type="submit" disabled={isSubmitting} className="w-full">
-                  {isSubmitting && (
+                 <Button type="submit" disabled={isSubmitting || isUploading} className="w-full">
+                  {(isSubmitting || isUploading) && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Enregistrer la vente flash
+                  {isSubmitting ? "Enregistrement..." : isUploading ? "En attente de l'image..." : "Enregistrer la vente flash"}
                 </Button>
             </CardFooter>
         </form>
