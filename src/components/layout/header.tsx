@@ -1,11 +1,12 @@
 
+
 // src/components/layout/header.tsx
 'use client';
 
 import Link from "next/link";
 import { Menu, UserCircle, ShoppingCart, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCart } from "@/context/CartContext";
 import { Badge } from "../ui/badge";
 import Image from "next/image";
@@ -77,6 +78,9 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left">
+               <SheetHeader>
+                 <SheetTitle className="sr-only">Menu de navigation</SheetTitle>
+               </SheetHeader>
                <div className="flex flex-col p-6 space-y-4">
                 <Link href="/" className="font-semibold">Accueil</Link>
                 <Link href="/exchange" className="font-semibold">Échange</Link>
