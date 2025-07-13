@@ -132,7 +132,7 @@ export default function FlashSalesPage() {
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem disabled>Modifier</DropdownMenuItem>
                           <DropdownMenuItem disabled>Arrêter la vente</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(sale.id)}>
+                          <DropdownMenuItem onSelect={() => handleDelete(sale.id)} className="text-destructive">
                              <Trash className="mr-2 h-4 w-4" />
                             Supprimer
                           </DropdownMenuItem>
