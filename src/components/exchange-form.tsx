@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -57,6 +57,7 @@ export function ExchangeForm() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
   const [fileName, setFileName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -65,8 +66,6 @@ export function ExchangeForm() {
     },
   });
   
-  const photoRef = form.register("photo");
-
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsPending(true);
     try {
@@ -166,24 +165,32 @@ export function ExchangeForm() {
                   <FormItem>
                     <FormLabel>Photo de votre iPhone</FormLabel>
                     <FormControl>
-                        <Button asChild variant="outline" className="w-full justify-start text-muted-foreground">
-                           <div>
-                                <Upload className="mr-2 h-4 w-4" />
-                                {fileName || "Cliquez pour télécharger une photo"}
-                                <input 
-                                    type="file" 
-                                    className="hidden"
-                                    accept="image/*"
-                                    {...photoRef}
-                                    onChange={(e) => {
-                                        field.onChange(e.target.files);
-                                        if (e.target.files && e.target.files.length > 0) {
-                                            setFileName(e.target.files[0].name);
-                                        }
-                                    }}
-                                />
-                           </div>
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full justify-start text-muted-foreground"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          {fileName || "Cliquez pour télécharger une photo"}
                         </Button>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          className="hidden"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const files = e.target.files;
+                            field.onChange(files);
+                            if (files && files.length > 0) {
+                              setFileName(files[0].name);
+                            } else {
+                              setFileName('');
+                            }
+                          }}
+                        />
+                      </>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
