@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Progress } from "@/components/ui/progress";
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, DocumentData } from 'firebase/firestore';
+import Link from 'next/link';
 
 export default function FlashSalesPage() {
   const [flashSales, setFlashSales] = useState<DocumentData[]>([]);
@@ -34,9 +35,11 @@ export default function FlashSalesPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">Ventes Flash</h1>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Créer une vente flash
+        <Button asChild>
+          <Link href="/admin/flash-sales/new">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Créer une vente flash
+          </Link>
         </Button>
       </div>
 
@@ -74,16 +77,16 @@ export default function FlashSalesPage() {
                 flashSales.map((sale) => (
                   <TableRow key={sale.id}>
                     <TableCell className="font-medium">{sale.productName}</TableCell>
-                    <TableCell className="font-semibold text-primary">{sale.discountPrice}</TableCell>
+                    <TableCell className="font-semibold text-primary">{sale.discountPrice.toLocaleString('fr-FR')} CFA</TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1">
                         <Progress value={(sale.sold / sale.initialStock) * 100} className="w-full h-2" />
                         <span className="text-xs text-muted-foreground">{sale.sold} / {sale.initialStock} vendus</span>
                       </div>
                     </TableCell>
-                    <TableCell>{new Date(sale.endDate.seconds * 1000).toLocaleDateString()}</TableCell>
+                    <TableCell>{sale.endDate?.seconds ? new Date(sale.endDate.seconds * 1000).toLocaleString('fr-FR') : 'N/A'}</TableCell>
                     <TableCell>
-                       <Badge variant={sale.status === 'Active' ? 'default' : 'outline'}>
+                       <Badge variant={sale.status === 'Actif' ? 'default' : 'outline'}>
                         {sale.status}
                       </Badge>
                     </TableCell>

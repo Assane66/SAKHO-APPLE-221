@@ -22,6 +22,7 @@ export type Product = {
 
 export type FlashSale = {
   id: string;
+  productId: string;
   productName: string;
   slug: string;
   thumbnail: string;
@@ -32,7 +33,7 @@ export type FlashSale = {
   sold: number;
   endDate: any; // Firestore timestamp
   status: 'Actif' | 'Programmé' | 'Terminé';
-  productId: string; // To link back if needed, though product info is duplicated
+  createdAt: any;
 };
 
 export interface CartItem {
