@@ -1,4 +1,6 @@
 
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -9,6 +11,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, DocumentData } from 'firebase/firestore';
 import type { Product } from '@/types';
 import { HomeCarousel } from '@/components/home-carousel';
+import { useEffect, useState } from 'react';
 
 async function getProducts(): Promise<Product[]> {
   const productsCol = collection(db, 'products');
@@ -26,9 +29,15 @@ async function getActiveBanners(): Promise<DocumentData[]> {
 }
 
 
-export default async function Home() {
-  const products = await getProducts();
-  const banners = await getActiveBanners();
+export default function Home() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [banners, setBanners] = useState<DocumentData[]>([]);
+
+  useEffect(() => {
+    getProducts().then(setProducts);
+    getActiveBanners().then(setBanners);
+  }, []);
+
 
   const getLowestPrice = (variants: Product['variants'] = []) => {
     if (!variants || variants.length === 0) {

@@ -76,8 +76,8 @@ export default function PromotionsPage() {
                     <TableCell className="font-medium">{promo.name}</TableCell>
                     <TableCell>{promo.type}</TableCell>
                     <TableCell>{promo.value}</TableCell>
-                    <TableCell>{new Date(promo.startDate.seconds * 1000).toLocaleDateString()}</TableCell>
-                    <TableCell>{new Date(promo.endDate.seconds * 1000).toLocaleDateString()}</TableCell>
+                    <TableCell>{promo.startDate?.seconds ? new Date(promo.startDate.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
+                    <TableCell>{promo.endDate?.seconds ? new Date(promo.endDate.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
                     <TableCell>
                       <Badge variant={promo.status === 'Active' ? 'default' : promo.status === 'Programmée' ? 'secondary' : 'outline'}>
                         {promo.status}
