@@ -27,12 +27,33 @@ async function getProductsAndCategories() {
   const productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
   const categoryList = categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DocumentData));
 
-  return { productList, categoryList };
+  // Fetch promotions and merge them
+  const promoQuery = query(collection(db, 'promotions'));
+  const promoSnapshot = await getDocs(promoQuery);
+  const promotions = promoSnapshot.docs.map(doc => doc.data());
+
+  const productListWithPromos = productList.map(product => {
+      const productPromos = promotions.filter(p => p.productId === product.id);
+      if (productPromos.length > 0) {
+          product.variants = product.variants.map(variant => {
+              const promo = productPromos.find(p => p.variantStorage === variant.storage);
+              if (promo) {
+                  return { ...variant, isPromo: true, promoPrice: promo.discountPrice };
+              }
+              return variant;
+          });
+      }
+      return product;
+  });
+
+
+  return { productList: productListWithPromos, categoryList };
 }
 
 const getLowestPrice = (variants: Product['variants'] = []) => {
     if (!variants || variants.length === 0) return null;
-    const lowest = Math.min(...variants.map(v => v.price));
+    const prices = variants.map(v => v.promoPrice || v.price);
+    const lowest = Math.min(...prices);
     return lowest.toLocaleString('fr-FR');
 };
 
@@ -75,10 +96,10 @@ export default function ProductsPage() {
     // Sort
     switch (sortOrder) {
       case 'price-asc':
-        filtered.sort((a, b) => (a.variants?.[0]?.price ?? 0) - (b.variants?.[0]?.price ?? 0));
+        filtered.sort((a, b) => (getLowestPrice(a.variants) ? parseFloat(getLowestPrice(a.variants)!.replace(/\s/g, '')) : Infinity) - (getLowestPrice(b.variants) ? parseFloat(getLowestPrice(b.variants)!.replace(/\s/g, '')) : Infinity));
         break;
       case 'price-desc':
-        filtered.sort((a, b) => (b.variants?.[0]?.price ?? 0) - (a.variants?.[0]?.price ?? 0));
+        filtered.sort((a, b) => (getLowestPrice(b.variants) ? parseFloat(getLowestPrice(b.variants)!.replace(/\s/g, '')) : -Infinity) - (getLowestPrice(a.variants) ? parseFloat(getLowestPrice(a.variants)!.replace(/\s/g, '')) : -Infinity));
         break;
       default:
         // Default sort (e.g., by name or creation date if available)
@@ -143,7 +164,10 @@ export default function ProductsPage() {
             filteredAndSortedProducts.map(product => (
               <Card key={product.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
                 <Link href={`/products/${product.slug}`} className="block">
-                  <CardHeader className="p-0">
+                  <CardHeader className="p-0 relative">
+                    {product.variants.some(v => v.isPromo) && (
+                        <Badge className="absolute top-2 right-2 z-10 bg-accent text-accent-foreground">Promo</Badge>
+                    )}
                     <Image
                       src={product.thumbnail || "https://placehold.co/600x600.png"}
                       width={600}

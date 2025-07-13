@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, DocumentData } from 'firebase/firestore';
 import type { Product } from '@/types';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { HomeCarousel } from '@/components/home-carousel';
 
 async function getProducts(): Promise<Product[]> {
   const productsCol = collection(db, 'products');
@@ -22,7 +22,7 @@ async function getActiveBanners(): Promise<DocumentData[]> {
     const bannersCol = collection(db, 'banners');
     const q = query(bannersCol, where("status", "==", "Actif"));
     const bannerSnapshot = await getDocs(q);
-    return bannerSnapshot.docs.map(doc => doc.data());
+    return bannerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
 
@@ -67,29 +67,7 @@ export default async function Home() {
               </div>
             </div>
             <div className="mx-auto w-full lg:order-last">
-                <Carousel className="w-full" opts={{ loop: true }}>
-                  <CarouselContent>
-                    {banners.map((banner, index) => (
-                       <CarouselItem key={index}>
-                         <Link href={banner.link || '#'} target="_blank" rel="noopener noreferrer">
-                           <Card className="overflow-hidden">
-                             <CardContent className="p-0">
-                               <Image
-                                 src={banner.imageUrl}
-                                 width={600}
-                                 height={600}
-                                 alt={banner.name}
-                                 className="mx-auto aspect-square overflow-hidden rounded-xl object-cover"
-                               />
-                             </CardContent>
-                           </Card>
-                         </Link>
-                       </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  <CarouselPrevious className="left-2" />
-                  <CarouselNext className="right-2" />
-                </Carousel>
+                <HomeCarousel banners={banners} />
             </div>
           </div>
         </div>

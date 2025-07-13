@@ -3,6 +3,8 @@
 export type ProductVariant = {
   storage: string;
   price: number;
+  isPromo?: boolean;
+  promoPrice?: number;
 };
 
 export type Product = {
@@ -17,6 +19,22 @@ export type Product = {
   variants: ProductVariant[];
   createdAt?: any; // To accommodate serverTimestamp
 };
+
+export type FlashSale = {
+    id: string;
+    productName: string;
+    slug: string;
+    thumbnail: string;
+    variantStorage: string;
+    originalPrice: number;
+    discountPrice: number;
+    initialStock: number;
+    sold: number;
+    endDate: any; // Firestore timestamp
+    status: 'Actif' | 'Programmé' | 'Terminé';
+    productId: string; // To link back if needed, though product info is duplicated
+};
+
 
 export interface CartItem {
   id: string;
@@ -38,3 +56,14 @@ export interface Order {
     status: 'En attente' | 'En cours' | 'Livrée' | 'Annulée';
     date: any; // serverTimestamp
 }
+
+export interface Promotion {
+    id: string;
+    productId: string;
+    productName: string;
+    variantStorage: string;
+    discountPrice: number;
+    status: 'Actif' | 'Inactif';
+    createdAt: any;
+}
+
