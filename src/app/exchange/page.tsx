@@ -164,7 +164,7 @@ export default function ExchangePage() {
                   <FormItem>
                     <FormLabel>Photos de votre téléphone</FormLabel>
                     <FormControl>
-                      <>
+                      <div className="space-y-2">
                         <Button
                           type="button"
                           variant="outline"
@@ -190,7 +190,7 @@ export default function ExchangePage() {
                             }
                           }}
                         />
-                      </>
+                      </div>
                     </FormControl>
                      {fileNames.length > 0 && (
                         <div className="text-xs text-muted-foreground pt-1">
