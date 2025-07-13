@@ -1,57 +1,322 @@
 // src/app/admin/promo/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle, MoreHorizontal, Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, DocumentData } from 'firebase/firestore';
+import {useState, useEffect} from 'react';
+import {Button} from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  PlusCircle,
+  MoreHorizontal,
+  Loader2,
+  Trash,
+  Calendar as CalendarIcon,
+} from 'lucide-react';
+import {Badge} from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {Input} from '@/components/ui/input';
+import {Label} from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {db} from '@/lib/firebase';
+import {
+  collection,
+  onSnapshot,
+  query,
+  doc,
+  deleteDoc,
+  getDocs,
+  DocumentData,
+} from 'firebase/firestore';
+import {useToast} from '@/hooks/use-toast';
+import type {Product, ProductVariant, Promotion} from '@/types';
+import {createPromotion} from './actions';
+import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
+import {Calendar} from '@/components/ui/calendar';
+import {format} from 'date-fns';
+import {cn} from '@/lib/utils';
 
 export default function PromotionsPage() {
-  const [promotions, setPromotions] = useState<DocumentData[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form state
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [selectedVariantStorage, setSelectedVariantStorage] =
+    useState<string>('');
+  const [discountPrice, setDiscountPrice] = useState<number | ''>('');
+  const [endDate, setEndDate] = useState<Date | undefined>();
+
+  const {toast} = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, "promotions"));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const promotionsData: DocumentData[] = [];
-      querySnapshot.forEach((doc) => {
-        promotionsData.push({ id: doc.id, ...doc.data() });
+    const q = query(collection(db, 'promotions'));
+    const unsubscribe = onSnapshot(q, querySnapshot => {
+      const promotionsData: Promotion[] = [];
+      querySnapshot.forEach(doc => {
+        promotionsData.push({id: doc.id, ...doc.data()} as Promotion);
       });
       setPromotions(promotionsData);
       setIsLoading(false);
     });
 
+    const fetchProducts = async () => {
+      const productsSnapshot = await getDocs(collection(db, 'products'));
+      const productsData = productsSnapshot.docs.map(
+        doc => ({id: doc.id, ...doc.data()} as Product)
+      );
+      setProducts(productsData);
+    };
+
+    fetchProducts();
     return () => unsubscribe();
   }, []);
+
+  const selectedProduct = products.find(p => p.id === selectedProductId);
+  const selectedVariant = selectedProduct?.variants.find(
+    v => v.storage === selectedVariantStorage
+  );
+
+  const handleAddPromotion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (
+      !selectedProduct ||
+      !selectedVariant ||
+      !discountPrice ||
+      !endDate
+    ) {
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: 'Veuillez remplir tous les champs.',
+      });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const result = await createPromotion({
+        productId: selectedProduct.id,
+        productName: selectedProduct.name,
+        variantStorage: selectedVariant.storage,
+        originalPrice: selectedVariant.price,
+        discountPrice: Number(discountPrice),
+        endDate: endDate,
+      });
+
+      if (result.success) {
+        toast({title: 'Succès', description: 'La promotion a été ajoutée.'});
+        setIsDialogOpen(false);
+        // Reset form
+        setSelectedProductId('');
+        setSelectedVariantStorage('');
+        setDiscountPrice('');
+        setEndDate(undefined);
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: "Impossible d'ajouter la promotion.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'promotions', id));
+      toast({title: 'Succès', description: 'Promotion supprimée.'});
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: 'Impossible de supprimer la promotion.',
+      });
+    }
+  };
 
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">Promotions</h1>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Ajouter une promotion
-        </Button>
+        <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
+          Promotions
+        </h1>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Ajouter une promotion
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <form onSubmit={handleAddPromotion}>
+              <DialogHeader>
+                <DialogTitle>Créer une nouvelle promotion</DialogTitle>
+                <DialogDescription>
+                  Sélectionnez un produit, une variante, et définissez le prix
+                  réduit et la date de fin.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="product">Produit</Label>
+                  <Select
+                    value={selectedProductId}
+                    onValueChange={value => {
+                      setSelectedProductId(value);
+                      setSelectedVariantStorage(''); // Reset variant on product change
+                    }}
+                  >
+                    <SelectTrigger id="product">
+                      <SelectValue placeholder="Sélectionner un produit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map(product => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {selectedProduct && (
+                  <div className="space-y-2">
+                    <Label htmlFor="variant">Variante (Stockage)</Label>
+                    <Select
+                      value={selectedVariantStorage}
+                      onValueChange={setSelectedVariantStorage}
+                    >
+                      <SelectTrigger id="variant">
+                        <SelectValue placeholder="Sélectionner une variante" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedProduct.variants.map(variant => (
+                          <SelectItem
+                            key={variant.storage}
+                            value={variant.storage}
+                          >
+                            {variant.storage} (
+                            {variant.price.toLocaleString('fr-FR')} CFA)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="discountPrice">Prix promotionnel (CFA)</Label>
+                  <Input
+                    id="discountPrice"
+                    type="number"
+                    value={discountPrice}
+                    onChange={e => setDiscountPrice(Number(e.target.value))}
+                    placeholder="Nouveau prix"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">Date de fin</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={'outline'}
+                        className={cn(
+                          'w-full justify-start text-left font-normal',
+                          !endDate && 'text-muted-foreground'
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {endDate ? (
+                          format(endDate, 'PPP')
+                        ) : (
+                          <span>Choisir une date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="secondary">
+                    Annuler
+                  </Button>
+                </DialogClose>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Enregistrer
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Liste des promotions</CardTitle>
-          <CardDescription>Gérez les offres spéciales et les réductions.</CardDescription>
+          <CardDescription>
+            Gérez les offres spéciales et les réductions.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Valeur</TableHead>
-                <TableHead>Date de début</TableHead>
+                <TableHead>Produit</TableHead>
+                <TableHead>Variante</TableHead>
+                <TableHead>Prix Original</TableHead>
+                <TableHead>Prix Réduit</TableHead>
                 <TableHead>Date de fin</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -71,15 +336,31 @@ export default function PromotionsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                promotions.map((promo) => (
+                promotions.map(promo => (
                   <TableRow key={promo.id}>
-                    <TableCell className="font-medium">{promo.name}</TableCell>
-                    <TableCell>{promo.type}</TableCell>
-                    <TableCell>{promo.value}</TableCell>
-                    <TableCell>{promo.startDate?.seconds ? new Date(promo.startDate.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
-                    <TableCell>{promo.endDate?.seconds ? new Date(promo.endDate.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
+                    <TableCell className="font-medium">
+                      {promo.productName}
+                    </TableCell>
+                    <TableCell>{promo.variantStorage}</TableCell>
                     <TableCell>
-                      <Badge variant={promo.status === 'Active' ? 'default' : promo.status === 'Programmée' ? 'secondary' : 'outline'}>
+                      {promo.originalPrice?.toLocaleString('fr-FR')} CFA
+                    </TableCell>
+                    <TableCell className="font-semibold text-primary">
+                      {promo.discountPrice.toLocaleString('fr-FR')} CFA
+                    </TableCell>
+                    <TableCell>
+                      {promo.endDate?.seconds
+                        ? new Date(
+                            promo.endDate.seconds * 1000
+                          ).toLocaleDateString('fr-FR')
+                        : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          promo.status === 'Actif' ? 'default' : 'outline'
+                        }
+                      >
                         {promo.status}
                       </Badge>
                     </TableCell>
@@ -93,9 +374,13 @@ export default function PromotionsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>Modifier</DropdownMenuItem>
-                          <DropdownMenuItem>Désactiver</DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">Supprimer</DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => handleDelete(promo.id)}
+                          >
+                            <Trash className="mr-2 h-4 w-4" />
+                            Supprimer
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
