@@ -23,7 +23,6 @@ import {
   MoreHorizontal,
   Loader2,
   Trash,
-  Calendar as CalendarIcon,
 } from 'lucide-react';
 import {Badge} from '@/components/ui/badge';
 import {
@@ -60,15 +59,10 @@ import {
   doc,
   deleteDoc,
   getDocs,
-  DocumentData,
 } from 'firebase/firestore';
 import {useToast} from '@/hooks/use-toast';
-import type {Product, ProductVariant, Promotion} from '@/types';
+import type {Product, Promotion} from '@/types';
 import {createPromotion} from './actions';
-import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
-import {Calendar} from '@/components/ui/calendar';
-import {format} from 'date-fns';
-import {cn} from '@/lib/utils';
 
 export default function PromotionsPage() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -82,7 +76,7 @@ export default function PromotionsPage() {
   const [selectedVariantStorage, setSelectedVariantStorage] =
     useState<string>('');
   const [discountPrice, setDiscountPrice] = useState<number | ''>('');
-  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [duration, setDuration] = useState<string>('');
 
   const {toast} = useToast();
 
@@ -120,7 +114,7 @@ export default function PromotionsPage() {
       !selectedProduct ||
       !selectedVariant ||
       !discountPrice ||
-      !endDate
+      !duration
     ) {
       toast({
         variant: 'destructive',
@@ -137,7 +131,7 @@ export default function PromotionsPage() {
         variantStorage: selectedVariant.storage,
         originalPrice: selectedVariant.price,
         discountPrice: Number(discountPrice),
-        endDate: endDate,
+        duration: duration,
       });
 
       if (result.success) {
@@ -147,7 +141,7 @@ export default function PromotionsPage() {
         setSelectedProductId('');
         setSelectedVariantStorage('');
         setDiscountPrice('');
-        setEndDate(undefined);
+        setDuration('');
       } else {
         throw new Error(result.error);
       }
@@ -195,7 +189,7 @@ export default function PromotionsPage() {
                 <DialogTitle>Créer une nouvelle promotion</DialogTitle>
                 <DialogDescription>
                   Sélectionnez un produit, une variante, et définissez le prix
-                  réduit et la date de fin.
+                  réduit et la durée.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -255,33 +249,22 @@ export default function PromotionsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="endDate">Date de fin</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={'outline'}
-                        className={cn(
-                          'w-full justify-start text-left font-normal',
-                          !endDate && 'text-muted-foreground'
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {endDate ? (
-                          format(endDate, 'PPP')
-                        ) : (
-                          <span>Choisir une date</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={endDate}
-                        onSelect={setEndDate}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Label htmlFor="duration">Durée de la promotion</Label>
+                  <Select
+                    value={duration}
+                    onValueChange={setDuration}
+                  >
+                    <SelectTrigger id="duration">
+                      <SelectValue placeholder="Choisir une durée" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="24h">24 heures</SelectItem>
+                        <SelectItem value="48h">48 heures</SelectItem>
+                        <SelectItem value="72h">72 heures</SelectItem>
+                        <SelectItem value="7j">7 jours</SelectItem>
+                        <SelectItem value="30j">30 jours</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <DialogFooter>
@@ -352,7 +335,7 @@ export default function PromotionsPage() {
                       {promo.endDate?.seconds
                         ? new Date(
                             promo.endDate.seconds * 1000
-                          ).toLocaleDateString('fr-FR')
+                          ).toLocaleString('fr-FR')
                         : 'N/A'}
                     </TableCell>
                     <TableCell>

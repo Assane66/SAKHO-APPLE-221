@@ -3,10 +3,11 @@
 import {db} from '@/lib/firebase';
 import {collection, addDoc, serverTimestamp} from 'firebase/firestore';
 import type {Promotion} from '@/types';
+import { addHours, addDays } from 'date-fns';
 
 interface CreatePromotionInput
-  extends Omit<Promotion, 'id' | 'status' | 'createdAt'> {
-  endDate: Date;
+  extends Omit<Promotion, 'id' | 'status' | 'createdAt' | 'endDate'> {
+  duration: string;
 }
 
 interface ActionResult {
@@ -18,10 +19,38 @@ export async function createPromotion(
   data: CreatePromotionInput
 ): Promise<ActionResult> {
   try {
+    const now = new Date();
+    let endDate: Date;
+
+    switch (data.duration) {
+        case '24h':
+            endDate = addHours(now, 24);
+            break;
+        case '48h':
+            endDate = addHours(now, 48);
+            break;
+        case '72h':
+            endDate = addHours(now, 72);
+            break;
+        case '7j':
+            endDate = addDays(now, 7);
+            break;
+        case '30j':
+            endDate = addDays(now, 30);
+            break;
+        default:
+            throw new Error('Durée invalide');
+    }
+
     const promoData = {
-      ...data,
+      productId: data.productId,
+      productName: data.productName,
+      variantStorage: data.variantStorage,
+      originalPrice: data.originalPrice,
+      discountPrice: data.discountPrice,
       status: 'Actif',
       createdAt: serverTimestamp(),
+      endDate,
     };
     await addDoc(collection(db, 'promotions'), promoData);
     return {success: true};
