@@ -59,11 +59,6 @@ export default async function Home() {
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
-                <Link href="/products">
-                  <Button size="lg" variant="outline">
-                    Voir les produits
-                  </Button>
-                </Link>
               </div>
             </div>
             <div className="mx-auto w-full lg:order-last">
