@@ -82,9 +82,7 @@ export async function Footer() {
             <h4 className="font-semibold font-headline">Suivez-nous</h4>
             {/* Placeholder for social links */}
             <div className="flex space-x-4">
-                <Link href="#" aria-label="Facebook page"><span className="text-sm hover:underline">Facebook</span></Link>
-                <Link href="#" aria-label="Instagram page"><span className="text-sm hover:underline">Instagram</span></Link>
-                <Link href="#" aria-label="Twitter page"><span className="text-sm hover:underline">Twitter</span></Link>
+                <Link href="https://vm.tiktok.com/ZMHgBjJwjqgsS-ysH6R/" aria-label="TikTok page"><span className="text-sm hover:underline">TikTok</span></Link>
             </div>
           </div>
         </div>
