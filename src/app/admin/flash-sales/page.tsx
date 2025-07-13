@@ -12,17 +12,18 @@ import { Progress } from "@/components/ui/progress";
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, DocumentData } from 'firebase/firestore';
 import Link from 'next/link';
+import type { FlashSale } from '@/types';
 
 export default function FlashSalesPage() {
-  const [flashSales, setFlashSales] = useState<DocumentData[]>([]);
+  const [flashSales, setFlashSales] = useState<FlashSale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const q = query(collection(db, "flashSales"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const salesData: DocumentData[] = [];
+      const salesData: FlashSale[] = [];
       querySnapshot.forEach((doc) => {
-        salesData.push({ id: doc.id, ...doc.data() });
+        salesData.push({ id: doc.id, ...doc.data() } as FlashSale);
       });
       setFlashSales(salesData);
       setIsLoading(false);
@@ -30,6 +31,16 @@ export default function FlashSalesPage() {
 
     return () => unsubscribe();
   }, []);
+
+  const getSaleProgress = (sale: FlashSale) => {
+    if (!sale.variants || sale.variants.length === 0) return { totalInitial: 0, totalSold: 0, percentage: 0 };
+
+    const totalInitial = sale.variants.reduce((acc, v) => acc + v.initialStock, 0);
+    const totalSold = sale.variants.reduce((acc, v) => acc + v.sold, 0);
+    const percentage = totalInitial > 0 ? (totalSold / totalInitial) * 100 : 0;
+    
+    return { totalInitial, totalSold, percentage };
+  };
 
   return (
     <div className="space-y-8">
@@ -53,7 +64,7 @@ export default function FlashSalesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Produit</TableHead>
-                <TableHead>Prix réduit</TableHead>
+                <TableHead>Prix (à partir de)</TableHead>
                 <TableHead>Progression</TableHead>
                 <TableHead>Fin</TableHead>
                 <TableHead>Statut</TableHead>
@@ -74,14 +85,19 @@ export default function FlashSalesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                flashSales.map((sale) => (
+                flashSales.map((sale) => {
+                  const { totalInitial, totalSold, percentage } = getSaleProgress(sale);
+                  const lowestPrice = sale.variants?.length > 0 ? Math.min(...sale.variants.map(v => v.discountPrice)) : 0;
+                  return (
                   <TableRow key={sale.id}>
                     <TableCell className="font-medium">{sale.productName}</TableCell>
-                    <TableCell className="font-semibold text-primary">{sale.discountPrice.toLocaleString('fr-FR')} CFA</TableCell>
+                    <TableCell className="font-semibold text-primary">
+                      {lowestPrice > 0 ? `${lowestPrice.toLocaleString('fr-FR')} CFA` : 'N/A'}
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1">
-                        <Progress value={(sale.sold / sale.initialStock) * 100} className="w-full h-2" />
-                        <span className="text-xs text-muted-foreground">{sale.sold} / {sale.initialStock} vendus</span>
+                        <Progress value={percentage} className="w-full h-2" />
+                        <span className="text-xs text-muted-foreground">{totalSold} / {totalInitial} vendus</span>
                       </div>
                     </TableCell>
                     <TableCell>{sale.endDate?.seconds ? new Date(sale.endDate.seconds * 1000).toLocaleString('fr-FR') : 'N/A'}</TableCell>
@@ -107,7 +123,7 @@ export default function FlashSalesPage() {
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))
+                )})
               )}
             </TableBody>
           </Table>

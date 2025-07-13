@@ -7,13 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Loader2, UploadCloud } from 'lucide-react';
+import { ArrowLeft, Loader2, UploadCloud, PlusCircle, Trash } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { FlashSale } from '@/types';
+import type { FlashSale, FlashSaleVariant } from '@/types';
 import { addHours, addDays } from 'date-fns';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -26,9 +26,7 @@ export default function NewFlashSalePage() {
   // Form state
   const [productName, setProductName] = useState('');
   const [thumbnail, setThumbnail] = useState('');
-  const [originalPrice, setOriginalPrice] = useState<number | ''>('');
-  const [discountPrice, setDiscountPrice] = useState<number | ''>('');
-  const [initialStock, setInitialStock] = useState<number | ''>('');
+  const [variants, setVariants] = useState<FlashSaleVariant[]>([{ storage: '', originalPrice: 0, discountPrice: 0, initialStock: 0, sold: 0 }]);
   const [duration, setDuration] = useState<string>('');
 
   const [isUploading, setIsUploading] = useState(false);
@@ -37,6 +35,28 @@ export default function NewFlashSalePage() {
 
   const CLOUDINARY_CLOUD_NAME = 'dm6yuokre';
   const CLOUDINARY_UPLOAD_PRESET = 'khalil_apple';
+
+  const handleVariantChange = (index: number, field: keyof Omit<FlashSaleVariant, 'sold'>, value: string | number) => {
+    const newVariants = [...variants];
+    const variant = newVariants[index];
+    if (typeof variant[field] === 'number') {
+        variant[field] = Number(value);
+    } else {
+        variant[field] = value as string;
+    }
+    setVariants(newVariants);
+  };
+
+  const addVariant = () => {
+    setVariants([...variants, { storage: '', originalPrice: 0, discountPrice: 0, initialStock: 0, sold: 0 }]);
+  };
+
+  const removeVariant = (index: number) => {
+    if (variants.length > 1) {
+      const newVariants = variants.filter((_, i) => i !== index);
+      setVariants(newVariants);
+    }
+  };
 
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,42 +113,29 @@ export default function NewFlashSalePage() {
     if (
       !productName ||
       !thumbnail ||
-      !originalPrice ||
-      !discountPrice ||
-      !initialStock ||
-      !duration
+      !duration ||
+      variants.some(v => !v.storage || !v.originalPrice || !v.discountPrice || !v.initialStock)
     ) {
       toast({
         variant: 'destructive',
         title: 'Erreur',
-        description: 'Veuillez remplir tous les champs.',
+        description: 'Veuillez remplir tous les champs, y compris au moins une variante complète.',
       });
       return;
     }
     setIsSubmitting(true);
     try {
         const now = new Date();
-        let endDate: Date;
-
-        switch (duration) {
-            case '24h': endDate = addHours(now, 24); break;
-            case '48h': endDate = addHours(now, 48); break;
-            case '72h': endDate = addHours(now, 72); break;
-            case '7j': endDate = addDays(now, 7); break;
-            case '30j': endDate = addDays(now, 30); break;
-            default: throw new Error('Durée invalide');
-        }
-
+        const durationHours = parseInt(duration, 10);
+        const endDate: Date = addHours(now, durationHours);
+        
         const slug = productName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
         const saleData: Omit<FlashSale, 'id'> = {
             productName,
             slug,
             thumbnail,
-            originalPrice: Number(originalPrice),
-            discountPrice: Number(discountPrice),
-            initialStock: Number(initialStock),
-            sold: 0,
+            variants,
             status: 'Actif',
             createdAt: serverTimestamp(),
             endDate,
@@ -161,21 +168,43 @@ export default function NewFlashSalePage() {
         </Button>
       </div>
 
-      <Card className="max-w-2xl mx-auto">
+      <Card className="max-w-4xl mx-auto">
         <CardHeader>
           <CardTitle>Créer une nouvelle vente flash</CardTitle>
           <CardDescription>Configurez les détails de votre vente à durée limitée.</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
             <CardContent className="space-y-6">
-                <div className="space-y-2">
-                    <Label htmlFor="productName">Nom du produit</Label>
-                    <Input
-                        id="productName"
-                        value={productName}
-                        onChange={(e) => setProductName(e.target.value)}
-                        placeholder="Ex: Coque en silicone pour iPhone 15"
-                    />
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="productName">Nom du produit</Label>
+                        <Input
+                            id="productName"
+                            value={productName}
+                            onChange={(e) => setProductName(e.target.value)}
+                            placeholder="Ex: iPhone 15 Pro Max"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="duration">Durée de la vente</Label>
+                        <Select
+                            value={duration}
+                            onValueChange={setDuration}
+                        >
+                            <SelectTrigger id="duration">
+                            <SelectValue placeholder="Choisir une durée" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="2">2 heures</SelectItem>
+                                <SelectItem value="4">4 heures</SelectItem>
+                                <SelectItem value="6">6 heures</SelectItem>
+                                <SelectItem value="8">8 heures</SelectItem>
+                                <SelectItem value="12">12 heures</SelectItem>
+                                <SelectItem value="24">24 heures</SelectItem>
+                                <SelectItem value="48">48 heures</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
                 <div className="space-y-2">
@@ -205,59 +234,62 @@ export default function NewFlashSalePage() {
                     )}
                 </div>
             
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="originalPrice">Prix original (CFA)</Label>
-                        <Input
-                            id="originalPrice"
-                            type="number"
-                            value={originalPrice}
-                            onChange={e => setOriginalPrice(Number(e.target.value))}
-                            placeholder="Prix avant la promotion"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="discountPrice">Prix promotionnel (CFA)</Label>
-                        <Input
-                            id="discountPrice"
-                            type="number"
-                            value={discountPrice}
-                            onChange={e => setDiscountPrice(Number(e.target.value))}
-                            placeholder="Nouveau prix"
-                        />
-                    </div>
+                <div className="space-y-4">
+                    <Label>Variantes du produit</Label>
+                    {variants.map((variant, index) => (
+                        <div key={index} className="flex flex-col md:flex-row items-center gap-2 p-3 border rounded-md">
+                            <div className="w-full md:w-auto flex-1 grid grid-cols-2 md:grid-cols-4 gap-2">
+                                <div className="col-span-2 md:col-span-1">
+                                    <Label className="text-xs text-muted-foreground mb-1 block">Stockage</Label>
+                                    <Select required value={variant.storage} onValueChange={(value) => handleVariantChange(index, 'storage', value)}>
+                                        <SelectTrigger>
+                                        <SelectValue placeholder="Stockage" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="64GB">64 GB</SelectItem>
+                                            <SelectItem value="128GB">128 GB</SelectItem>
+                                            <SelectItem value="256GB">256 GB</SelectItem>
+                                            <SelectItem value="512GB">512 GB</SelectItem>
+                                            <SelectItem value="1TB">1 TB</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                     <Label className="text-xs text-muted-foreground mb-1 block">Prix Original</Label>
+                                    <Input
+                                        type="number" placeholder="Original (CFA)" required
+                                        value={variant.originalPrice || ''}
+                                        onChange={(e) => handleVariantChange(index, 'originalPrice', e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                     <Label className="text-xs text-muted-foreground mb-1 block">Prix Promo</Label>
+                                    <Input
+                                        type="number" placeholder="Promo (CFA)" required
+                                        value={variant.discountPrice || ''}
+                                        onChange={(e) => handleVariantChange(index, 'discountPrice', e.target.value)}
+                                    />
+                                </div>
+                                 <div>
+                                     <Label className="text-xs text-muted-foreground mb-1 block">Stock</Label>
+                                    <Input
+                                        type="number" placeholder="Stock" required
+                                        value={variant.initialStock || ''}
+                                        onChange={(e) => handleVariantChange(index, 'initialStock', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <Button type="button" variant="destructive" size="icon" onClick={() => removeVariant(index)} disabled={variants.length === 1} className="mt-2 md:mt-0 ml-auto md:ml-2 self-end">
+                                <Trash className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={addVariant}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Ajouter une variante
+                    </Button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                     <div className="space-y-2">
-                        <Label htmlFor="initialStock">Stock initial</Label>
-                        <Input
-                            id="initialStock"
-                            type="number"
-                            value={initialStock}
-                            onChange={e => setInitialStock(Number(e.target.value))}
-                            placeholder="Quantité"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="duration">Durée de la vente</Label>
-                        <Select
-                            value={duration}
-                            onValueChange={setDuration}
-                        >
-                            <SelectTrigger id="duration">
-                            <SelectValue placeholder="Choisir une durée" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="24h">24 heures</SelectItem>
-                                <SelectItem value="48h">48 heures</SelectItem>
-                                <SelectItem value="72h">72 heures</SelectItem>
-                                <SelectItem value="7j">7 jours</SelectItem>
-                                <SelectItem value="30j">30 jours</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
             </CardContent>
             <CardFooter>
                  <Button type="submit" disabled={isSubmitting || isUploading} className="w-full">

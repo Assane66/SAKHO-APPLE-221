@@ -20,19 +20,25 @@ export type Product = {
   createdAt?: any; // To accommodate serverTimestamp
 };
 
+export type FlashSaleVariant = {
+  storage: string;
+  originalPrice: number;
+  discountPrice: number;
+  initialStock: number;
+  sold: number;
+};
+
 export type FlashSale = {
   id: string;
   productName: string;
   slug: string;
   thumbnail: string;
-  originalPrice: number;
-  discountPrice: number;
-  initialStock: number;
-  sold: number;
+  variants: FlashSaleVariant[];
   endDate: any; // Firestore timestamp
   status: 'Actif' | 'Programmé' | 'Terminé';
   createdAt: any;
 };
+
 
 export interface CartItem {
   id: string;
