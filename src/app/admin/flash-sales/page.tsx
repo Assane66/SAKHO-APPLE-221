@@ -5,20 +5,22 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle, MoreHorizontal, Loader2, Trash } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Loader2, Trash, PowerOff, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, deleteDoc, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, deleteDoc, DocumentData, updateDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import type { FlashSale } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export default function FlashSalesPage() {
   const [flashSales, setFlashSales] = useState<FlashSale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     const q = query(collection(db, "flashSales"));
@@ -43,9 +45,21 @@ export default function FlashSalesPage() {
     
     return { totalInitial, totalSold, percentage };
   };
+  
+  const handleStopSale = async (id: string) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir arrêter cette vente flash ? Son statut passera à 'Terminé'.")) return;
+
+    try {
+        await updateDoc(doc(db, "flashSales", id), { status: 'Terminé' });
+        toast({ title: "Succès", description: "La vente flash a été arrêtée." });
+    } catch (error) {
+        toast({ variant: "destructive", title: "Erreur", description: "Impossible d'arrêter la vente flash." });
+        console.error("Error stopping flash sale: ", error);
+    }
+  };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette vente flash ?")) return;
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette vente flash ? Cette action est irréversible.")) return;
 
     try {
       await deleteDoc(doc(db, "flashSales", id));
@@ -116,7 +130,7 @@ export default function FlashSalesPage() {
                     </TableCell>
                     <TableCell>{sale.endDate?.seconds ? new Date(sale.endDate.seconds * 1000).toLocaleString('fr-FR') : 'N/A'}</TableCell>
                     <TableCell>
-                       <Badge variant={sale.status === 'Actif' ? 'default' : 'outline'}>
+                       <Badge variant={sale.status === 'Actif' ? 'default' : sale.status === 'Terminé' ? 'secondary' : 'outline'}>
                         {sale.status}
                       </Badge>
                     </TableCell>
@@ -130,8 +144,14 @@ export default function FlashSalesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem disabled>Modifier</DropdownMenuItem>
-                          <DropdownMenuItem disabled>Arrêter la vente</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => router.push(`/admin/flash-sales/${sale.id}/edit`)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Modifier
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleStopSale(sale.id)} disabled={sale.status !== 'Actif'}>
+                            <PowerOff className="mr-2 h-4 w-4" />
+                            Arrêter la vente
+                          </DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => handleDelete(sale.id)} className="text-destructive">
                              <Trash className="mr-2 h-4 w-4" />
                             Supprimer
