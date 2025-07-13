@@ -59,10 +59,12 @@ import {
   doc,
   deleteDoc,
   getDocs,
+  addDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 import {useToast} from '@/hooks/use-toast';
 import type {Product, Promotion} from '@/types';
-import {createPromotion} from './actions';
+import { addHours, addDays } from 'date-fns';
 
 export default function PromotionsPage() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -125,26 +127,50 @@ export default function PromotionsPage() {
     }
     setIsSubmitting(true);
     try {
-      const result = await createPromotion({
-        productId: selectedProduct.id,
-        productName: selectedProduct.name,
-        variantStorage: selectedVariant.storage,
-        originalPrice: selectedVariant.price,
-        discountPrice: Number(discountPrice),
-        duration: duration,
-      });
+        const now = new Date();
+        let endDate: Date;
 
-      if (result.success) {
-        toast({title: 'Succès', description: 'La promotion a été ajoutée.'});
-        setIsDialogOpen(false);
-        // Reset form
-        setSelectedProductId('');
-        setSelectedVariantStorage('');
-        setDiscountPrice('');
-        setDuration('');
-      } else {
-        throw new Error(result.error);
-      }
+        switch (duration) {
+            case '24h':
+                endDate = addHours(now, 24);
+                break;
+            case '48h':
+                endDate = addHours(now, 48);
+                break;
+            case '72h':
+                endDate = addHours(now, 72);
+                break;
+            case '7j':
+                endDate = addDays(now, 7);
+                break;
+            case '30j':
+                endDate = addDays(now, 30);
+                break;
+            default:
+                throw new Error('Durée invalide');
+        }
+
+        const promoData = {
+            productId: selectedProduct.id,
+            productName: selectedProduct.name,
+            variantStorage: selectedVariant.storage,
+            originalPrice: selectedVariant.price,
+            discountPrice: Number(discountPrice),
+            status: 'Actif',
+            createdAt: serverTimestamp(),
+            endDate,
+        };
+
+      await addDoc(collection(db, 'promotions'), promoData);
+
+      toast({title: 'Succès', description: 'La promotion a été ajoutée.'});
+      setIsDialogOpen(false);
+      // Reset form
+      setSelectedProductId('');
+      setSelectedVariantStorage('');
+      setDiscountPrice('');
+      setDuration('');
+      
     } catch (error) {
       console.error(error);
       toast({
