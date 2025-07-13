@@ -5,18 +5,20 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle, MoreHorizontal, Loader2 } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Loader2, Trash } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, deleteDoc, DocumentData } from 'firebase/firestore';
 import Link from 'next/link';
 import type { FlashSale } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 export default function FlashSalesPage() {
   const [flashSales, setFlashSales] = useState<FlashSale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     const q = query(collection(db, "flashSales"));
@@ -40,6 +42,18 @@ export default function FlashSalesPage() {
     const percentage = totalInitial > 0 ? (totalSold / totalInitial) * 100 : 0;
     
     return { totalInitial, totalSold, percentage };
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette vente flash ?")) return;
+
+    try {
+      await deleteDoc(doc(db, "flashSales", id));
+      toast({ title: "Succès", description: "La vente flash a été supprimée." });
+    } catch (error) {
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de supprimer la vente flash." });
+      console.error("Error deleting flash sale: ", error);
+    }
   };
 
   return (
@@ -116,9 +130,12 @@ export default function FlashSalesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>Modifier</DropdownMenuItem>
-                          <DropdownMenuItem>Arrêter la vente</DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">Supprimer</DropdownMenuItem>
+                          <DropdownMenuItem disabled>Modifier</DropdownMenuItem>
+                          <DropdownMenuItem disabled>Arrêter la vente</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(sale.id)}>
+                             <Trash className="mr-2 h-4 w-4" />
+                            Supprimer
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
