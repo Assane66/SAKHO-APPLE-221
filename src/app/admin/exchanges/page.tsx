@@ -17,8 +17,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, updateDoc, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, DocumentData, orderBy } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 export default function ExchangesPage() {
   const [exchanges, setExchanges] = useState<DocumentData[]>([]);
@@ -26,9 +27,7 @@ export default function ExchangesPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Assuming trade-in requests are stored in a collection named 'exchanges'
-    // This collection would be populated by your AI flow
-    const q = query(collection(db, "exchanges"));
+    const q = query(collection(db, "exchanges"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const exchangesData: DocumentData[] = [];
       querySnapshot.forEach((doc) => {
@@ -58,17 +57,18 @@ export default function ExchangesPage() {
       
       <Card>
         <CardHeader>
-          <CardTitle>Demandes d'échange IA</CardTitle>
-          <CardDescription>Examinez les demandes de reprise générées par l'IA.</CardDescription>
+          <CardTitle>Demandes d'échange des clients</CardTitle>
+          <CardDescription>Examinez les demandes de reprise envoyées par les clients.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Modèle à échanger</TableHead>
-                <TableHead>Modèle désiré</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Téléphone actuel</TableHead>
+                <TableHead>Téléphone souhaité</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead>Photo</TableHead>
+                <TableHead>Photos</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -76,19 +76,22 @@ export default function ExchangesPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     <Loader2 className="mx-auto h-8 w-8 animate-spin" />
                   </TableCell>
                 </TableRow>
               ) : exchanges.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     Aucune demande d'échange pour le moment.
                   </TableCell>
                 </TableRow>
               ) : (
                 exchanges.map((exchange) => (
                   <TableRow key={exchange.id}>
+                    <TableCell>
+                      {exchange.createdAt?.seconds ? new Date(exchange.createdAt.seconds * 1000).toLocaleDateString('fr-FR') : 'N/A'}
+                    </TableCell>
                     <TableCell className="font-medium">{exchange.currentModel}</TableCell>
                     <TableCell>{exchange.desiredModel}</TableCell>
                     <TableCell>
@@ -100,19 +103,29 @@ export default function ExchangesPage() {
                     <TableCell>
                       <Dialog>
                         <DialogTrigger asChild>
-                           <Button variant="outline" size="sm">
+                           <Button variant="outline" size="sm" disabled={!exchange.photoDataUris || exchange.photoDataUris.length === 0}>
                              <ImageIcon className="mr-2 h-4 w-4" />
-                             Voir
+                             Voir ({exchange.photoDataUris?.length || 0})
                            </Button>
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Photo de l'{exchange.currentModel}</DialogTitle>
-                            <DialogDescription>
-                              Photo fournie par le client pour l'estimation.
+                            <DialogTitle>Photos pour {exchange.currentModel}</DialogTitle>
+                             <DialogDescription>
+                              Photos fournies par le client pour la demande d'échange.
                             </DialogDescription>
                           </DialogHeader>
-                          <Image src={exchange.photoDataUri} alt={`Photo de ${exchange.currentModel}`} width={400} height={400} className="rounded-md mx-auto" />
+                           <Carousel className="w-full max-w-xs mx-auto">
+                              <CarouselContent>
+                                {exchange.photoDataUris?.map((uri: string, index: number) => (
+                                  <CarouselItem key={index}>
+                                      <Image src={uri} alt={`Photo de ${exchange.currentModel} - ${index + 1}`} width={400} height={400} className="rounded-md mx-auto aspect-square object-contain" />
+                                  </CarouselItem>
+                                ))}
+                              </CarouselContent>
+                              <CarouselPrevious />
+                              <CarouselNext />
+                            </Carousel>
                         </DialogContent>
                       </Dialog>
                     </TableCell>
