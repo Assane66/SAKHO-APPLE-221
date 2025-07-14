@@ -23,7 +23,7 @@ async function getHomePageData() {
   const bannerList = bannerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
   // Fetch Categories
-  const categoriesQuery = query(collection(db, 'categories'), orderBy("name", "asc"), limit(4));
+  const categoriesQuery = query(collection(db, 'categories'), orderBy("name", "asc"));
   const categorySnapshot = await getDocs(categoriesQuery);
   const categoryList = categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
