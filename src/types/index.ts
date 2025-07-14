@@ -5,6 +5,7 @@ export type ProductVariant = {
   price: number;
   isPromo?: boolean;
   promoPrice?: number;
+  originalPrice?: number;
 };
 
 export type Product = {
@@ -12,6 +13,7 @@ export type Product = {
   name: string;
   slug: string;
   categoryId: string;
+  categoryName?: string;
   thumbnail: string;
   keywords: string[];
   batteryHealth: string;

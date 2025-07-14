@@ -42,7 +42,7 @@ async function getActiveFlashSales(): Promise<FlashSale[]> {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FlashSale));
 }
 
-async function getActivePromotions(): Promise<Product[]> {
+async function getActivePromotions(categories: DocumentData[]): Promise<Product[]> {
   // 1. Get active promotion details
   const now = Timestamp.now();
   const promoQuery = query(
@@ -58,6 +58,8 @@ async function getActivePromotions(): Promise<Product[]> {
 
   // 2. Get the product details for these promotions
   const productIds = [...new Set(promotions.map(p => p.productId))];
+  if (productIds.length === 0) return [];
+
   const productsQuery = query(collection(db, 'products'), where('__name__', 'in', productIds));
   const productSnapshot = await getDocs(productsQuery);
   let products = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
@@ -66,38 +68,53 @@ async function getActivePromotions(): Promise<Product[]> {
   products = products.map(product => {
     const productPromos = promotions.filter(p => p.productId === product.id);
     if (productPromos.length > 0) {
-      // Find the promo with the soonest end date to display on the card
       const mainPromo = productPromos.sort((a,b) => a.endDate.toMillis() - b.endDate.toMillis())[0];
       product.promoEndDate = mainPromo.endDate;
 
       product.variants = product.variants.map(variant => {
         const promo = productPromos.find(p => p.variantStorage === variant.storage);
         if (promo) {
-          return { ...variant, isPromo: true, promoPrice: promo.discountPrice };
+          return { ...variant, isPromo: true, promoPrice: promo.discountPrice, originalPrice: variant.price };
         }
         return variant;
       });
     }
+     const category = categories.find(c => c.id === product.categoryId);
+     if(category) {
+        product.categoryName = category.name;
+     }
     return product;
   });
 
   return products;
 }
 
+async function getCategories(): Promise<DocumentData[]> {
+    const categoriesCol = collection(db, 'categories');
+    const categorySnapshot = await getDocs(categoriesCol);
+    return categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<DocumentData[]>([]);
   const [flashSales, setFlashSales] = useState<FlashSale[]>([]);
   const [promotions, setPromotions] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<DocumentData[]>([]);
 
 
   useEffect(() => {
-    getProducts().then(setProducts);
-    getActiveBanners().then(setBanners);
-    getActiveFlashSales().then(setFlashSales);
-    getActivePromotions().then(setPromotions);
+    const fetchData = async () => {
+        const cats = await getCategories();
+        setCategories(cats);
+        getProducts().then(setProducts);
+        getActiveBanners().then(setBanners);
+        getActiveFlashSales().then(setFlashSales);
+        getActivePromotions(cats).then(setPromotions);
+    };
+    fetchData();
   }, []);
-
 
   const getLowestPrice = (variants: Product['variants'] = []) => {
     if (!variants || variants.length === 0) return null;
@@ -106,12 +123,28 @@ export default function Home() {
     const lowest = Math.min(...prices);
     return lowest.toLocaleString('fr-FR');
   };
+  
+  const getPromoDetails = (variants: Product['variants'] = []) => {
+    const promoVariant = variants.find(v => v.isPromo && v.promoPrice && v.originalPrice);
+    if (!promoVariant) return null;
+
+    const discountPercentage = Math.round(((promoVariant.originalPrice! - promoVariant.promoPrice!) / promoVariant.originalPrice!) * 100);
+    return {
+      promoPrice: promoVariant.promoPrice!.toLocaleString('fr-FR'),
+      originalPrice: promoVariant.originalPrice!.toLocaleString('fr-FR'),
+      discountPercentage: discountPercentage
+    };
+  };
 
   const getLowestPriceFromFlashSale = (variants: FlashSale['variants'] = []) => {
      if (!variants || variants.length === 0) return null;
      const lowest = Math.min(...variants.map(v => v.discountPrice));
      return lowest.toLocaleString('fr-FR');
   }
+  
+  const getCategoryName = (categoryId: string) => {
+    return categories.find(c => c.id === categoryId)?.name || categoryId;
+  };
 
   return (
     <div className="flex flex-col">
@@ -192,43 +225,46 @@ export default function Home() {
                 </p>
             </div>
              <div className="mx-auto grid max-w-5xl items-start gap-6 lg:grid-cols-4 md:grid-cols-2">
-              {promotions.map((product) => (
+              {promotions.map((product) => {
+                  const promoDetails = getPromoDetails(product.variants);
+                  return (
                   <Card key={product.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
-                    <Link href={`/products/${product.slug}`} className="block">
-                      <CardHeader className="p-0 relative">
-                         <Badge className="absolute top-2 right-2 z-10 bg-accent text-accent-foreground">Promo</Badge>
-                        <Image
-                          src={product.thumbnail || "https://placehold.co/600x600.png"}
-                          width={600}
-                          height={600}
-                          alt={product.name}
-                          data-ai-hint="iphone front"
-                          className="aspect-square object-cover"
-                        />
-                      </CardHeader>
-                    </Link>
-                    <CardContent className="p-4">
-                      <CardTitle className="text-lg font-headline">
+                    <CardContent className="p-4 text-center">
+                       {product.categoryName && (
+                          <p className="text-sm text-muted-foreground">{product.categoryName}</p>
+                       )}
+                      <CardTitle className="text-lg font-headline text-blue-800 dark:text-blue-400 my-2">
                         <Link href={`/products/${product.slug}`}>{product.name}</Link>
                       </CardTitle>
-                      {product.promoEndDate && (
-                        <div className="text-xs text-destructive flex items-center gap-1 mt-1 font-mono">
-                          <Clock className="h-3 w-3" />
-                          <CountdownTimer endDate={product.promoEndDate} />
-                        </div>
-                      )}
+                      <Link href={`/products/${product.slug}`} className="block relative">
+                          <Image
+                            src={product.thumbnail || "https://placehold.co/600x600.png"}
+                            width={400}
+                            height={400}
+                            alt={product.name}
+                            data-ai-hint="iphone front"
+                            className="aspect-square object-cover mx-auto"
+                          />
+                           {promoDetails && (
+                            <Badge className="absolute bottom-4 left-4 bg-green-600 text-white text-lg">
+                                -{promoDetails.discountPercentage}%
+                            </Badge>
+                          )}
+                      </Link>
                     </CardContent>
                     <CardFooter className="p-4 pt-0">
-                      <div className="flex flex-col w-full">
-                        {getLowestPrice(product.variants) ? (
-                          <div className="flex flex-col">
-                              <span className="text-sm text-muted-foreground line-through">
-                                {product.variants.find(v => v.isPromo)?.price.toLocaleString('fr-FR')} CFA
+                      <div className="flex flex-col w-full text-center">
+                        {promoDetails ? (
+                          <div className="flex flex-col items-center">
+                              <span className="text-xl font-bold text-primary">
+                                {promoDetails.promoPrice} CFA
                               </span>
-                              <span className="text-md font-semibold text-destructive">
-                                {product.variants.find(v => v.isPromo)?.promoPrice?.toLocaleString('fr-FR')} CFA
+                              <span className="text-md text-muted-foreground line-through">
+                                {promoDetails.originalPrice} CFA
                               </span>
                           </div>
+                        ) : getLowestPrice(product.variants) ? (
+                            <span className="text-xl font-bold text-primary">{getLowestPrice(product.variants)} CFA</span>
                         ) : (
                            <span className="text-md font-semibold text-muted-foreground">Prix non disponible</span>
                         )}
@@ -240,7 +276,7 @@ export default function Home() {
                       </div>
                     </CardFooter>
                   </Card>
-                ))}
+                )})}
              </div>
           </div>
         </section>
@@ -261,42 +297,59 @@ export default function Home() {
              {products.length === 0 ? (
               <p className="col-span-full text-center text-muted-foreground">Aucun produit disponible pour le moment.</p>
             ) : (
-              products.map((product) => (
-                <Card key={product.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
-                  <Link href={`/products/${product.slug}`} className="block">
-                    <CardHeader className="p-0">
-                      <Image
-                        src={product.thumbnail || "https://placehold.co/600x600.png"}
-                        width={600}
-                        height={600}
-                        alt={product.name}
-                        data-ai-hint="iphone front"
-                        className="aspect-square object-cover"
-                      />
-                    </CardHeader>
-                  </Link>
-                  <CardContent className="p-4">
-                    <CardTitle className="text-lg font-headline">
-                      <Link href={`/products/${product.slug}`}>{product.name}</Link>
-                    </CardTitle>
-                    <CardDescription className="text-sm h-10">{product.batteryHealth ? `Batterie: ${product.batteryHealth}` : ''}</CardDescription>
-                  </CardContent>
-                  <CardFooter className="p-4 pt-0">
-                    <div className="flex flex-col w-full">
-                       {getLowestPrice(product.variants) ? (
-                        <span className="text-md font-semibold text-primary">à partir de {getLowestPrice(product.variants)} CFA</span>
-                      ) : (
-                         <span className="text-md font-semibold text-muted-foreground">Prix non disponible</span>
-                      )}
-                       <Link href={`/products/${product.slug}`} className="w-full mt-2" passHref>
-                          <Button className="w-full">
-                            Voir les options
-                          </Button>
-                       </Link>
-                    </div>
-                  </CardFooter>
-                </Card>
-              ))
+              products.map((product) => {
+                const promoDetails = getPromoDetails(product.variants);
+                return (
+                  <Card key={product.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
+                     <CardContent className="p-4 text-center">
+                       {getCategoryName(product.categoryId) && (
+                          <p className="text-sm text-muted-foreground">{getCategoryName(product.categoryId)}</p>
+                       )}
+                      <CardTitle className="text-lg font-headline text-blue-800 dark:text-blue-400 my-2 h-12">
+                        <Link href={`/products/${product.slug}`}>{product.name}</Link>
+                      </CardTitle>
+                      <Link href={`/products/${product.slug}`} className="block relative">
+                          <Image
+                            src={product.thumbnail || "https://placehold.co/600x600.png"}
+                            width={400}
+                            height={400}
+                            alt={product.name}
+                            data-ai-hint="iphone front"
+                            className="aspect-square object-cover mx-auto"
+                          />
+                           {promoDetails && (
+                            <Badge className="absolute bottom-4 left-4 bg-green-600 text-white text-lg">
+                                -{promoDetails.discountPercentage}%
+                            </Badge>
+                          )}
+                      </Link>
+                    </CardContent>
+                    <CardFooter className="p-4 pt-0">
+                      <div className="flex flex-col w-full text-center">
+                        {promoDetails ? (
+                          <div className="flex flex-col items-center">
+                              <span className="text-xl font-bold text-primary">
+                                {promoDetails.promoPrice} CFA
+                              </span>
+                              <span className="text-md text-muted-foreground line-through">
+                                {promoDetails.originalPrice} CFA
+                              </span>
+                          </div>
+                        ) : getLowestPrice(product.variants) ? (
+                            <span className="text-xl font-bold text-primary">{getLowestPrice(product.variants)} CFA</span>
+                        ) : (
+                           <span className="text-md font-semibold text-muted-foreground">Prix non disponible</span>
+                        )}
+                         <Link href={`/products/${product.slug}`} className="w-full mt-2" passHref>
+                            <Button className="w-full">
+                              Voir les options
+                            </Button>
+                         </Link>
+                      </div>
+                    </CardFooter>
+                  </Card>
+                )
+              })
             )}
           </div>
         </div>

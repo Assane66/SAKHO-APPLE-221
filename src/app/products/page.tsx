@@ -1,3 +1,4 @@
+
 // src/app/products/page.tsx
 'use client';
 
@@ -44,7 +45,7 @@ async function getProductsAndCategories() {
           product.variants = product.variants.map(variant => {
               const promo = productPromos.find(p => p.variantStorage === variant.storage);
               if (promo) {
-                  return { ...variant, isPromo: true, promoPrice: promo.discountPrice };
+                  return { ...variant, isPromo: true, promoPrice: promo.discountPrice, originalPrice: variant.price };
               }
               return variant;
           });
@@ -61,6 +62,18 @@ const getLowestPrice = (variants: Product['variants'] = []) => {
     const prices = variants.map(v => v.promoPrice || v.price);
     const lowest = Math.min(...prices);
     return lowest.toLocaleString('fr-FR');
+};
+
+const getPromoDetails = (variants: Product['variants'] = []) => {
+    const promoVariant = variants.find(v => v.isPromo && v.promoPrice && v.originalPrice);
+    if (!promoVariant) return null;
+
+    const discountPercentage = Math.round(((promoVariant.originalPrice! - promoVariant.promoPrice!) / promoVariant.originalPrice!) * 100);
+    return {
+      promoPrice: promoVariant.promoPrice!.toLocaleString('fr-FR'),
+      originalPrice: promoVariant.originalPrice!.toLocaleString('fr-FR'),
+      discountPercentage: discountPercentage
+    };
 };
 
 export default function ProductsPage() {
@@ -115,6 +128,10 @@ export default function ProductsPage() {
 
     return filtered;
   }, [products, searchTerm, selectedCategory, sortOrder]);
+
+  const getCategoryName = (categoryId: string) => {
+    return categories.find(c => c.id === categoryId)?.name || categoryId;
+  };
   
   return (
     <div className="container mx-auto py-12 px-4 md:px-6">
@@ -167,40 +184,48 @@ export default function ProductsPage() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2">
           {filteredAndSortedProducts.length > 0 ? (
-            filteredAndSortedProducts.map(product => (
+            filteredAndSortedProducts.map(product => {
+              const promoDetails = getPromoDetails(product.variants);
+              return (
               <Card key={product.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 flex flex-col">
-                <Link href={`/products/${product.slug}`} className="block">
-                  <CardHeader className="p-0 relative">
-                    {product.variants.some(v => v.isPromo) && (
-                        <Badge className="absolute top-2 right-2 z-10 bg-accent text-accent-foreground">Promo</Badge>
+                <CardContent className="p-4 text-center flex-grow flex flex-col">
+                    {getCategoryName(product.categoryId) && (
+                        <p className="text-sm text-muted-foreground">{getCategoryName(product.categoryId)}</p>
                     )}
-                    <Image
-                      src={product.thumbnail || "https://placehold.co/600x600.png"}
-                      width={600}
-                      height={600}
-                      alt={product.name}
-                      data-ai-hint="iphone front"
-                      className="aspect-square object-cover"
-                    />
-                  </CardHeader>
-                </Link>
-                <CardContent className="p-4 flex-grow">
-                  <CardTitle className="text-lg font-headline h-12">
-                    <Link href={`/products/${product.slug}`}>{product.name}</Link>
-                  </CardTitle>
-                  {product.promoEndDate && (
-                    <div className="text-xs text-destructive flex items-center gap-1 mt-1 font-mono">
-                      <Clock className="h-3 w-3" />
-                      <CountdownTimer endDate={product.promoEndDate} />
-                    </div>
-                  )}
+                    <CardTitle className="text-lg font-headline text-blue-800 dark:text-blue-400 my-2 h-12 flex-grow">
+                        <Link href={`/products/${product.slug}`}>{product.name}</Link>
+                    </CardTitle>
+                    <Link href={`/products/${product.slug}`} className="block relative">
+                        <Image
+                        src={product.thumbnail || "https://placehold.co/600x600.png"}
+                        width={400}
+                        height={400}
+                        alt={product.name}
+                        data-ai-hint="iphone front"
+                        className="aspect-square object-cover mx-auto"
+                        />
+                        {promoDetails && (
+                        <Badge className="absolute bottom-4 left-4 bg-green-600 text-white text-lg">
+                            -{promoDetails.discountPercentage}%
+                        </Badge>
+                        )}
+                    </Link>
                 </CardContent>
                 <CardFooter className="p-4 pt-0">
-                  <div className="flex flex-col w-full">
-                     {getLowestPrice(product.variants) ? (
-                      <span className="text-md font-semibold text-primary">à partir de {getLowestPrice(product.variants)} CFA</span>
+                  <div className="flex flex-col w-full text-center">
+                    {promoDetails ? (
+                      <div className="flex flex-col items-center">
+                          <span className="text-xl font-bold text-primary">
+                            {promoDetails.promoPrice} CFA
+                          </span>
+                          <span className="text-md text-muted-foreground line-through">
+                            {promoDetails.originalPrice} CFA
+                          </span>
+                      </div>
+                    ) : getLowestPrice(product.variants) ? (
+                        <span className="text-xl font-bold text-primary">{getLowestPrice(product.variants)} CFA</span>
                     ) : (
-                       <span className="text-md font-semibold text-muted-foreground">Prix non disponible</span>
+                        <span className="text-md font-semibold text-muted-foreground">Prix non disponible</span>
                     )}
                      <Link href={`/products/${product.slug}`} className="w-full mt-2" passHref>
                         <Button className="w-full">
@@ -210,7 +235,7 @@ export default function ProductsPage() {
                   </div>
                 </CardFooter>
               </Card>
-            ))
+            )})
           ) : (
             <div className="col-span-full text-center py-16">
                 <p className="text-lg font-semibold">Aucun produit ne correspond à votre recherche.</p>
