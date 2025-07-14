@@ -21,6 +21,7 @@ export type Product = {
   variants: ProductVariant[];
   createdAt?: any; // To accommodate serverTimestamp
   promoEndDate?: any; // To accommodate serverTimestamp
+  sales?: number; // Pour le suivi des produits les plus vendus
 };
 
 export type FlashSaleVariant = {
