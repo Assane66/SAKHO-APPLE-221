@@ -7,6 +7,7 @@ import { AdminHeader } from '@/components/admin/admin-header';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { AdminNotificationProvider } from '@/context/AdminNotificationContext';
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, loading } = useAuth();
@@ -46,17 +47,19 @@ export default function AdminLayout({
       {isLoginPage ? (
         <div className="min-h-screen bg-secondary/50">{children}</div>
       ) : (
-        <AdminGuard>
-          <div className="min-h-screen bg-secondary/50">
-            <AdminSidebar />
-            <div className="md:pl-64">
-              <AdminHeader />
-              <main className="p-4 md:p-8">
-                {children}
-              </main>
-            </div>
-          </div>
-        </AdminGuard>
+        <AdminNotificationProvider>
+            <AdminGuard>
+              <div className="min-h-screen bg-secondary/50">
+                <AdminSidebar />
+                <div className="md:pl-64">
+                  <AdminHeader />
+                  <main className="p-4 md:p-8">
+                    {children}
+                  </main>
+                </div>
+              </div>
+            </AdminGuard>
+        </AdminNotificationProvider>
       )}
     </AuthProvider>
   );

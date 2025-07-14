@@ -20,11 +20,13 @@ import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, doc, updateDoc, DocumentData, orderBy } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { useAdminNotifications } from '@/context/AdminNotificationContext';
 
 export default function ExchangesPage() {
   const [exchanges, setExchanges] = useState<DocumentData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { clearNewExchanges } = useAdminNotifications();
 
   useEffect(() => {
     const q = query(collection(db, "exchanges"), orderBy("createdAt", "desc"));
@@ -35,10 +37,11 @@ export default function ExchangesPage() {
       });
       setExchanges(exchangesData);
       setIsLoading(false);
+      clearNewExchanges(); // Marquer les échanges comme vus
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [clearNewExchanges]);
 
   const handleMarkAsProcessed = async (id: string) => {
     try {

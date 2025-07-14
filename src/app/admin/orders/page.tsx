@@ -14,6 +14,7 @@ import { collection, onSnapshot, query, doc, updateDoc, DocumentData, orderBy } 
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
+import { useAdminNotifications } from '@/context/AdminNotificationContext';
 
 type OrderStatus = "En attente" | "En cours" | "Livrée" | "Annulée";
 
@@ -29,6 +30,7 @@ export default function OrdersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<DocumentData | null>(null);
   const { toast } = useToast();
+  const { clearNewOrders } = useAdminNotifications();
 
   useEffect(() => {
     const q = query(collection(db, "orders"), orderBy("date", "desc"));
@@ -39,10 +41,11 @@ export default function OrdersPage() {
       });
       setOrders(ordersData);
       setIsLoading(false);
+      clearNewOrders(); // Marquer les commandes comme vues
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [clearNewOrders]);
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
     try {
