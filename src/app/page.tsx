@@ -10,10 +10,11 @@ import { Input } from '@/components/ui/input';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, DocumentData, orderBy, limit, Timestamp } from 'firebase/firestore';
 import type { Product } from '@/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { CountdownTimer } from '@/components/countdown-timer';
 import { Badge } from '@/components/ui/badge';
 import { HomeCarousel } from '@/components/home-carousel';
+import { cn } from '@/lib/utils';
 
 async function getHomePageData() {
   // Fetch Banners
@@ -62,6 +63,8 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<DocumentData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -75,6 +78,24 @@ export default function Home() {
     };
     fetchData();
   }, []);
+
+  const filteredProducts = useMemo(() => {
+    let filtered = products;
+
+    if (searchTerm) {
+      filtered = filtered.filter(product =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.keywords && product.keywords.join(' ').toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(product => product.categoryId === selectedCategory);
+    }
+
+    return filtered;
+  }, [products, searchTerm, selectedCategory]);
+
 
   const getLowestPrice = (variants: Product['variants'] = []) => {
     if (!variants || variants.length === 0) return null;
@@ -134,15 +155,27 @@ export default function Home() {
         <div className="space-y-4">
             <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input placeholder="Rechercher un iPhone..." className="pl-10 h-12 rounded-full bg-secondary/50 border-transparent focus:bg-white focus:border-ring" />
+                <Input 
+                    placeholder="Rechercher un iPhone..." 
+                    className="pl-10 h-12 rounded-full bg-secondary/50 border-transparent focus:bg-white focus:border-ring"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2">
-                 <Button variant="secondary" className="rounded-full bg-secondary text-secondary-foreground" asChild>
-                    <Link href="/products">Tous</Link>
+                 <Button 
+                    variant={selectedCategory === 'all' ? 'default' : 'secondary'} 
+                    className="rounded-full"
+                    onClick={() => setSelectedCategory('all')}>
+                    Tous
                 </Button>
                 {categories.map(category => (
-                    <Button key={category.id} variant="secondary" className="rounded-full bg-secondary/50" asChild>
-                         <Link href={`/products?category=${category.id}`}>{category.name}</Link>
+                    <Button 
+                        key={category.id} 
+                        variant={selectedCategory === category.id ? 'default' : 'secondary'} 
+                        className="rounded-full"
+                        onClick={() => setSelectedCategory(category.id)}>
+                        {category.name}
                     </Button>
                 ))}
             </div>
@@ -154,8 +187,10 @@ export default function Home() {
             <div className="flex flex-col gap-4">
                 {isLoading && products.length === 0 ? (
                     <p className="text-center text-muted-foreground py-8">Chargement des produits...</p>
+                ) : filteredProducts.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">Aucun produit ne correspond à cette catégorie.</p>
                 ) : (
-                    products.slice(0, 5).map(product => (
+                    filteredProducts.slice(0, 5).map(product => (
                         <Card key={product.id} className="overflow-hidden">
                             <Link href={`/products/${product.slug}`} className="block hover:bg-secondary/30 transition-colors">
                                 <CardContent className="p-4 flex items-center gap-4">
