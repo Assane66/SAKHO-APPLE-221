@@ -25,7 +25,7 @@ export function Header() {
                 height={24}
                 className="h-6 w-6"
               />
-            <span className="font-bold font-headline text-lg">Khalil Apple</span>
+            <span className="font-bold font-headline text-lg" translate="no">Khalil Apple</span>
           </Link>
         </div>
         

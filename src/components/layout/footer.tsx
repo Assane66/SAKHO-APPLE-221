@@ -47,7 +47,7 @@ export async function Footer() {
                 height={24}
                 className="h-6 w-6"
               />
-              <span className="text-lg font-bold font-headline">{shopName}</span>
+              <span className="text-lg font-bold font-headline" translate="no">{shopName}</span>
             </Link>
             <p className="text-sm">
               Votre expert iPhone au Sénégal. Qualité et service garantis.
@@ -87,7 +87,7 @@ export async function Footer() {
           </div>
         </div>
         <div className="mt-8 border-t pt-6 text-center text-sm">
-          <p>&copy; {new Date().getFullYear()} {shopName}. Tous droits réservés.</p>
+          <p>&copy; {new Date().getFullYear()} <span translate="no">{shopName}</span>. Tous droits réservés.</p>
         </div>
       </div>
     </footer>
