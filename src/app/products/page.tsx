@@ -1,9 +1,9 @@
-
 // src/app/products/page.tsx
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, DocumentData, Timestamp } from 'firebase/firestore';
 import type { Product } from '@/types';
@@ -12,10 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, Clock } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
-import { CountdownTimer } from '@/components/countdown-timer';
 
 // Fetch all active products and all categories
 async function getProductsAndCategories() {
@@ -65,25 +64,29 @@ const getLowestPrice = (variants: Product['variants'] = []) => {
 };
 
 const getPromoDetails = (variants: Product['variants'] = []) => {
+    if (!variants) return null;
     const promoVariant = variants.find(v => v.isPromo && v.promoPrice && v.originalPrice);
-    if (!promoVariant) return null;
+    if (!promoVariant || !promoVariant.originalPrice || !promoVariant.promoPrice) return null;
 
-    const discountPercentage = Math.round(((promoVariant.originalPrice! - promoVariant.promoPrice!) / promoVariant.originalPrice!) * 100);
+    const discountPercentage = Math.round(((promoVariant.originalPrice - promoVariant.promoPrice) / promoVariant.originalPrice) * 100);
     return {
-      promoPrice: promoVariant.promoPrice!.toLocaleString('fr-FR'),
-      originalPrice: promoVariant.originalPrice!.toLocaleString('fr-FR'),
+      promoPrice: promoVariant.promoPrice.toLocaleString('fr-FR'),
+      originalPrice: promoVariant.originalPrice.toLocaleString('fr-FR'),
       discountPercentage: discountPercentage
     };
 };
 
-export default function ProductsPage() {
+function ProductsPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<DocumentData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [sortOrder, setSortOrder] = useState('default');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
+  const [sortOrder, setSortOrder] = useState(searchParams.get('sort') || 'default');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -96,10 +99,37 @@ export default function ProductsPage() {
     fetchData();
   }, []);
 
+  const updateURLParams = (key: string, value: string) => {
+    const current = new URLSearchParams(Array.from(searchParams.entries()));
+    if (!value || value === 'all' || value === 'default') {
+      current.delete(key);
+    } else {
+      current.set(key, value);
+    }
+    const search = current.toString();
+    const query = search ? `?${search}` : "";
+    router.push(`/products${query}`);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSearchTerm = e.target.value;
+    setSearchTerm(newSearchTerm);
+    updateURLParams('q', newSearchTerm);
+  };
+  
+  const handleCategoryChange = (value: string) => {
+      setSelectedCategory(value);
+      updateURLParams('category', value);
+  };
+
+  const handleSortChange = (value: string) => {
+      setSortOrder(value);
+      updateURLParams('sort', value);
+  };
+
   const filteredAndSortedProducts = useMemo(() => {
     let filtered = products;
 
-    // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(product =>
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -107,12 +137,10 @@ export default function ProductsPage() {
       );
     }
 
-    // Filter by category
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(product => product.categoryId === selectedCategory);
     }
 
-    // Sort
     switch (sortOrder) {
       case 'price-asc':
         filtered.sort((a, b) => (getLowestPrice(a.variants) ? parseFloat(getLowestPrice(a.variants)!.replace(/\s/g, '')) : Infinity) - (getLowestPrice(b.variants) ? parseFloat(getLowestPrice(b.variants)!.replace(/\s/g, '')) : Infinity));
@@ -121,7 +149,6 @@ export default function ProductsPage() {
         filtered.sort((a, b) => (getLowestPrice(b.variants) ? parseFloat(getLowestPrice(b.variants)!.replace(/\s/g, '')) : -Infinity) - (getLowestPrice(a.variants) ? parseFloat(getLowestPrice(a.variants)!.replace(/\s/g, '')) : -Infinity));
         break;
       default:
-        // Default sort (e.g., by name or creation date if available)
         filtered.sort((a,b) => a.name.localeCompare(b.name));
         break;
     }
@@ -147,11 +174,11 @@ export default function ProductsPage() {
                 placeholder="Rechercher par nom ou mot-clé..." 
                 className="pl-10"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={handleSearchChange}
             />
         </div>
         <div>
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
             <SelectTrigger>
               <SelectValue placeholder="Toutes les catégories" />
             </SelectTrigger>
@@ -164,7 +191,7 @@ export default function ProductsPage() {
           </Select>
         </div>
         <div>
-            <Select value={sortOrder} onValueChange={setSortOrder}>
+            <Select value={sortOrder} onValueChange={handleSortChange}>
                 <SelectTrigger>
                     <SelectValue placeholder="Trier par" />
                 </SelectTrigger>
@@ -245,5 +272,13 @@ export default function ProductsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>}>
+      <ProductsPageContent />
+    </Suspense>
   );
 }

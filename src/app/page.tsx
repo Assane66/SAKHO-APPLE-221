@@ -88,13 +88,13 @@ export default function Home() {
     <div className="flex flex-col space-y-12 container px-4 md:px-6 py-6">
         
         <HomeCarousel banners={banners} />
-
-        {/* Promotions */}
-        {products.filter(p => p.promoEndDate).length > 0 && (
+        
+        {/* Flash Sales Section */}
+        {products.filter(p => p.promoEndDate && p.promoEndDate.toMillis() > Date.now()).length > 0 && (
             <div className="space-y-4">
-                <h2 className="text-2xl font-bold font-headline">Nos promotions</h2>
+                <h2 className="text-2xl font-bold font-headline">Ventes Flash & Promotions</h2>
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                    {products.filter(p => p.promoEndDate).slice(0, 4).map(product => (
+                    {products.filter(p => p.promoEndDate && p.promoEndDate.toMillis() > Date.now()).slice(0, 4).map(product => (
                         <Card key={product.id} className="overflow-hidden group">
                            <Link href={`/products/${product.slug}`} className="block">
                                 <CardContent className="p-4 flex flex-col items-center text-center">
