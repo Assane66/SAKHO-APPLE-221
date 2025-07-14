@@ -5,21 +5,35 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle, MoreHorizontal, Loader2, Trash } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Loader2, Trash, Edit } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, addDoc, doc, deleteDoc, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, DocumentData } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
+
+const generateSlug = (name: string) => {
+    return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+};
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<DocumentData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State for Add Dialog
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategorySlug, setNewCategorySlug] = useState('');
+
+  // State for Edit Dialog
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<DocumentData | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState('');
+  const [editingCategorySlug, setEditingCategorySlug] = useState('');
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -36,6 +50,18 @@ export default function CategoriesPage() {
     return () => unsubscribe();
   }, []);
 
+  const handleNewNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const name = e.target.value;
+    setNewCategoryName(name);
+    setNewCategorySlug(generateSlug(name));
+  };
+  
+  const handleEditingNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const name = e.target.value;
+    setEditingCategoryName(name);
+    setEditingCategorySlug(generateSlug(name));
+  };
+
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategoryName) {
@@ -44,15 +70,51 @@ export default function CategoriesPage() {
     }
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, "categories"), { name: newCategoryName, productCount: 0 });
+      await addDoc(collection(db, "categories"), { 
+          name: newCategoryName,
+          slug: newCategorySlug, 
+          productCount: 0 
+      });
       toast({ title: "Succès", description: "La catégorie a été ajoutée." });
-      setIsDialogOpen(false);
+      setIsAddDialogOpen(false);
       setNewCategoryName('');
+      setNewCategorySlug('');
     } catch (error) {
       console.error(error);
       toast({ variant: "destructive", title: "Erreur", description: "Impossible d'ajouter la catégorie." });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const openEditDialog = (category: DocumentData) => {
+    setEditingCategory(category);
+    setEditingCategoryName(category.name);
+    setEditingCategorySlug(category.slug || generateSlug(category.name));
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory || !editingCategoryName) {
+      toast({ variant: "destructive", title: "Erreur", description: "Le nom ne peut pas être vide." });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+        const docRef = doc(db, "categories", editingCategory.id);
+        await updateDoc(docRef, {
+            name: editingCategoryName,
+            slug: editingCategorySlug,
+        });
+        toast({ title: "Succès", description: "La catégorie a été mise à jour." });
+        setIsEditDialogOpen(false);
+        setEditingCategory(null);
+    } catch (error) {
+        console.error(error);
+        toast({ variant: "destructive", title: "Erreur", description: "Impossible de mettre à jour la catégorie." });
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -69,7 +131,8 @@ export default function CategoriesPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">Catégories</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        {/* Add Dialog Trigger */}
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
                 <Button>
                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -80,16 +143,20 @@ export default function CategoriesPage() {
                 <form onSubmit={handleAddCategory}>
                     <DialogHeader>
                         <DialogTitle>Ajouter une nouvelle catégorie</DialogTitle>
-                        <DialogDescription>Entrez le nom de la nouvelle catégorie de produits.</DialogDescription>
+                        <DialogDescription>Entrez le nom de la nouvelle catégorie. Le slug sera généré automatiquement.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="name" className="text-right">Nom</Label>
-                            <Input id="name" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="col-span-3" placeholder="Ex: iPhone 15 Series" />
+                        <div className="space-y-2">
+                            <Label htmlFor="add-name">Nom</Label>
+                            <Input id="add-name" value={newCategoryName} onChange={handleNewNameChange} placeholder="Ex: iPhone 15 Series" />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="add-slug">Slug</Label>
+                            <Input id="add-slug" value={newCategorySlug} readOnly disabled placeholder="Sera généré automatiquement" />
                         </div>
                     </div>
                     <DialogFooter>
-                        <DialogClose asChild><Button type="button" variant="secondary">Annuler</Button></DialogClose>
+                        <DialogClose asChild><Button type="button" variant="secondary" onClick={() => { setNewCategoryName(''); setNewCategorySlug(''); }}>Annuler</Button></DialogClose>
                         <Button type="submit" disabled={isSubmitting}>
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Enregistrer
@@ -110,6 +177,7 @@ export default function CategoriesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nom de la catégorie</TableHead>
+                <TableHead>Slug</TableHead>
                 <TableHead>Nombre de produits</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -117,13 +185,13 @@ export default function CategoriesPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="h-24 text-center">
+                  <TableCell colSpan={4} className="h-24 text-center">
                     <Loader2 className="mx-auto h-8 w-8 animate-spin" />
                   </TableCell>
                 </TableRow>
               ) : categories.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="h-24 text-center">
+                  <TableCell colSpan={4} className="h-24 text-center">
                     Aucune catégorie trouvée.
                   </TableCell>
                 </TableRow>
@@ -131,6 +199,7 @@ export default function CategoriesPage() {
                 categories.map((category) => (
                   <TableRow key={category.id}>
                     <TableCell className="font-medium">{category.name}</TableCell>
+                    <TableCell className="font-mono text-muted-foreground">{category.slug}</TableCell>
                     <TableCell>{category.productCount || 0}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
@@ -142,7 +211,11 @@ export default function CategoriesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          {/* <DropdownMenuItem>Modifier</DropdownMenuItem> */}
+                          <DropdownMenuItem onClick={() => openEditDialog(category)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Modifier
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(category.id)}>
                             <Trash className="mr-2 h-4 w-4" />
                             Supprimer
@@ -157,6 +230,35 @@ export default function CategoriesPage() {
           </Table>
         </CardContent>
       </Card>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent>
+                <form onSubmit={handleUpdateCategory}>
+                    <DialogHeader>
+                        <DialogTitle>Modifier la catégorie</DialogTitle>
+                        <DialogDescription>Mettez à jour le nom de la catégorie. Le slug sera mis à jour automatiquement.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-name">Nom</Label>
+                            <Input id="edit-name" value={editingCategoryName} onChange={handleEditingNameChange} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="edit-slug">Slug</Label>
+                            <Input id="edit-slug" value={editingCategorySlug} readOnly disabled />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button type="button" variant="secondary">Annuler</Button></DialogClose>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Enregistrer
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }

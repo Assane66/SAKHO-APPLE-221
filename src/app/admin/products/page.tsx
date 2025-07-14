@@ -9,24 +9,36 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle, Search, MoreHorizontal, Loader2, Trash, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from 'next/image';
 import Link from "next/link";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, doc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, deleteDoc, DocumentData } from "firebase/firestore";
 import type { Product } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
-    const q = query(collection(db, "products"));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    // Fetch categories and store them in a map for easy lookup
+    const catQuery = query(collection(db, "categories"));
+    const unsubCategories = onSnapshot(catQuery, (snapshot) => {
+        const catMap = new Map<string, string>();
+        snapshot.forEach((doc) => {
+            catMap.set(doc.id, doc.data().name);
+        });
+        setCategories(catMap);
+    });
+
+    // Fetch products
+    const prodQuery = query(collection(db, "products"));
+    const unsubProducts = onSnapshot(prodQuery, (querySnapshot) => {
       const productsData: Product[] = [];
       querySnapshot.forEach((doc) => {
         productsData.push({ id: doc.id, ...doc.data() } as Product);
@@ -39,7 +51,10 @@ export default function ProductsPage() {
         setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+        unsubCategories();
+        unsubProducts();
+    };
   }, [toast]);
   
   const handleDelete = async (id: string) => {
@@ -90,7 +105,7 @@ export default function ProductsPage() {
           )}
         </TableCell>
         <TableCell className="font-medium">{product.name}</TableCell>
-        <TableCell>{product.categoryId}</TableCell>
+        <TableCell>{categories.get(product.categoryId) || 'N/A'}</TableCell>
         <TableCell>
           {product.variants?.map(v => `${v.storage}`).join(', ') || 'N/A'}
         </TableCell>
