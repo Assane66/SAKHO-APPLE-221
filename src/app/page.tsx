@@ -111,10 +111,6 @@ export default function Home() {
 
   return (
     <div className="flex flex-col">
-      <section className="w-full">
-        <HomeCarousel banners={banners} />
-      </section>
-
       <section className="w-full py-12 md:py-16">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col justify-center items-center space-y-4 text-center">
@@ -136,6 +132,10 @@ export default function Home() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="w-full">
+        <HomeCarousel banners={banners} />
       </section>
 
       {flashSales.length > 0 && flashSales.map(sale => (
