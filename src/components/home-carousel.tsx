@@ -23,7 +23,7 @@ export function HomeCarousel({ banners }: HomeCarouselProps) {
                 {banners.map((banner) => (
                     <CarouselItem key={banner.id}>
                         <Link href={banner.link || '#'} target="_blank" rel="noopener noreferrer">
-                            <div className="relative aspect-[16/6] overflow-hidden">
+                            <div className="relative aspect-[16/6] overflow-hidden rounded-lg">
                                 <Image
                                     src={banner.imageUrl}
                                     priority
@@ -36,8 +36,8 @@ export function HomeCarousel({ banners }: HomeCarouselProps) {
                     </CarouselItem>
                 ))}
             </CarouselContent>
-            <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 z-10" />
-            <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 z-10" />
+            <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 z-10 hidden sm:flex" />
+            <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 z-10 hidden sm:flex" />
         </Carousel>
     )
 }
