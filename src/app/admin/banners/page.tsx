@@ -1,11 +1,11 @@
 // src/app/admin/banners/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle, MoreHorizontal, Link as LinkIcon, Loader2, Trash } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Link as LinkIcon, Loader2, Trash, UploadCloud } from "lucide-react";
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from '@/components/ui/progress';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, addDoc, doc, updateDoc, deleteDoc, DocumentData } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
@@ -26,8 +27,16 @@ export default function BannersPage() {
   const [newBannerName, setNewBannerName] = useState('');
   const [newBannerLink, setNewBannerLink] = useState('');
   const [newBannerImageUrl, setNewBannerImageUrl] = useState('');
+  
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
+  
+  const CLOUDINARY_CLOUD_NAME = 'dm6yuokre';
+  const CLOUDINARY_UPLOAD_PRESET = 'khalil_apple';
+
 
   useEffect(() => {
     const q = query(collection(db, "banners"));
@@ -42,11 +51,68 @@ export default function BannersPage() {
 
     return () => unsubscribe();
   }, []);
+  
+  const resetForm = () => {
+    setNewBannerName('');
+    setNewBannerLink('');
+    setNewBannerImageUrl('');
+    setUploadProgress(0);
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    setNewBannerImageUrl('');
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+    try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, true);
+        
+        xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+                const percentComplete = Math.round((event.loaded / event.total) * 100);
+                setUploadProgress(percentComplete);
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                const response = JSON.parse(xhr.responseText);
+                setNewBannerImageUrl(response.secure_url);
+                toast({ title: 'Succès', description: 'Image téléversée avec succès.' });
+            } else {
+                 throw new Error(`Upload failed with status: ${xhr.status}`);
+            }
+            setIsUploading(false);
+        };
+        
+        xhr.onerror = () => {
+             toast({ variant: 'destructive', title: 'Erreur', description: "Le téléversement de l'image a échoué. Veuillez vérifier votre console." });
+             console.error('Upload Error:', xhr.statusText);
+             setIsUploading(false);
+        };
+
+        xhr.send(formData);
+
+    } catch (error) {
+        setIsUploading(false);
+        toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de téléverser l'image." });
+        console.error(error);
+    }
+  };
+
 
   const handleAddBanner = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBannerName || !newBannerLink || !newBannerImageUrl) {
-      toast({ variant: "destructive", title: "Erreur", description: "Veuillez remplir tous les champs." });
+      toast({ variant: "destructive", title: "Erreur", description: "Veuillez remplir tous les champs et téléverser une image." });
       return;
     }
     setIsSubmitting(true);
@@ -59,9 +125,7 @@ export default function BannersPage() {
       });
       toast({ title: "Succès", description: "La bannière a été ajoutée." });
       setIsDialogOpen(false);
-      setNewBannerName('');
-      setNewBannerLink('');
-      setNewBannerImageUrl('');
+      resetForm();
     } catch (error) {
       console.error(error);
       toast({ variant: "destructive", title: "Erreur", description: "Impossible d'ajouter la bannière." });
@@ -108,23 +172,45 @@ export default function BannersPage() {
                 <DialogDescription>Remplissez les informations ci-dessous.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">Nom</Label>
-                  <Input id="name" value={newBannerName} onChange={(e) => setNewBannerName(e.target.value)} className="col-span-3" placeholder="Promo Été" />
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nom</Label>
+                  <Input id="name" value={newBannerName} onChange={(e) => setNewBannerName(e.target.value)} placeholder="Promo Été" />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="link" className="text-right">Lien</Label>
-                  <Input id="link" value={newBannerLink} onChange={(e) => setNewBannerLink(e.target.value)} className="col-span-3" placeholder="/products/iphone-15" />
+                <div className="space-y-2">
+                  <Label htmlFor="link">Lien</Label>
+                  <Input id="link" value={newBannerLink} onChange={(e) => setNewBannerLink(e.target.value)} placeholder="/products/iphone-15" />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="imageUrl" className="text-right">URL de l'image</Label>
-                  <Input id="imageUrl" value={newBannerImageUrl} onChange={(e) => setNewBannerImageUrl(e.target.value)} className="col-span-3" placeholder="https://placehold.co/800x200.png" />
+                <div className="space-y-2">
+                    <Label>Image de la bannière</Label>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        ref={fileInputRef}
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                    >
+                        {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                        {isUploading ? 'Téléversement...' : 'Choisir une image'}
+                    </Button>
+                    {isUploading && <Progress value={uploadProgress} className="mt-2 w-full" />}
+                    {newBannerImageUrl && !isUploading && (
+                        <div className="mt-4 aspect-video relative w-full mx-auto overflow-hidden rounded-md border">
+                            <Image src={newBannerImageUrl} alt="Aperçu de la bannière" fill className="object-cover" />
+                        </div>
+                    )}
                 </div>
               </div>
               <DialogFooter>
-                <DialogClose asChild><Button type="button" variant="secondary">Annuler</Button></DialogClose>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <DialogClose asChild><Button type="button" variant="secondary" onClick={resetForm}>Annuler</Button></DialogClose>
+                <Button type="submit" disabled={isSubmitting || isUploading}>
+                  {(isSubmitting || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Enregistrer
                 </Button>
               </DialogFooter>
@@ -211,3 +297,5 @@ export default function BannersPage() {
     </div>
   );
 }
+
+    
