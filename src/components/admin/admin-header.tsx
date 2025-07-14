@@ -3,7 +3,7 @@
 
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, User, Bell, LogOut } from "lucide-react";
+import { Menu, User, LogOut } from "lucide-react";
 import { AdminSidebar } from "./admin-sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { auth } from "@/lib/firebase";
@@ -42,14 +42,6 @@ export function AdminHeader() {
         </SheetContent>
       </Sheet>
       <div className="flex-1" />
-       <Button variant="ghost" size="icon" className="relative">
-        <Bell className="h-5 w-5" />
-        <span className="absolute -top-1 -right-1 flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-        </span>
-        <span className="sr-only">Notifications</span>
-      </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-8 w-8 rounded-full">
