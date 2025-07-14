@@ -2,7 +2,6 @@
 'use client';
 
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
 import Link from "next/link";
 import type { DocumentData } from "firebase/firestore";
@@ -13,7 +12,9 @@ interface HomeCarouselProps {
 
 export function HomeCarousel({ banners }: HomeCarouselProps) {
     if (banners.length === 0) {
-        return null;
+        return (
+             <div className="aspect-[16/6] bg-muted animate-pulse rounded-lg" />
+        );
     }
 
     return (
@@ -22,23 +23,21 @@ export function HomeCarousel({ banners }: HomeCarouselProps) {
                 {banners.map((banner) => (
                     <CarouselItem key={banner.id}>
                         <Link href={banner.link || '#'} target="_blank" rel="noopener noreferrer">
-                            <Card className="overflow-hidden">
-                                <CardContent className="p-0">
-                                    <Image
-                                        src={banner.imageUrl}
-                                        width={600}
-                                        height={600}
-                                        alt={banner.name}
-                                        className="mx-auto aspect-square overflow-hidden rounded-xl object-cover"
-                                    />
-                                </CardContent>
-                            </Card>
+                            <div className="relative aspect-[16/6] overflow-hidden">
+                                <Image
+                                    src={banner.imageUrl}
+                                    priority
+                                    fill
+                                    alt={banner.name}
+                                    className="object-cover"
+                                />
+                            </div>
                         </Link>
                     </CarouselItem>
                 ))}
             </CarouselContent>
-            <CarouselPrevious className="left-2" />
-            <CarouselNext className="right-2" />
+            <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 z-10" />
+            <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 z-10" />
         </Carousel>
     )
 }

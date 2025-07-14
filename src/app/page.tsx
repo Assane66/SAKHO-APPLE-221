@@ -111,29 +111,28 @@ export default function Home() {
 
   return (
     <div className="flex flex-col">
-      <section className="w-full py-12 md:py-24 lg:py-32 bg-secondary/50">
+      <section className="w-full bg-secondary/30">
+        <HomeCarousel banners={banners} />
+      </section>
+
+      <section className="w-full py-12 md:py-16">
         <div className="container px-4 md:px-6">
-          <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
-            <div className="flex flex-col justify-center space-y-4">
-              <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline">
-                  Bienvenue chez Khalil Apple
-                </h1>
-                <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                  Votre destination N°1 pour les iPhones neufs et reconditionnés au Sénégal. Découvrez nos offres et estimez la valeur de votre ancien appareil.
-                </p>
-              </div>
-              <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                <Link href="/exchange">
-                  <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
-                    Échanger mon iPhone
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-              </div>
+          <div className="flex flex-col justify-center items-center space-y-4 text-center">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline">
+                Bienvenue chez Khalil Apple
+              </h1>
+              <p className="max-w-[600px] text-muted-foreground md:text-xl">
+                Votre destination N°1 pour les iPhones neufs et reconditionnés au Sénégal. Découvrez nos offres et estimez la valeur de votre ancien appareil.
+              </p>
             </div>
-            <div className="mx-auto w-full lg:order-last">
-                <HomeCarousel banners={banners} />
+            <div className="flex flex-col gap-2 min-[400px]:flex-row">
+              <Link href="/exchange">
+                <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
+                  Échanger mon iPhone
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
