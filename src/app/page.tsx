@@ -86,20 +86,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col space-y-12 container px-4 md:px-6 py-6">
-        <div className="space-y-4 text-center">
-            <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl font-headline">
-                Bienvenue chez Khalil Apple
-            </h1>
-            <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
-                Votre destination N°1 pour les iPhones neufs et reconditionnés au Sénégal. Découvrez nos offres et estimez la valeur de votre ancien appareil.
-            </p>
-            <div>
-                <Button size="lg" asChild>
-                    <Link href="/exchange">Échanger mon iPhone</Link>
-                </Button>
-            </div>
-        </div>
-
+        
         <HomeCarousel banners={banners} />
 
         {/* Promotions */}
