@@ -1,4 +1,4 @@
-// src/app/admin/products/new/page.tsx
+// src/app/admin/products/[id]/edit/page.tsx
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -9,18 +9,26 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Loader2, Trash, PlusCircle, UploadCloud } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { addDoc, collection, serverTimestamp, onSnapshot, query, DocumentData } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, onSnapshot, query, DocumentData } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Product, ProductVariant } from '@/types';
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 
-export default function NewProductPage() {
+export default function EditProductPage() {
   const router = useRouter();
+  const params = useParams();
+  const { id } = params;
   const { toast } = useToast();
+
+  const [product, setProduct] = useState<Product | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form state
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
@@ -30,17 +38,16 @@ export default function NewProductPage() {
   const [keywords, setKeywords] = useState('');
   const [variants, setVariants] = useState<ProductVariant[]>([{ storage: '', price: 0 }]);
   const [categories, setCategories] = useState<DocumentData[]>([]);
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const CLOUDINARY_CLOUD_NAME = 'dm6yuokre';
   const CLOUDINARY_UPLOAD_PRESET = 'khalil_apple';
-
+  
   useEffect(() => {
+    // Fetch categories
     const q = query(collection(db, "categories"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const categoriesData: DocumentData[] = [];
@@ -52,6 +59,37 @@ export default function NewProductPage() {
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!id) return;
+    const fetchProduct = async () => {
+        try {
+            const docRef = doc(db, 'products', id as string);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const productData = { id: docSnap.id, ...docSnap.data() } as Product;
+                setProduct(productData);
+                setName(productData.name);
+                setSlug(productData.slug);
+                setStatus(productData.status);
+                setCategoryId(productData.categoryId);
+                setThumbnail(productData.thumbnail);
+                setBatteryHealth(productData.batteryHealth);
+                setKeywords(productData.keywords.join(', '));
+                setVariants(productData.variants);
+            } else {
+                toast({ variant: 'destructive', title: 'Erreur', description: 'Produit non trouvé.'});
+                router.push('/admin/products');
+            }
+        } catch (error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de charger les données.'});
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    fetchProduct();
+  }, [id, router, toast]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newName = e.target.value;
@@ -138,14 +176,14 @@ export default function NewProductPage() {
         toast({
             variant: 'destructive',
             title: "Erreur de validation",
-            description: "Veuillez remplir tous les champs obligatoires, y compris l'image et au moins une variante valide.",
+            description: "Veuillez remplir tous les champs obligatoires.",
         });
         setIsSubmitting(false);
         return;
     }
     
     try {
-      const productData: Omit<Product, 'id'> = {
+      const productData = {
         name,
         slug,
         status,
@@ -154,27 +192,35 @@ export default function NewProductPage() {
         batteryHealth,
         keywords: keywords.split(',').map(k => k.trim()).filter(k => k),
         variants,
-        createdAt: serverTimestamp()
       };
 
-      await addDoc(collection(db, 'products'), productData);
+      const docRef = doc(db, 'products', id as string);
+      await updateDoc(docRef, productData);
 
       toast({
-        title: "Produit ajouté",
-        description: `Le produit "${name}" a été créé avec succès.`,
+        title: "Produit mis à jour",
+        description: `Le produit "${name}" a été mis à jour avec succès.`,
       });
       router.push('/admin/products');
     } catch (error) {
-      console.error("Erreur lors de l'ajout du produit:", error);
+      console.error("Erreur lors de la mise à jour du produit:", error);
       toast({
         variant: 'destructive',
         title: "Erreur",
-        description: "Une erreur est survenue lors de la création du produit.",
+        description: "Une erreur est survenue lors de la mise à jour du produit.",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (isLoading) {
+    return (
+        <div className="flex h-screen items-center justify-center">
+            <Loader2 className="h-12 w-12 animate-spin" />
+        </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -192,8 +238,8 @@ export default function NewProductPage() {
             <div className="md:col-span-2">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Informations sur le produit</CardTitle>
-                    <CardDescription>Remplissez les informations de base du produit.</CardDescription>
+                    <CardTitle>Modifier le produit</CardTitle>
+                    <CardDescription>Mettez à jour les informations du produit.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                      <div className="space-y-2">
@@ -229,7 +275,7 @@ export default function NewProductPage() {
                                     type="number"
                                     placeholder="Prix (CFA)"
                                     required
-                                    value={variant.price === 0 ? '' : variant.price}
+                                    value={variant.price || ''}
                                     onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
                                 />
                             </div>
@@ -267,7 +313,7 @@ export default function NewProductPage() {
                             disabled={isUploading}
                         >
                             {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-                            {isUploading ? 'Téléversement...' : 'Choisir une image'}
+                            {isUploading ? 'Téléversement...' : 'Changer l\'image'}
                         </Button>
                         {isUploading && <Progress value={uploadProgress} className="mt-2 w-full" />}
                         {thumbnail && (
@@ -320,7 +366,7 @@ export default function NewProductPage() {
          <div className="mt-8 flex justify-end">
             <Button type="submit" size="lg" disabled={isSubmitting || isUploading}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Enregistrer le produit
+              Enregistrer les modifications
             </Button>
           </div>
       </form>

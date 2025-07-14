@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Search, MoreHorizontal, Loader2, Trash } from "lucide-react";
+import { PlusCircle, Search, MoreHorizontal, Loader2, Trash, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from "react";
@@ -16,11 +16,13 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, doc, deleteDoc } from "firebase/firestore";
 import type { Product } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     const q = query(collection(db, "products"));
@@ -107,7 +109,10 @@ export default function ProductsPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem disabled>Modifier</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => router.push(`/admin/products/${product.id}/edit`)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Modifier
+              </DropdownMenuItem>
               <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(product.id)}>
                 <Trash className="mr-2 h-4 w-4" />
                 Supprimer
