@@ -4,8 +4,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Search } from 'lucide-react';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Search, Clock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, DocumentData, orderBy, limit, Timestamp } from 'firebase/firestore';
