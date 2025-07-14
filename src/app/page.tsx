@@ -66,6 +66,10 @@ async function getActivePromotions(): Promise<Product[]> {
   products = products.map(product => {
     const productPromos = promotions.filter(p => p.productId === product.id);
     if (productPromos.length > 0) {
+      // Find the promo with the soonest end date to display on the card
+      const mainPromo = productPromos.sort((a,b) => a.endDate.toMillis() - b.endDate.toMillis())[0];
+      product.promoEndDate = mainPromo.endDate;
+
       product.variants = product.variants.map(variant => {
         const promo = productPromos.find(p => p.variantStorage === variant.storage);
         if (promo) {
@@ -207,6 +211,12 @@ export default function Home() {
                       <CardTitle className="text-lg font-headline">
                         <Link href={`/products/${product.slug}`}>{product.name}</Link>
                       </CardTitle>
+                      {product.promoEndDate && (
+                        <div className="text-xs text-destructive flex items-center gap-1 mt-1 font-mono">
+                          <Clock className="h-3 w-3" />
+                          <CountdownTimer endDate={product.promoEndDate} />
+                        </div>
+                      )}
                     </CardContent>
                     <CardFooter className="p-4 pt-0">
                       <div className="flex flex-col w-full">

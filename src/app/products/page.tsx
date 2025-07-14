@@ -4,16 +4,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, DocumentData } from 'firebase/firestore';
+import { collection, getDocs, query, where, DocumentData, Timestamp } from 'firebase/firestore';
 import type { Product } from '@/types';
 
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search, Clock } from 'lucide-react';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
+import { CountdownTimer } from '@/components/countdown-timer';
 
 // Fetch all active products and all categories
 async function getProductsAndCategories() {
@@ -25,17 +26,21 @@ async function getProductsAndCategories() {
     getDocs(categoriesQuery)
   ]);
 
-  const productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+  let productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
   const categoryList = categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DocumentData));
 
   // Fetch promotions and merge them
-  const promoQuery = query(collection(db, 'promotions'));
+  const now = Timestamp.now();
+  const promoQuery = query(collection(db, 'promotions'), where("endDate", ">", now));
   const promoSnapshot = await getDocs(promoQuery);
   const promotions = promoSnapshot.docs.map(doc => doc.data());
 
   const productListWithPromos = productList.map(product => {
       const productPromos = promotions.filter(p => p.productId === product.id);
       if (productPromos.length > 0) {
+          const mainPromo = productPromos.sort((a,b) => a.endDate.toMillis() - b.endDate.toMillis())[0];
+          product.promoEndDate = mainPromo.endDate;
+
           product.variants = product.variants.map(variant => {
               const promo = productPromos.find(p => p.variantStorage === variant.storage);
               if (promo) {
@@ -163,7 +168,7 @@ export default function ProductsPage() {
         <div className="grid gap-6 lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2">
           {filteredAndSortedProducts.length > 0 ? (
             filteredAndSortedProducts.map(product => (
-              <Card key={product.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
+              <Card key={product.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 flex flex-col">
                 <Link href={`/products/${product.slug}`} className="block">
                   <CardHeader className="p-0 relative">
                     {product.variants.some(v => v.isPromo) && (
@@ -179,10 +184,16 @@ export default function ProductsPage() {
                     />
                   </CardHeader>
                 </Link>
-                <CardContent className="p-4">
+                <CardContent className="p-4 flex-grow">
                   <CardTitle className="text-lg font-headline h-12">
                     <Link href={`/products/${product.slug}`}>{product.name}</Link>
                   </CardTitle>
+                  {product.promoEndDate && (
+                    <div className="text-xs text-destructive flex items-center gap-1 mt-1 font-mono">
+                      <Clock className="h-3 w-3" />
+                      <CountdownTimer endDate={product.promoEndDate} />
+                    </div>
+                  )}
                 </CardContent>
                 <CardFooter className="p-4 pt-0">
                   <div className="flex flex-col w-full">

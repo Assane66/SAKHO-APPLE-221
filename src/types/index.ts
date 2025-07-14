@@ -18,6 +18,7 @@ export type Product = {
   status: 'active' | 'inactive';
   variants: ProductVariant[];
   createdAt?: any; // To accommodate serverTimestamp
+  promoEndDate?: any; // To accommodate serverTimestamp
 };
 
 export type FlashSaleVariant = {
