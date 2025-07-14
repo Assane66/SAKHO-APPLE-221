@@ -111,7 +111,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col">
-      <section className="w-full bg-secondary/30">
+      <section className="w-full">
         <HomeCarousel banners={banners} />
       </section>
 
