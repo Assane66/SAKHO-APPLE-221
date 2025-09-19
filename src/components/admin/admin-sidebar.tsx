@@ -37,12 +37,12 @@ export function AdminSidebar({ isMobile = false }) {
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <Image 
             src="https://res.cloudinary.com/dm6yuokre/image/upload/v1752163215/IMG-20250710-WA0000-removebg-preview_uunwq2.png"
-            alt="Khalil Apple Logo"
+            alt="Sakho Apple Logo"
             width={24}
             height={24}
             className="h-6 w-6"
           />
-          <span className="">Khalil Apple</span>
+          <span className="">Sakho Apple</span>
         </Link>
       </div>
       <nav className="flex-1 overflow-auto py-4">

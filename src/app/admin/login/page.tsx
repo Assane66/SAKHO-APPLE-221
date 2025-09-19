@@ -93,7 +93,7 @@ export default function AdminLoginPage() {
                 <Input 
                   id="email" 
                   type="email" 
-                  placeholder="admin@khalilapple.com" 
+                  placeholder="admin@sakhoapple.com" 
                   required 
                   className="pl-10"
                   value={email}
