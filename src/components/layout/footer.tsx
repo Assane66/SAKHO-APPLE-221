@@ -29,15 +29,15 @@ export async function Footer() {
   const settings = await getSettings();
 
   const shopName = settings.shopName || 'Khalil Apple';
-  const address = settings.address || 'Dakar, Médine Rue 37 angle 18';
+  const address = settings.address || 'Tivaouane Peulh';
   const contactPhone = settings.contactPhone || '+221781395893';
-  const contactEmail = settings.contactEmail || 'khalilapple778@icloud.com';
+  const contactEmail = settings.contactEmail || 'sakho1555@gmail.com';
 
 
   return (
     <footer className="bg-secondary text-secondary-foreground">
       <div className="container py-12 px-4 md:px-6">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
             <Link href="/" className="flex items-center space-x-2">
                <Image 
@@ -61,6 +61,23 @@ export async function Footer() {
               <li><Link href="/about" className="text-sm hover:underline">Qui sommes-nous?</Link></li>
             </ul>
           </div>
+            <div className="space-y-2">
+                <h4 className="font-semibold font-headline">Contact</h4>
+                <ul className="space-y-2 text-sm">
+                    <li className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        <span>{address}</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        <a href={`tel:${contactPhone}`}>{contactPhone}</a>
+                    </li>
+                    <li className="flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
+                    </li>
+                </ul>
+            </div>
           <div className="space-y-2">
             <h4 className="font-semibold font-headline">Suivez-nous</h4>
             {/* Placeholder for social links */}

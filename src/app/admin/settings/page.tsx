@@ -24,9 +24,9 @@ interface SettingsData {
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SettingsData>({
     shopName: 'Khalil Apple',
-    contactEmail: 'khalilapple778@icloud.com',
+    contactEmail: 'sakho1555@gmail.com',
     contactPhone: '+221781395893',
-    address: 'Dakar, Médine Rue 37 angle 18',
+    address: 'Tivaouane Peulh',
     paymentCashOnDelivery: true,
     paymentMobileMoney: true,
   });
