@@ -63,6 +63,20 @@ export async function Footer() {
           </div>
           <div className="space-y-2">
             <h4 className="font-semibold font-headline">Contact</h4>
+            <ul className="space-y-1 text-sm">
+              <li className="flex items-start gap-2">
+                <MapPin className="mt-1 h-4 w-4 flex-shrink-0" />
+                <span>{address}</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Phone className="h-4 w-4" />
+                <a href={`tel:${contactPhone}`} className="hover:underline">{contactPhone}</a>
+              </li>
+              <li className="flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                <a href={`mailto:${contactEmail}`} className="hover:underline">{contactEmail}</a>
+              </li>
+            </ul>
           </div>
           <div className="space-y-2">
             <h4 className="font-semibold font-headline">Suivez-nous</h4>
