@@ -37,7 +37,7 @@ export async function Footer() {
   return (
     <footer className="bg-secondary text-secondary-foreground">
       <div className="container py-12 px-4 md:px-6">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
             <Link href="/" className="flex items-center space-x-2">
                <Image 
@@ -59,23 +59,6 @@ export async function Footer() {
               <li><Link href="/exchange" className="text-sm hover:underline">Échange</Link></li>
               <li><Link href="/products" className="text-sm hover:underline">Nos Produits</Link></li>
               <li><Link href="/about" className="text-sm hover:underline">Qui sommes-nous?</Link></li>
-            </ul>
-          </div>
-          <div className="space-y-2">
-            <h4 className="font-semibold font-headline">Contact</h4>
-            <ul className="space-y-1 text-sm">
-              <li className="flex items-start gap-2">
-                <MapPin className="mt-1 h-4 w-4 flex-shrink-0" />
-                <span>{address}</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                <a href={`tel:${contactPhone}`} className="hover:underline">{contactPhone}</a>
-              </li>
-              <li className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                <a href={`mailto:${contactEmail}`} className="hover:underline">{contactEmail}</a>
-              </li>
             </ul>
           </div>
           <div className="space-y-2">
