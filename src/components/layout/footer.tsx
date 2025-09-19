@@ -30,7 +30,7 @@ export async function Footer() {
 
   const shopName = settings.shopName || 'Khalil Apple';
   const address = settings.address || 'Dakar, Médine Rue 37 angle 18';
-  const contactPhone = settings.contactPhone || '+221770757183';
+  const contactPhone = settings.contactPhone || '+221781395893';
   const contactEmail = settings.contactEmail || 'khalilapple778@icloud.com';
 
 
