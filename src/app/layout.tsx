@@ -9,7 +9,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
   title: 'Sakho Apple',
-  description: 'Premium iPhone Store in Sénégal with AI-powered trade-in.',
+  description: 'Boutique premium d\'iPhones au Sénégal avec service d\'échange assisté par IA.',
   icons: [
     {
       rel: 'icon',

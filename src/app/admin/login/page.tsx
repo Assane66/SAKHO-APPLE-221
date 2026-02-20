@@ -22,7 +22,6 @@ export default function AdminLoginPage() {
   const { toast } = useToast();
   const { user, isAdmin, loading } = useAuth();
 
-  // Redirect if already logged in as admin
   useEffect(() => {
     if (!loading && user && isAdmin) {
       router.push('/admin/dashboard');
@@ -37,7 +36,6 @@ export default function AdminLoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Vérifier le rôle de l'utilisateur
       const userDocRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
 
@@ -48,7 +46,6 @@ export default function AdminLoginPage() {
         });
         router.push('/admin/dashboard');
       } else {
-        // Déconnecter l'utilisateur s'il n'est pas admin
         await auth.signOut();
         toast({
           variant: 'destructive',

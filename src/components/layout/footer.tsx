@@ -21,7 +21,7 @@ async function getSettings(): Promise<SettingsData> {
         return {};
     } catch (error) {
         console.error("Failed to fetch settings for footer:", error);
-        return {}; // Return empty object on error
+        return {};
     }
 }
 
@@ -32,7 +32,6 @@ export async function Footer() {
   const address = settings.address || 'Tivaouane Peulh';
   const contactPhone = settings.contactPhone || '+221781395893';
   const contactEmail = settings.contactEmail || 'sakho1555@gmail.com';
-
 
   return (
     <footer className="bg-secondary text-secondary-foreground">
@@ -80,9 +79,8 @@ export async function Footer() {
             </div>
           <div className="space-y-2">
             <h4 className="font-semibold font-headline">Suivez-nous</h4>
-            {/* Placeholder for social links */}
             <div className="flex space-x-4">
-                <Link href="https://vm.tiktok.com/ZMHgBjJwjqgsS-ysH6R/" aria-label="TikTok page"><span className="text-sm hover:underline">TikTok</span></Link>
+                <Link href="https://vm.tiktok.com/ZMHgBjJwjqgsS-ysH6R/" aria-label="Page TikTok"><span className="text-sm hover:underline">TikTok</span></Link>
             </div>
           </div>
         </div>
