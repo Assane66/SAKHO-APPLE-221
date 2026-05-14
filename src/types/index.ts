@@ -22,6 +22,20 @@ export type Product = {
   createdAt?: any; // To accommodate serverTimestamp
   promoEndDate?: any; // To accommodate serverTimestamp
   sales?: number; // Pour le suivi des produits les plus vendus
+  hasIMEI?: boolean; // Indique si ce produit peut avoir des exemplaires avec IMEI
+};
+
+export type StockItem = {
+  id: string;
+  productId: string;
+  productName: string;
+  imei: string;
+  storage: string;
+  status: 'available' | 'sold';
+  addedAt: any;
+  soldAt?: any;
+  customerName?: string;
+  customerPhone?: string;
 };
 
 export type FlashSaleVariant = {

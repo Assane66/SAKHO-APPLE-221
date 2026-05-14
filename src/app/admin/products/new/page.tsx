@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Loader2, Trash, PlusCircle, UploadCloud } from 'lucide-react';
+import { ArrowLeft, Loader2, Trash, PlusCircle, UploadCloud, Smartphone } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +29,7 @@ export default function NewProductPage() {
   const [batteryHealth, setBatteryHealth] = useState('');
   const [keywords, setKeywords] = useState('');
   const [variants, setVariants] = useState<ProductVariant[]>([{ storage: '', price: 0 }]);
+  const [hasIMEI, setHasIMEI] = useState(false);
   const [categories, setCategories] = useState<DocumentData[]>([]);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -154,6 +155,7 @@ export default function NewProductPage() {
         batteryHealth,
         keywords: keywords.split(',').map(k => k.trim()).filter(k => k),
         variants,
+        hasIMEI,
         createdAt: serverTimestamp()
       };
 
@@ -300,6 +302,19 @@ export default function NewProductPage() {
                         <div className="space-y-2">
                             <Label htmlFor="battery-health">Santé de la batterie</Label>
                             <Input id="battery-health" value={batteryHealth} onChange={(e) => setBatteryHealth(e.target.value)} placeholder="Ex: 90-100%" />
+                        </div>
+                        <div className="flex items-center space-x-2 py-2">
+                            <input 
+                                type="checkbox" 
+                                id="hasIMEI" 
+                                checked={hasIMEI} 
+                                onChange={(e) => setHasIMEI(e.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                            <Label htmlFor="hasIMEI" className="flex items-center gap-2 cursor-pointer">
+                                <Smartphone className="h-4 w-4" />
+                                Gérer par IMEI (Stock unique)
+                            </Label>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="status">Statut</Label>
