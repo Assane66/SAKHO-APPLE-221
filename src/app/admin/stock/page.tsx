@@ -45,8 +45,8 @@ export default function StockPage() {
       setProducts(productsData);
     });
 
-    // Charger le stock
-    const qStock = query(collection(db, 'stock'));
+    // Charger le stock (collection 'inventory' selon la capture d'écran)
+    const qStock = query(collection(db, 'inventory'));
     const unsubscribeStock = onSnapshot(qStock, (snapshot) => {
       const stockData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StockItem));
       setStock(stockData);
@@ -69,12 +69,12 @@ export default function StockPage() {
     setIsSubmitting(true);
     try {
       const product = products.find(p => p.id === selectedProductId);
-      await addDoc(collection(db, 'stock'), {
+      await addDoc(collection(db, 'inventory'), {
         productId: selectedProductId,
         productName: product?.name || 'Inconnu',
         imei: newImei,
         storage: selectedStorage,
-        status: 'available',
+        status: 'disponible',
         addedAt: serverTimestamp()
       });
       toast({ title: 'Succès', description: 'Appareil ajouté au stock.' });
@@ -113,8 +113,8 @@ export default function StockPage() {
 
     setIsSubmitting(true);
     try {
-      await updateDoc(doc(db, 'stock', selectedItem.id), {
-        status: 'sold',
+      await updateDoc(doc(db, 'inventory', selectedItem.id), {
+        status: 'vendu',
         soldAt: serverTimestamp(),
         customerName,
         customerPhone
@@ -200,8 +200,8 @@ export default function StockPage() {
                         <TableCell>{item.productName}</TableCell>
                         <TableCell>{item.storage}</TableCell>
                         <TableCell>
-                          <Badge variant={item.status === 'available' ? 'default' : 'secondary'}>
-                            {item.status === 'available' ? 'En stock' : 'Vendu'}
+                          <Badge variant={item.status === 'disponible' ? 'default' : 'secondary'}>
+                            {item.status === 'disponible' ? 'En stock' : 'Vendu'}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -213,7 +213,7 @@ export default function StockPage() {
                           ) : '-'}
                         </TableCell>
                         <TableCell className="text-right">
-                          {item.status === 'available' && (
+                          {item.status === 'disponible' && (
                             <Button size="sm" variant="outline" onClick={() => { setSelectedItem(item); setIsSellDialogOpen(true); }}>
                               Vendre
                             </Button>

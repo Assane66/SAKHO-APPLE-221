@@ -31,7 +31,7 @@ export type StockItem = {
   productName: string;
   imei: string;
   storage: string;
-  status: 'available' | 'sold';
+  status: 'disponible' | 'vendu';
   addedAt: any;
   soldAt?: any;
   customerName?: string;
