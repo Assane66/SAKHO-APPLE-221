@@ -36,6 +36,8 @@ export default function StockPage() {
   // Formulaire vente
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [finalPrice, setFinalPrice] = useState<number>(0);
+  const [isEditingPrice, setIsEditingPrice] = useState(false);
 
   useEffect(() => {
     // Charger les produits pour le select
@@ -105,6 +107,23 @@ export default function StockPage() {
     }
   };
 
+  const handleUpdatePrice = async () => {
+    if (!selectedItem || !finalPrice) return;
+    setIsSubmitting(true);
+    try {
+      await updateDoc(doc(db, 'inventory', selectedItem.id), {
+        finalPrice: Number(finalPrice)
+      });
+      toast({ title: 'Prix mis à jour', description: 'Le prix de vente a été modifié.' });
+      setIsEditingPrice(false);
+      setSelectedItem(null);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de modifier le prix.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSell = async () => {
     if (!selectedItem || !customerName) {
       toast({ variant: 'destructive', title: 'Erreur', description: 'Le nom du client est obligatoire.' });
@@ -117,13 +136,15 @@ export default function StockPage() {
         status: 'vendu',
         soldAt: serverTimestamp(),
         customerName,
-        customerPhone
+        customerPhone,
+        finalPrice: finalPrice || 0
       });
       toast({ title: 'Vendu !', description: `La vente de l'IMEI ${selectedItem.imei} a été enregistrée.` });
       setIsSellDialogOpen(false);
       setSelectedItem(null);
       setCustomerName('');
       setCustomerPhone('');
+      setFinalPrice(0);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Erreur', description: "Erreur lors de l'enregistrement de la vente." });
     } finally {
@@ -182,6 +203,7 @@ export default function StockPage() {
                     <TableHead>Produit</TableHead>
                     <TableHead>Stockage</TableHead>
                     <TableHead>Statut</TableHead>
+                    <TableHead>Prix Final</TableHead>
                     <TableHead>Client / Date</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -205,17 +227,24 @@ export default function StockPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {item.status === 'sold' ? (
+                          {item.finalPrice ? `${item.finalPrice.toLocaleString()} CFA` : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {item.status === 'vendu' ? (
                             <div className="text-xs">
                               <p className="font-semibold">{item.customerName}</p>
                               <p className="text-muted-foreground">{item.customerPhone}</p>
                             </div>
                           ) : '-'}
                         </TableCell>
-                        <TableCell className="text-right">
-                          {item.status === 'disponible' && (
+                        <TableCell className="text-right flex justify-end gap-2">
+                          {item.status === 'disponible' ? (
                             <Button size="sm" variant="outline" onClick={() => { setSelectedItem(item); setIsSellDialogOpen(true); }}>
                               Vendre
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="ghost" onClick={() => { setSelectedItem(item); setFinalPrice(item.finalPrice || 0); setIsEditingPrice(true); }}>
+                              Modifier Prix
                             </Button>
                           )}
                         </TableCell>
@@ -304,12 +333,42 @@ export default function StockPage() {
               <Label htmlFor="cust-phone">Téléphone du client</Label>
               <Input id="cust-phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Ex: 77..." />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="final-price">Prix de vente final (CFA)</Label>
+              <Input id="final-price" type="number" value={finalPrice || ''} onChange={(e) => setFinalPrice(Number(e.target.value))} placeholder="Ex: 150000" />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSellDialogOpen(false)}>Annuler</Button>
             <Button onClick={handleSell} disabled={isSubmitting} className="bg-green-600 hover:bg-green-700">
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirmer la vente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Price Dialog */}
+      <Dialog open={isEditingPrice} onOpenChange={setIsEditingPrice}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier le prix de vente</DialogTitle>
+            <DialogDescription>
+              Ajustez le prix final pour cet appareil déjà vendu.<br/>
+              IMEI : {selectedItem?.imei}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-final-price">Nouveau prix final (CFA)</Label>
+              <Input id="edit-final-price" type="number" value={finalPrice || ''} onChange={(e) => setFinalPrice(Number(e.target.value))} placeholder="Ex: 145000" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditingPrice(false)}>Annuler</Button>
+            <Button onClick={handleUpdatePrice} disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Enregistrer le prix
             </Button>
           </DialogFooter>
         </DialogContent>

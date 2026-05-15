@@ -36,6 +36,7 @@ export type StockItem = {
   soldAt?: any;
   customerName?: string;
   customerPhone?: string;
+  finalPrice?: number; // Prix de vente final (peut être différent du prix catalogue)
 };
 
 export type FlashSaleVariant = {

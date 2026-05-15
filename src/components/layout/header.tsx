@@ -2,14 +2,23 @@
 'use client';
 
 import Link from "next/link";
-import { Menu, User, ShoppingCart } from "lucide-react";
+import { Menu, User, ShoppingCart, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import Image from "next/image";
 import { ThemeToggle } from "../theme-toggle";
 import { useCart } from "@/context/CartContext";
+import { useState } from "react";
+import { QRScanner } from "../admin/qr-scanner";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 
 export function Header() {
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
   const { cart } = useCart();
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -30,6 +39,10 @@ export function Header() {
         </div>
         
         <div className="flex items-center justify-end space-x-1 md:space-x-2">
+           <Button variant="ghost" size="icon" onClick={() => setIsScannerOpen(true)}>
+              <QrCode className="h-6 w-6" />
+              <span className="sr-only">Scanner un iPhone</span>
+           </Button>
            <ThemeToggle />
            <Link href="/cart" passHref>
               <Button variant="ghost" size="icon" className="relative">
@@ -69,6 +82,35 @@ export function Header() {
            </Sheet>
         </div>
       </div>
+      {isScannerOpen && (
+        <QRScanner 
+          onClose={() => setIsScannerOpen(false)} 
+          onScan={async (imei) => {
+            setIsScannerOpen(false);
+            try {
+              const q = query(collection(db, 'inventory'), where('imei', '==', imei));
+              const snapshot = await getDocs(q);
+              if (!snapshot.empty) {
+                const stockData = snapshot.docs[0].data();
+                const productId = stockData.productId;
+                
+                // Chercher le slug du produit
+                const productSnap = await getDocs(query(collection(db, 'products'), where('__name__', '==', productId)));
+                if (!productSnap.empty) {
+                  const productData = productSnap.docs[0].data();
+                  router.push(`/products/${productData.slug}`);
+                  toast({ title: "Produit trouvé !", description: `Redirection vers ${productData.name}` });
+                }
+              } else {
+                toast({ variant: "destructive", title: "Non trouvé", description: "Cet IMEI n'est pas répertorié dans notre stock." });
+              }
+            } catch (error) {
+              console.error(error);
+              toast({ variant: "destructive", title: "Erreur", description: "Une erreur est survenue lors de la recherche." });
+            }
+          }} 
+        />
+      )}
     </header>
   );
 }
