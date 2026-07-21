@@ -11,7 +11,7 @@ interface CountdownTimerProps {
 export function CountdownTimer({ endDate }: CountdownTimerProps) {
   const calculateTimeLeft = () => {
     const difference = endDate.toMillis() - new Date().getTime();
-    let timeLeft = {};
+    let timeLeft: Record<string, number> = {};
 
     if (difference > 0) {
       timeLeft = {

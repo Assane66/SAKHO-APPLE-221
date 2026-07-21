@@ -74,7 +74,7 @@ const getLowestPrice = (variants: Product['variants'] = []) => {
 };
 
 
-export default function ProductDetailsPage({ params }: { params: { slug: string } }) {
+export default function ProductDetailsPage({ params }: { params: Promise<{ slug: string }> }) {
     const [product, setProduct] = useState<Product | null>(null);
     const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
     const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
@@ -87,7 +87,8 @@ export default function ProductDetailsPage({ params }: { params: { slug: string 
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
-            const { product, similarProducts } = await getProductData(params.slug);
+            const resolvedParams = await params;
+            const { product, similarProducts } = await getProductData(resolvedParams.slug);
             if (!product) {
                 notFound();
                 return;
@@ -103,7 +104,7 @@ export default function ProductDetailsPage({ params }: { params: { slug: string 
             setIsLoading(false);
         };
         fetchData();
-    }, [params.slug]);
+    }, [params]);
 
     useEffect(() => {
         if (product && selectedVariant) {
@@ -219,7 +220,12 @@ export default function ProductDetailsPage({ params }: { params: { slug: string 
           <div className="space-y-4">
             <div className="flex items-baseline gap-2">
               {originalPrice && (
-                  <span className="text-2xl font-medium text-muted-foreground line-through">{originalPrice.toLocaleString('fr-FR')} CFA</span>
+                  <div className="flex items-center gap-2">
+                      <span className="text-2xl font-medium text-muted-foreground line-through">{originalPrice.toLocaleString('fr-FR')} CFA</span>
+                      <span className="text-sm font-bold text-red-500 bg-red-500/10 px-2 py-1 rounded">
+                        - {(originalPrice - (displayPrice || 0)).toLocaleString('fr-FR')} CFA
+                      </span>
+                  </div>
               )}
               <p className="text-4xl font-bold text-primary">
                 {displayPrice ? `${displayPrice.toLocaleString('fr-FR')} CFA` : 'Sélectionnez une option'}

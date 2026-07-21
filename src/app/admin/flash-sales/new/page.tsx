@@ -36,14 +36,9 @@ export default function NewFlashSalePage() {
   const CLOUDINARY_CLOUD_NAME = 'dm6yuokre';
   const CLOUDINARY_UPLOAD_PRESET = 'khalil_apple';
 
-  const handleVariantChange = (index: number, field: keyof Omit<FlashSaleVariant, 'sold'>, value: string | number) => {
+  const handleVariantChange = (index: number, field: 'storage' | 'originalPrice' | 'discountPrice' | 'initialStock', value: string | number) => {
     const newVariants = [...variants];
-    const variant = newVariants[index];
-    if (typeof variant[field] === 'number') {
-        variant[field] = Number(value);
-    } else {
-        variant[field] = value as string;
-    }
+    (newVariants[index] as any)[field] = field === 'storage' ? String(value) : Number(value);
     setVariants(newVariants);
   };
 
