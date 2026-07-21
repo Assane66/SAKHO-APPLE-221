@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap');
 
 @layer base {
   :root {
@@ -158,10 +158,10 @@
 
 .premium-card:hover {
   transform: translateY(-6px) scale(1.01);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), 0 0 30px rgba(201, 168, 76, 0.12);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15), 0 0 30px rgba(201, 168, 76, 0.12);
 }
 
-/* Fade-in animation */
+/* Animations */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -217,11 +217,11 @@
   background: linear-gradient(90deg, transparent, hsl(var(--gold)), transparent);
 }
 
-/* Button premium styles */
+/* Button premium */
 .btn-gold {
   background: linear-gradient(135deg, #C9A84C, #E8D5A3, #C9A84C);
   background-size: 200% auto;
-  color: #0A0A0A;
+  color: #1A1A1A;
   font-weight: 600;
   letter-spacing: 0.05em;
   transition: all 0.4s ease;
@@ -251,23 +251,10 @@
   background: hsl(var(--gold-light));
 }
 
-/* Premium input */
-.premium-input {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(201, 168, 76, 0.2);
-  transition: all 0.3s ease;
-}
-
-.premium-input:focus {
-  border-color: rgba(201, 168, 76, 0.6);
-  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.1);
-  outline: none;
-}
-
 /* Luxury badge */
 .badge-gold {
   background: linear-gradient(135deg, #C9A84C, #F5D78E);
-  color: #0A0A0A;
+  color: #1A1A1A;
   font-weight: 700;
   font-size: 0.65rem;
   letter-spacing: 0.1em;
