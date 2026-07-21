@@ -8,83 +8,150 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import Image from "next/image";
 import { ThemeToggle } from "../theme-toggle";
 import { useCart } from "@/context/CartContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { QRScanner } from "../admin/qr-scanner";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 export function Header() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const { cart } = useCart();
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className={cn(
+      "sticky top-0 z-50 w-full transition-all duration-500",
+      isScrolled
+        ? "bg-background/80 backdrop-blur-xl border-b border-border shadow-lg shadow-black/10"
+        : "bg-background/50 border-b border-transparent"
+    )}>
       <div className="container flex h-16 items-center px-4 md:px-6">
+        {/* Logo */}
         <div className="mr-auto flex items-center">
-          <Link href="/" className="flex items-center space-x-2">
-            <Image 
-                src="https://res.cloudinary.com/dm6yuokre/image/upload/v1752163215/IMG-20250710-WA0000-removebg-preview_uunwq2.png"
-                alt="Khalil Apple Logo"
-                width={24}
-                height={24}
-                className="h-6 w-6"
-              />
-            <span className="font-bold font-headline text-lg" translate="no">Khalil Apple</span>
+          <Link href="/" className="flex items-center space-x-3 group">
+            <Image
+              src="https://res.cloudinary.com/dm6yuokre/image/upload/v1752163215/IMG-20250710-WA0000-removebg-preview_uunwq2.png"
+              alt="Khalil Apple Logo"
+              width={32}
+              height={32}
+              className="h-8 w-8 transition-transform duration-300 group-hover:scale-110"
+            />
+            <span className="font-headline font-bold text-xl gold-text tracking-wide" translate="no">
+              Khalil Apple
+            </span>
           </Link>
         </div>
-        
-        <div className="flex items-center justify-end space-x-1 md:space-x-2">
-           <Button variant="ghost" size="icon" onClick={() => setIsScannerOpen(true)}>
-              <QrCode className="h-6 w-6" />
-              <span className="sr-only">Scanner un iPhone</span>
-           </Button>
-           <ThemeToggle />
-           <Link href="/cart" passHref>
-              <Button variant="ghost" size="icon" className="relative">
-                {itemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                    {itemCount}
-                  </span>
-                )}
-                <ShoppingCart className="h-6 w-6" />
-                <span className="sr-only">Panier</span>
-              </Button>
+
+        {/* Desktop Nav */}
+        <nav className="hidden md:flex items-center space-x-8 mr-6">
+          {[
+            { href: '/products', label: 'Produits' },
+            { href: '/exchange', label: 'Échange' },
+            { href: '/about', label: 'À Propos' },
+          ].map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="relative text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 group"
+            >
+              {link.label}
+              <span className="absolute -bottom-1 left-0 h-px w-0 bg-primary transition-all duration-300 group-hover:w-full" />
             </Link>
-           <Link href="/admin/login">
-            <Button variant="ghost" size="icon">
-              <User className="h-6 w-6" />
+          ))}
+        </nav>
+
+        {/* Actions */}
+        <div className="flex items-center space-x-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsScannerOpen(true)}
+            className="hover:bg-primary/10 hover:text-primary transition-all duration-200"
+          >
+            <QrCode className="h-5 w-5" />
+            <span className="sr-only">Scanner un iPhone</span>
+          </Button>
+
+          <ThemeToggle />
+
+          <Link href="/cart" passHref>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative hover:bg-primary/10 hover:text-primary transition-all duration-200"
+            >
+              {itemCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground animate-pulse-gold">
+                  {itemCount}
+                </span>
+              )}
+              <ShoppingCart className="h-5 w-5" />
+              <span className="sr-only">Panier</span>
+            </Button>
+          </Link>
+
+          <Link href="/admin/login">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hover:bg-primary/10 hover:text-primary transition-all duration-200"
+            >
+              <User className="h-5 w-5" />
               <span className="sr-only">Admin Login</span>
             </Button>
-           </Link>
-           <Sheet>
+          </Link>
+
+          {/* Mobile Menu */}
+          <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
+              <Button variant="ghost" size="icon" className="md:hidden hover:bg-primary/10">
+                <Menu className="h-5 w-5" />
                 <span className="sr-only">Toggle Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="right">
-               <SheetHeader>
-                 <SheetTitle className="sr-only">Menu de navigation</SheetTitle>
-               </SheetHeader>
-               <div className="flex flex-col p-6 space-y-4">
-                <Link href="/" className="font-semibold">Accueil</Link>
-                <Link href="/exchange" className="font-semibold">Échange</Link>
-                <Link href="/products" className="font-semibold">Produits</Link>
-                <Link href="/about" className="font-semibold">Qui sommes-nous</Link>
-               </div>
+            <SheetContent side="right" className="border-border/50">
+              <SheetHeader>
+                <SheetTitle className="sr-only">Menu de navigation</SheetTitle>
+              </SheetHeader>
+              <div className="flex flex-col pt-8 space-y-1">
+                <div className="mb-6 pb-6 border-b border-border/50">
+                  <span className="font-headline font-bold text-xl gold-text">Khalil Apple</span>
+                </div>
+                {[
+                  { href: '/', label: 'Accueil' },
+                  { href: '/exchange', label: 'Échange' },
+                  { href: '/products', label: 'Produits' },
+                  { href: '/about', label: 'Qui sommes-nous' },
+                ].map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="flex items-center px-4 py-3 rounded-lg text-base font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-all duration-200"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
             </SheetContent>
-           </Sheet>
+          </Sheet>
         </div>
       </div>
+
       {isScannerOpen && (
-        <QRScanner 
-          onClose={() => setIsScannerOpen(false)} 
+        <QRScanner
+          onClose={() => setIsScannerOpen(false)}
           onScan={async (imei) => {
             setIsScannerOpen(false);
             try {
@@ -93,8 +160,6 @@ export function Header() {
               if (!snapshot.empty) {
                 const stockData = snapshot.docs[0].data();
                 const productId = stockData.productId;
-                
-                // Chercher le slug du produit
                 const productSnap = await getDocs(query(collection(db, 'products'), where('__name__', '==', productId)));
                 if (!productSnap.empty) {
                   const productData = productSnap.docs[0].data();
@@ -108,7 +173,7 @@ export function Header() {
               console.error(error);
               toast({ variant: "destructive", title: "Erreur", description: "Une erreur est survenue lors de la recherche." });
             }
-          }} 
+          }}
         />
       )}
     </header>

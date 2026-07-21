@@ -17,8 +17,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        headline: ['Poppins', 'sans-serif'],
-        body: ['"PT Sans"', 'sans-serif'],
+        headline: ['"Playfair Display"', 'serif'],
+        body: ['Inter', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {

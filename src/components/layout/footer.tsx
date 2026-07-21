@@ -34,58 +34,110 @@ export async function Footer() {
   const contactEmail = settings.contactEmail || 'baalhassane521@gmail.com';
 
   return (
-    <footer className="bg-secondary text-secondary-foreground">
-      <div className="container py-12 px-4 md:px-6">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-2">
-            <Link href="/" className="flex items-center space-x-2">
-               <Image 
+    <footer className="relative bg-secondary/30 border-t border-border/50">
+      {/* Gold top divider */}
+      <div className="gold-divider" />
+
+      <div className="container py-14 px-4 md:px-6">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
+
+          {/* Brand Column */}
+          <div className="space-y-4">
+            <Link href="/" className="flex items-center space-x-3 group">
+              <Image
                 src="https://res.cloudinary.com/dm6yuokre/image/upload/v1752163215/IMG-20250710-WA0000-removebg-preview_uunwq2.png"
                 alt="Khalil Apple Logo"
-                width={24}
-                height={24}
-                className="h-6 w-6"
+                width={32}
+                height={32}
+                className="h-8 w-8 transition-transform duration-300 group-hover:scale-110"
               />
-              <span className="text-lg font-bold font-headline" translate="no">{shopName}</span>
+              <span className="font-headline font-bold text-xl gold-text" translate="no">{shopName}</span>
             </Link>
-            <p className="text-sm">
-              Votre expert iPhone au Sénégal. Qualité et service garantis.
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Votre expert iPhone au Sénégal.<br />Qualité, authenticité et service garantis.
             </p>
           </div>
-          <div className="space-y-2">
-            <h4 className="font-semibold font-headline">Navigation</h4>
-            <ul className="space-y-1">
-              <li><Link href="/exchange" className="text-sm hover:underline">Échange</Link></li>
-              <li><Link href="/products" className="text-sm hover:underline">Nos Produits</Link></li>
-              <li><Link href="/about" className="text-sm hover:underline">Qui sommes-nous?</Link></li>
+
+          {/* Navigation */}
+          <div className="space-y-4">
+            <h4 className="font-headline font-semibold text-sm tracking-widest uppercase text-muted-foreground">Navigation</h4>
+            <ul className="space-y-2">
+              {[
+                { href: '/exchange', label: 'Échange' },
+                { href: '/products', label: 'Nos Produits' },
+                { href: '/about', label: 'Qui sommes-nous ?' },
+              ].map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200 flex items-center gap-2 group"
+                  >
+                    <span className="h-px w-4 bg-primary/0 group-hover:bg-primary transition-all duration-300" />
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
-            <div className="space-y-2">
-                <h4 className="font-semibold font-headline">Contact</h4>
-                <ul className="space-y-2 text-sm">
-                    <li className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        <span>{address}</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                        <Phone className="h-4 w-4" />
-                        <a href={`tel:${contactPhone}`}>{contactPhone}</a>
-                    </li>
-                    <li className="flex items-center gap-2">
-                        <Mail className="h-4 w-4" />
-                        <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
-                    </li>
-                </ul>
-            </div>
-          <div className="space-y-2">
-            <h4 className="font-semibold font-headline">Suivez-nous</h4>
-            <div className="flex space-x-4">
-                <Link href="https://vm.tiktok.com/ZMHgBjJwjqgsS-ysH6R/" aria-label="Page TikTok"><span className="text-sm hover:underline">TikTok</span></Link>
+
+          {/* Contact */}
+          <div className="space-y-4">
+            <h4 className="font-headline font-semibold text-sm tracking-widest uppercase text-muted-foreground">Contact</h4>
+            <ul className="space-y-3 text-sm">
+              <li className="flex items-start gap-3 text-muted-foreground">
+                <MapPin className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
+                <span>{address}</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <Phone className="h-4 w-4 text-primary flex-shrink-0" />
+                <a
+                  href={`tel:${contactPhone}`}
+                  className="text-muted-foreground hover:text-primary transition-colors duration-200"
+                >
+                  {contactPhone}
+                </a>
+              </li>
+              <li className="flex items-center gap-3">
+                <Mail className="h-4 w-4 text-primary flex-shrink-0" />
+                <a
+                  href={`mailto:${contactEmail}`}
+                  className="text-muted-foreground hover:text-primary transition-colors duration-200 break-all"
+                >
+                  {contactEmail}
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Social */}
+          <div className="space-y-4">
+            <h4 className="font-headline font-semibold text-sm tracking-widest uppercase text-muted-foreground">Suivez-nous</h4>
+            <div className="flex flex-col space-y-2">
+              <Link
+                href="https://vm.tiktok.com/ZMHgBjJwjqgsS-ysH6R/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors duration-200 group"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary border border-border group-hover:border-primary/50 group-hover:bg-primary/10 transition-all duration-200">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.96a8.17 8.17 0 004.78 1.52V7.01a4.85 4.85 0 01-1.01-.32z"/>
+                  </svg>
+                </span>
+                TikTok
+              </Link>
             </div>
           </div>
         </div>
-        <div className="mt-8 border-t pt-6 text-center text-sm">
-          <p>&copy; {new Date().getFullYear()} <span translate="no">{shopName}</span>. Tous droits réservés.</p>
+
+        {/* Bottom */}
+        <div className="mt-12 pt-6 border-t border-border/50 flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-muted-foreground">
+            &copy; {new Date().getFullYear()} <span className="gold-text font-semibold" translate="no">{shopName}</span>. Tous droits réservés.
+          </p>
+          <p className="text-xs text-muted-foreground/60">
+            Qualité • Authenticité • Excellence
+          </p>
         </div>
       </div>
     </footer>
