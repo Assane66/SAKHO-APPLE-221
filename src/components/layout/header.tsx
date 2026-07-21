@@ -29,12 +29,12 @@ export function Header() {
           <Link href="/" className="flex items-center space-x-2">
             <Image 
                 src="https://res.cloudinary.com/dm6yuokre/image/upload/v1752163215/IMG-20250710-WA0000-removebg-preview_uunwq2.png"
-                alt="Sakho Apple Logo"
+                alt="Khalil Apple Logo"
                 width={24}
                 height={24}
                 className="h-6 w-6"
               />
-            <span className="font-bold font-headline text-lg" translate="no">Sakho Apple</span>
+            <span className="font-bold font-headline text-lg" translate="no">Khalil Apple</span>
           </Link>
         </div>
         

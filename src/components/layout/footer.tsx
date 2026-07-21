@@ -28,10 +28,10 @@ async function getSettings(): Promise<SettingsData> {
 export async function Footer() {
   const settings = await getSettings();
 
-  const shopName = settings.shopName || 'Sakho Apple';
+  const shopName = settings.shopName || 'Khalil Apple';
   const address = settings.address || 'Tivaouane Peulh';
   const contactPhone = settings.contactPhone || '+221781395893';
-  const contactEmail = settings.contactEmail || 'sakho1555@gmail.com';
+  const contactEmail = settings.contactEmail || 'baalhassane521@gmail.com';
 
   return (
     <footer className="bg-secondary text-secondary-foreground">
@@ -41,7 +41,7 @@ export async function Footer() {
             <Link href="/" className="flex items-center space-x-2">
                <Image 
                 src="https://res.cloudinary.com/dm6yuokre/image/upload/v1752163215/IMG-20250710-WA0000-removebg-preview_uunwq2.png"
-                alt="Sakho Apple Logo"
+                alt="Khalil Apple Logo"
                 width={24}
                 height={24}
                 className="h-6 w-6"

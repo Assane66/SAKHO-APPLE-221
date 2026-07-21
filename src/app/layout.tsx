@@ -8,7 +8,7 @@ import { WhatsAppFAB } from '@/components/whatsapp-fab';
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'Sakho Apple',
+  title: 'Khalil Apple',
   description: 'Boutique premium d\'iPhones au Sénégal avec service d\'échange assisté par IA.',
   icons: [
     {

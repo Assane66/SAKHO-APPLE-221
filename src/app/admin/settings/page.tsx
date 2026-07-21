@@ -23,8 +23,8 @@ interface SettingsData {
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SettingsData>({
-    shopName: 'Sakho Apple',
-    contactEmail: 'sakho1555@gmail.com',
+    shopName: 'Khalil Apple',
+    contactEmail: 'baalhassane521@gmail.com',
     contactPhone: '+221781395893',
     address: 'Tivaouane Peulh',
     paymentCashOnDelivery: true,
