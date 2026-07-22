@@ -96,7 +96,7 @@ export default function StockPage() {
     // Rechercher l'item dans le stock local d'abord
     const item = stock.find(s => s.imei === imei);
     if (item) {
-      if ((item.status as string) === 'disponible' || (item.status as string) === 'available') {
+      if (item.status === 'available') {
         setSelectedItem(item);
         setIsSellDialogOpen(true);
       } else {

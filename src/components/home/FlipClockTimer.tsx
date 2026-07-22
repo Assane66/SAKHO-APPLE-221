@@ -6,7 +6,8 @@ import { Clock, Flame, Sparkles } from 'lucide-react';
 
 interface FlipClockTimerProps {
   targetDate?: Date | number;
-  label?: string;
+  title?: string;
+  subtitle?: string;
 }
 
 interface TimeLeft {
@@ -54,29 +55,40 @@ function FlipUnit({ value, unit }: { value: number; unit: string }) {
 
 export function FlipClockTimer({
   targetDate,
-  label = 'PROMOTION EXCLUSIVE KHALIL APPLE',
+  title = 'OFFRE FLASH EXCLUSIVE',
+  subtitle = 'Profitez de nos réductions exceptionnelles sur les iPhones certifiés.',
 }: FlipClockTimerProps) {
-  const [timeLeft, setTimeLeft] = useState<TimeLeft>({ hours: 14, minutes: 35, seconds: 22 });
+  const [timeLeft, setTimeLeft] = useState<TimeLeft>({ hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
-    // End time 18 hours from now if no targetDate passed
     const endTime = targetDate
       ? new Date(targetDate).getTime()
-      : Date.now() + (14 * 3600 + 35 * 60 + 22) * 1000;
+      : Date.now() + (24 * 3600) * 1000;
 
-    const interval = setInterval(() => {
+    const updateTimer = () => {
       const now = Date.now();
       const difference = endTime - now;
 
       if (difference <= 0) {
-        clearInterval(interval);
         setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+        return true; // indicates timer is done
       } else {
-        const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+        const hours = Math.floor(difference / (1000 * 60 * 60));
         const minutes = Math.floor((difference / 1000 / 60) % 60);
         const seconds = Math.floor((difference / 1000) % 60);
         setTimeLeft({ hours, minutes, seconds });
+        return false;
       }
+    };
+
+    // Update immediately on mount
+    const isDone = updateTimer();
+    
+    if (isDone) return;
+
+    const interval = setInterval(() => {
+      const done = updateTimer();
+      if (done) clearInterval(interval);
     }, 1000);
 
     return () => clearInterval(interval);
@@ -91,13 +103,13 @@ export function FlipClockTimer({
       <div className="space-y-2 text-center md:text-left z-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-extrabold uppercase tracking-widest animate-pulse">
           <Flame className="w-3.5 h-3.5 fill-amber-400" />
-          {label}
+          EXCLU KHALIL APPLE
         </div>
-        <h3 className="text-2xl md:text-3xl font-extrabold text-foreground">
-          Fin de la Promotion dans :
+        <h3 className="text-2xl md:text-4xl font-extrabold text-foreground uppercase tracking-tight">
+          {title}
         </h3>
-        <p className="text-xs md:text-sm text-zinc-400">
-          Profitez de nos réductions exceptionnelles sur les iPhones certifiés avec livraison express à Dakar.
+        <p className="text-xs md:text-sm text-zinc-400 font-medium">
+          {subtitle}
         </p>
       </div>
 

@@ -9,7 +9,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCSEIftELB1fPvQ6wVogoUSlKIwWy-bkgA",
   authDomain: "khalil-premium.firebaseapp.com",
   projectId: "khalil-premium",
-  storageBucket: "khalil-premium.firebasestorage.app",
+  storageBucket: "khalil-premium.appspot.com",
   messagingSenderId: "379342311651",
   appId: "1:379342311651:web:4e495393564f3fe2b3f5d6"
 };
@@ -17,10 +17,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
-
-if (typeof window !== 'undefined') {
-  setPersistence(auth, browserLocalPersistence).catch(() => { });
-}
+setPersistence(auth, browserLocalPersistence);
 
 const db = getFirestore(app);
 const storage = getStorage(app);

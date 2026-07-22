@@ -1,7 +1,7 @@
 // src/app/products/page.tsx
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
@@ -10,13 +10,13 @@ import type { Product } from '@/types';
 
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardFooter, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Search } from 'lucide-react';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 
-// Fetch active products, categories & promotions
+// Fetch all active products and all categories
 async function getProductsAndCategories() {
   const productsQuery = query(collection(db, 'products'), where("status", "==", "active"));
   const categoriesQuery = query(collection(db, 'categories'));
@@ -29,61 +29,51 @@ async function getProductsAndCategories() {
   let productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
   const categoryList = categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DocumentData));
 
-  // Fetch active promotions and merge with products
+  // Fetch promotions and merge them
   const now = Timestamp.now();
   const promoQuery = query(collection(db, 'promotions'), where("endDate", ">", now));
   const promoSnapshot = await getDocs(promoQuery);
-  const promotions = promoSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const promotions = promoSnapshot.docs.map(doc => doc.data());
 
   const productListWithPromos = productList.map(product => {
-    const matchingPromos = promotions.filter((promo: any) => {
-      if (promo.status === 'Inactif') return false;
-      if (promo.targetType === 'all') return true;
-      if (promo.targetType === 'category' && promo.targetCategories?.includes(product.categoryId)) return true;
-      if (promo.targetType === 'products' && promo.targetProducts?.includes(product.id)) return true;
-      if (promo.productId === product.id) return true;
-      return false;
-    });
+      const productPromos = promotions.filter(p => p.productId === product.id);
+      if (productPromos.length > 0) {
+          const mainPromo = productPromos.sort((a,b) => a.endDate.toMillis() - b.endDate.toMillis())[0];
+          product.promoEndDate = mainPromo.endDate;
 
-    if (matchingPromos.length > 0) {
-      const mainPromo = matchingPromos[0] as any;
-      product.promoEndDate = mainPromo.endDate;
-      const discount = Number(mainPromo.discountAmount) || 0;
-
-      product.variants = product.variants.map(variant => {
-        if (discount > 0) {
-          const promoPrice = Math.max(0, variant.price - discount);
-          return { ...variant, isPromo: true, promoPrice, originalPrice: variant.price };
-        } else if (mainPromo.variantStorage === variant.storage && mainPromo.discountPrice) {
-          return { ...variant, isPromo: true, promoPrice: mainPromo.discountPrice, originalPrice: variant.price };
-        }
-        return variant;
-      });
-    }
-    return product;
+          product.variants = product.variants.map(variant => {
+              const promo = productPromos.find(p => p.variantStorage === variant.storage);
+              if (promo) {
+                  return { ...variant, isPromo: true, promoPrice: promo.discountPrice, originalPrice: variant.price };
+              }
+              return variant;
+          });
+      }
+      return product;
   });
+
 
   return { productList: productListWithPromos, categoryList };
 }
 
 const getLowestPrice = (variants: Product['variants'] = []) => {
-  if (!variants || variants.length === 0) return null;
-  const prices = variants.map(v => v.promoPrice || v.price);
-  const lowest = Math.min(...prices);
-  return lowest.toLocaleString('fr-FR');
+    if (!variants || variants.length === 0) return null;
+    const prices = variants.map(v => v.promoPrice || v.price);
+    const lowest = Math.min(...prices);
+    return lowest.toLocaleString('fr-FR');
 };
 
 const getPromoDetails = (variants: Product['variants'] = []) => {
-  if (!variants) return null;
-  const promoVariant = variants.find(v => v.isPromo && v.promoPrice && v.originalPrice);
-  if (!promoVariant || !promoVariant.originalPrice || !promoVariant.promoPrice) return null;
+    if (!variants) return null;
+    const promoVariant = variants.find(v => v.isPromo && v.promoPrice && v.originalPrice);
+    if (!promoVariant || !promoVariant.originalPrice || !promoVariant.promoPrice) return null;
 
-  const discountPercentage = Math.round(((promoVariant.originalPrice - promoVariant.promoPrice) / promoVariant.originalPrice) * 100);
-  return {
-    promoPrice: promoVariant.promoPrice.toLocaleString('fr-FR'),
-    originalPrice: promoVariant.originalPrice.toLocaleString('fr-FR'),
-    discountPercentage: discountPercentage
-  };
+    const discountPercentage = Math.round(((promoVariant.originalPrice - promoVariant.promoPrice) / promoVariant.originalPrice) * 100);
+    return {
+      promoPrice: promoVariant.promoPrice.toLocaleString('fr-FR'),
+      originalPrice: promoVariant.originalPrice.toLocaleString('fr-FR'),
+      discountPercentage: discountPercentage
+    };
 };
 
 function ProductsPageContent() {
@@ -93,11 +83,24 @@ function ProductsPageContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<DocumentData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [displayCount, setDisplayCount] = useState(12);
-
+  
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
   const [sortOrder, setSortOrder] = useState(searchParams.get('sort') || 'default');
+  const [visibleCount, setVisibleCount] = useState(12);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setVisibleCount((prev) => prev + 12);
+      }
+    }, { threshold: 0.5 });
+    
+    if (loadMoreRef.current) observer.observe(loadMoreRef.current);
+    
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -118,8 +121,8 @@ function ProductsPageContent() {
       current.set(key, value);
     }
     const search = current.toString();
-    const queryStr = search ? `?${search}` : "";
-    router.push(`/products${queryStr}`);
+    const query = search ? `?${search}` : "";
+    router.push(`/products${query}`);
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,13 +132,13 @@ function ProductsPageContent() {
   };
   
   const handleCategoryChange = (value: string) => {
-    setSelectedCategory(value);
-    updateURLParams('category', value);
+      setSelectedCategory(value);
+      updateURLParams('category', value);
   };
 
   const handleSortChange = (value: string) => {
-    setSortOrder(value);
-    updateURLParams('sort', value);
+      setSortOrder(value);
+      updateURLParams('sort', value);
   };
 
   const filteredAndSortedProducts = useMemo(() => {
@@ -167,10 +170,6 @@ function ProductsPageContent() {
     return filtered;
   }, [products, searchTerm, selectedCategory, sortOrder]);
 
-  const visibleProducts = useMemo(() => {
-    return filteredAndSortedProducts.slice(0, displayCount);
-  }, [filteredAndSortedProducts, displayCount]);
-
   const getCategoryName = (categoryId: string) => {
     return categories.find(c => c.id === categoryId)?.name || categoryId;
   };
@@ -179,7 +178,7 @@ function ProductsPageContent() {
     <div className="container mx-auto py-12 px-4 md:px-6">
       <div className="space-y-4 mb-8">
         <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">Tous les Produits</h1>
-        <p className="text-muted-foreground">Trouvez l'appareil Apple parfait pour vous chez Khalil Apple.</p>
+        <p className="text-muted-foreground">Trouvez l'appareil Apple parfait pour vous.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 sticky top-16 bg-background/95 py-4 z-10">
@@ -226,8 +225,8 @@ function ProductsPageContent() {
       ) : (
         <>
           <div className="grid gap-6 lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2">
-            {visibleProducts.length > 0 ? (
-              visibleProducts.map(product => {
+            {filteredAndSortedProducts.length > 0 ? (
+              filteredAndSortedProducts.slice(0, visibleCount).map(product => {
                 const promoDetails = getPromoDetails(product.variants);
                 return (
                 <Card key={product.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 flex flex-col">
@@ -235,7 +234,7 @@ function ProductsPageContent() {
                       {getCategoryName(product.categoryId) && (
                           <p className="text-sm text-muted-foreground">{getCategoryName(product.categoryId)}</p>
                       )}
-                      <CardTitle className="text-lg font-headline my-2 h-12 flex-grow">
+                      <CardTitle className="text-lg font-headline text-blue-800 dark:text-blue-400 my-2 h-12 flex-grow">
                           <Link href={`/products/${product.slug}`}>{product.name}</Link>
                       </CardTitle>
                       <Link href={`/products/${product.slug}`} className="block relative">
@@ -244,12 +243,12 @@ function ProductsPageContent() {
                           width={400}
                           height={400}
                           alt={product.name}
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
-                          loading="lazy"
-                          className="aspect-square object-contain mx-auto"
+                          data-ai-hint="iphone front"
+                          sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 25vw"
+                          className="aspect-square object-cover mx-auto"
                           />
                           {promoDetails && (
-                          <Badge className="absolute bottom-4 left-4 bg-amber-500 text-black font-bold text-base">
+                          <Badge className="absolute bottom-4 left-4 bg-green-600 text-white text-lg">
                               -{promoDetails.discountPercentage}%
                           </Badge>
                           )}
@@ -259,7 +258,7 @@ function ProductsPageContent() {
                     <div className="flex flex-col w-full text-center">
                       {promoDetails ? (
                         <div className="flex flex-col items-center">
-                            <span className="text-xl font-bold text-amber-500">
+                            <span className="text-xl font-bold text-primary">
                               {promoDetails.promoPrice} CFA
                             </span>
                             <span className="text-md text-muted-foreground line-through">
@@ -287,18 +286,10 @@ function ProductsPageContent() {
               </div>
             )}
           </div>
-
-          {/* Pagination Lazy Loading Button */}
-          {filteredAndSortedProducts.length > visibleProducts.length && (
-            <div className="text-center pt-10">
-              <Button
-                onClick={() => setDisplayCount(prev => prev + 12)}
-                variant="outline"
-                size="lg"
-                className="rounded-full px-8 font-bold"
-              >
-                Charger plus de produits ({filteredAndSortedProducts.length - visibleProducts.length} restants)
-              </Button>
+          
+          {filteredAndSortedProducts.length > visibleCount && (
+            <div ref={loadMoreRef} className="py-8 flex justify-center">
+               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           )}
         </>

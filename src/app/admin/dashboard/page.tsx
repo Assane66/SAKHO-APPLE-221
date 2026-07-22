@@ -44,7 +44,7 @@ export default function AdminDashboardPage() {
         const ordersQuery = query(collection(db, "orders"), orderBy("date", "desc"));
 
         const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
-            const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+            const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             let totalRevenue = 0;
             const customerPhones = new Set<string>();

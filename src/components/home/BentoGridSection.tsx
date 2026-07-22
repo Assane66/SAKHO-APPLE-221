@@ -237,6 +237,7 @@ export function BentoGridSection({ products = [], onQuickBuy }: BentoGridSection
                         src={item.image}
                         alt={item.title}
                         fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         className="object-contain p-3 transition-transform duration-700 ease-out group-hover:scale-110 group-hover:-translate-y-1 drop-shadow-[0_15px_25px_rgba(0,0,0,0.5)]"
                       />
                     </div>

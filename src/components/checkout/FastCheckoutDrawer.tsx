@@ -13,6 +13,7 @@ interface FastCheckoutDrawerProps {
   price?: string;
   storage?: string;
   image?: string;
+  whatsappNumber?: string;
 }
 
 export function FastCheckoutDrawer({
@@ -22,6 +23,7 @@ export function FastCheckoutDrawer({
   price = '890 000',
   storage = '256 GB',
   image = 'https://res.cloudinary.com/dm6yuokre/image/upload/v1784658568/apple-iphone-17-pro-max-256-go-ecran-69-puce-a19-pro-orange-removebg-preview_vmy8i6.png',
+  whatsappNumber = '221770000000',
 }: FastCheckoutDrawerProps) {
   const [selectedStorage, setSelectedStorage] = useState(storage);
   const [phone, setPhone] = useState('');
@@ -33,7 +35,8 @@ export function FastCheckoutDrawer({
 
     // Format WhatsApp message
     const message = `Bonjour Khalil Apple ! Je souhaite commander en 1-Clic :\n- Produit : ${productName}\n- Stockage : ${selectedStorage}\n- Prix : ${price} CFA\n- Téléphone : ${phone || 'Non précisé'}\n- Adresse : ${address || 'Non précisée'}`;
-    const whatsappUrl = `https://wa.me/221770000000?text=${encodeURIComponent(message)}`;
+    const targetNumber = whatsappNumber.replace(/\+/g, '');
+    const whatsappUrl = `https://wa.me/${targetNumber}?text=${encodeURIComponent(message)}`;
 
     setTimeout(() => {
       window.open(whatsappUrl, '_blank');

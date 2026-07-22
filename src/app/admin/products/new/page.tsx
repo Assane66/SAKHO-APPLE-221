@@ -62,7 +62,12 @@ export default function NewProductPage() {
 
   const handleVariantChange = (index: number, field: keyof ProductVariant, value: string | number) => {
     const newVariants = [...variants];
-    (newVariants[index] as any)[field] = field === 'price' ? Number(value) : String(value);
+    const variant = newVariants[index];
+    if (field === 'price') {
+        variant[field] = Number(value);
+    } else {
+        variant[field] = value as string;
+    }
     setVariants(newVariants);
   };
 

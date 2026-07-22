@@ -40,7 +40,7 @@ async function getFlashSaleData(slug: string): Promise<FlashSale | null> {
 }
 
 
-export default function FlashSalePage({ params }: { params: Promise<{ slug: string }> }) {
+export default function FlashSalePage({ params }: { params: { slug: string } }) {
     const [sale, setSale] = useState<FlashSale | null>(null);
     const [selectedVariant, setSelectedVariant] = useState<FlashSaleVariant | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -51,8 +51,7 @@ export default function FlashSalePage({ params }: { params: Promise<{ slug: stri
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
-            const resolvedParams = await params;
-            const saleData = await getFlashSaleData(resolvedParams.slug);
+            const saleData = await getFlashSaleData(params.slug);
             if (!saleData) {
                 notFound();
                 return;
@@ -67,7 +66,7 @@ export default function FlashSalePage({ params }: { params: Promise<{ slug: stri
             setIsLoading(false);
         };
         fetchData();
-    }, [params]);
+    }, [params.slug]);
 
     const handleAddToCart = () => {
         if (!sale || !selectedVariant) return;

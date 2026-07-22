@@ -68,9 +68,14 @@ export default function EditFlashSalePage() {
     fetchSale();
   }, [id, router, toast]);
 
-  const handleVariantChange = (index: number, field: 'storage' | 'originalPrice' | 'discountPrice' | 'initialStock', value: string | number) => {
+  const handleVariantChange = (index: number, field: keyof Omit<FlashSaleVariant, 'sold'>, value: string | number) => {
     const newVariants = [...variants];
-    (newVariants[index] as any)[field] = field === 'storage' ? String(value) : Number(value);
+    const variant = newVariants[index];
+    if (typeof variant[field] === 'number') {
+        variant[field] = Number(value);
+    } else {
+        variant[field] = value as string;
+    }
     setVariants(newVariants);
   };
 

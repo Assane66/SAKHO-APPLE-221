@@ -19,10 +19,10 @@ export type Product = {
   batteryHealth: string;
   status: 'active' | 'inactive';
   variants: ProductVariant[];
-  createdAt?: any;
-  promoEndDate?: any;
-  sales?: number;
-  hasIMEI?: boolean;
+  createdAt?: any; // To accommodate serverTimestamp
+  promoEndDate?: any; // To accommodate serverTimestamp
+  sales?: number; // Pour le suivi des produits les plus vendus
+  hasIMEI?: boolean; // Indique si ce produit peut avoir des exemplaires avec IMEI
 };
 
 export type StockItem = {
@@ -36,7 +36,7 @@ export type StockItem = {
   soldAt?: any;
   customerName?: string;
   customerPhone?: string;
-  finalPrice?: number;
+  finalPrice?: number; // Prix de vente final (peut être différent du prix catalogue)
 };
 
 export type FlashSaleVariant = {
@@ -53,15 +53,11 @@ export type FlashSale = {
   slug: string;
   thumbnail: string;
   variants: FlashSaleVariant[];
-  endDate: any;
+  endDate: any; // Firestore timestamp
   status: 'Actif' | 'Programmé' | 'Terminé';
   createdAt: any;
-  // Champs optionnels de rétrocompatibilité
-  productId?: string;
-  variantStorage?: string;
-  discountPrice?: number;
-  originalPrice?: number;
 };
+
 
 export interface CartItem {
   id: string;
@@ -81,7 +77,7 @@ export interface Order {
   items: CartItem[];
   total: number;
   status: 'En attente' | 'En cours' | 'Livrée' | 'Annulée';
-  date: any;
+  date: any; // serverTimestamp
 }
 
 export interface Promotion {
@@ -90,11 +86,12 @@ export interface Promotion {
   targetType: 'all' | 'category' | 'products';
   targetCategories?: string[];
   targetProducts?: string[];
-  discountAmount: number;
+  discountAmount: number; // Somme déduite (ex: 10 000 CFA)
   startDate?: any;
-  endDate: any;
+  endDate: any; // Firestore timestamp
   status: 'Actif' | 'Inactif';
   createdAt?: any;
+  // Champs de rétrocompatibilité
   productId?: string;
   productName?: string;
   variantStorage?: string;
