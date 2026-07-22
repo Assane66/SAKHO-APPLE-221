@@ -16,8 +16,11 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// Initialize Auth and persistence safely for SSR
 const auth = getAuth(app);
-setPersistence(auth, browserLocalPersistence);
+if (typeof window !== 'undefined') {
+  setPersistence(auth, browserLocalPersistence);
+}
 
 const db = getFirestore(app);
 const storage = getStorage(app);
