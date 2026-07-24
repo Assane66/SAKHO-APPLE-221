@@ -1,8 +1,11 @@
+'use client';
+
 import Link from "next/link";
 import { MapPin, Phone, Mail } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import Image from "next/image";
+import { useState, useEffect } from "react";
 
 interface SettingsData {
   shopName?: string;
@@ -25,8 +28,12 @@ async function getSettings(): Promise<SettingsData> {
     }
 }
 
-export async function Footer() {
-  const settings = await getSettings();
+export function Footer() {
+  const [settings, setSettings] = useState<SettingsData>({});
+
+  useEffect(() => {
+    getSettings().then(setSettings);
+  }, []);
 
   const shopName = settings.shopName || 'Khalil Apple';
   const address = settings.address || 'Tivaouane Peulh';

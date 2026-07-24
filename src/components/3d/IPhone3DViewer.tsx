@@ -27,8 +27,7 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
   const [autoRotate, setAutoRotate] = useState(true);
 
   const phoneGroupRef = useRef<THREE.Group | null>(null);
-  const bodyMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
-  const frameMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -73,132 +72,42 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
     phoneGroupRef.current = phoneGroup;
     scene.add(phoneGroup);
 
-    // 1. Phone Body Outer Frame
-    const phoneWidth = 2.4;
-    const phoneHeight = 4.9;
-    const phoneDepth = 0.32;
-    const cornerRadius = 0.45;
+    // Import and use GLTFLoader dynamically or use it if imported at top
+    import('three/examples/jsm/loaders/GLTFLoader.js').then(({ GLTFLoader }) => {
+      const loader = new GLTFLoader();
+      loader.load(
+        'https://res.cloudinary.com/dm6yuokre/image/upload/v1784907643/iphone_17_pro_max_eahild.glb',
+        (gltf) => {
+          const model = gltf.scene;
 
-    const shape = new THREE.Shape();
-    const x = -phoneWidth / 2;
-    const y = -phoneHeight / 2;
-    const w = phoneWidth;
-    const h = phoneHeight;
-    const r = cornerRadius;
+          // Center the model
+          const box = new THREE.Box3().setFromObject(model);
+          const center = box.getCenter(new THREE.Vector3());
+          model.position.sub(center);
 
-    shape.moveTo(x + r, y);
-    shape.lineTo(x + w - r, y);
-    shape.quadraticCurveTo(x + w, y, x + w, y + r);
-    shape.lineTo(x + w, y + h - r);
-    shape.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    shape.lineTo(x + r, y + h);
-    shape.quadraticCurveTo(x, y + h, x, y + h - r);
-    shape.lineTo(x, y + r);
-    shape.quadraticCurveTo(x, y, x + r, y);
+          // Scale the model to fit well (approx height 5)
+          const size = box.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+          const scale = 5 / maxDim;
+          model.scale.setScalar(scale);
+          
+          // Add environment mapping and shadows
+          model.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+              const mesh = child as THREE.Mesh;
+              mesh.castShadow = true;
+              mesh.receiveShadow = true;
+              // We could change material color here if we identify the frame material
+            }
+          });
 
-    const extrudeSettings = {
-      depth: phoneDepth,
-      bevelEnabled: true,
-      bevelSegments: 8,
-      steps: 1,
-      bevelSize: 0.08,
-      bevelThickness: 0.08,
-    };
-
-    const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-    geometry.center();
-
-    // Metallic Titanium Material
-    const frameMaterial = new THREE.MeshStandardMaterial({
-      color: activeFinish.metalColor,
-      metalness: 0.92,
-      roughness: 0.22,
-      envMapIntensity: 1.5,
-    });
-    frameMaterialRef.current = frameMaterial;
-
-    const phoneMesh = new THREE.Mesh(geometry, frameMaterial);
-    phoneMesh.castShadow = true;
-    phoneMesh.receiveShadow = true;
-    phoneGroup.add(phoneMesh);
-
-    // 2. Screen Glass Front
-    const screenGeo = new THREE.PlaneGeometry(phoneWidth - 0.16, phoneHeight - 0.16);
-    const canvasScreen = document.createElement('canvas');
-    canvasScreen.width = 512;
-    canvasScreen.height = 1024;
-    const ctx = canvasScreen.getContext('2d');
-    if (ctx) {
-      const grad = ctx.createLinearGradient(0, 0, 512, 1024);
-      grad.addColorStop(0, '#0d0d0f');
-      grad.addColorStop(0.3, '#1c160c');
-      grad.addColorStop(0.7, '#382a13');
-      grad.addColorStop(1, '#08080a');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, 512, 1024);
-
-      // Gold Glow Ring in canvas
-      ctx.beginPath();
-      ctx.arc(256, 400, 180, 0, Math.PI * 2);
-      ctx.strokeStyle = '#c9a84c';
-      ctx.lineWidth = 12;
-      ctx.shadowColor = '#f5d78e';
-      ctx.shadowBlur = 40;
-      ctx.stroke();
-
-      // Screen Text
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 36px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('iPhone 17 Pro Max', 256, 680);
-      ctx.fillStyle = '#c9a84c';
-      ctx.font = '500 24px sans-serif';
-      ctx.fillText('Khalil Apple Luxe', 256, 730);
-    }
-
-    const screenTexture = new THREE.CanvasTexture(canvasScreen);
-    const screenMaterial = new THREE.MeshStandardMaterial({
-      map: screenTexture,
-      roughness: 0.1,
-      metalness: 0.1,
-    });
-    const screenMesh = new THREE.Mesh(screenGeo, screenMaterial);
-    screenMesh.position.z = phoneDepth / 2 + 0.081;
-    phoneGroup.add(screenMesh);
-
-    // 3. Dynamic Island Notch
-    const notchGeo = new THREE.PlaneGeometry(0.7, 0.18);
-    const notchMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const notchMesh = new THREE.Mesh(notchGeo, notchMat);
-    notchMesh.position.set(0, phoneHeight / 2 - 0.35, phoneDepth / 2 + 0.082);
-    phoneGroup.add(notchMesh);
-
-    // 4. Back Camera Bump & 3 Metallic Lens Rings
-    const bumpGeo = new THREE.BoxGeometry(0.9, 0.9, 0.12);
-    const bumpMesh = new THREE.Mesh(bumpGeo, frameMaterial);
-    bumpMesh.position.set(-0.55, 1.6, -(phoneDepth / 2 + 0.081));
-    phoneGroup.add(bumpMesh);
-
-    // Lenses
-    const lensGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.08, 32);
-    const lensMat = new THREE.MeshStandardMaterial({
-      color: 0x111111,
-      metalness: 0.9,
-      roughness: 0.1,
-    });
-    lensGeo.rotateX(Math.PI / 2);
-
-    const lensPositions = [
-      [-0.72, 1.8],
-      [-0.72, 1.4],
-      [-0.38, 1.6],
-    ];
-
-    lensPositions.forEach(([lx, ly]) => {
-      const lens = new THREE.Mesh(lensGeo, lensMat);
-      lens.position.set(lx, ly, -(phoneDepth / 2 + 0.14));
-      phoneGroup.add(lens);
+          phoneGroup.add(model);
+        },
+        undefined,
+        (error) => {
+          console.error('Error loading GLTF model:', error);
+        }
+      );
     });
 
     // Initial Angle
@@ -281,8 +190,6 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
       window.removeEventListener('touchend', handlePointerUp);
       window.removeEventListener('resize', handleResize);
       if (container.contains(domEl)) container.removeChild(domEl);
-      geometry.dispose();
-      frameMaterial.dispose();
       renderer.dispose();
     };
   }, [autoRotate, isDragging]);
@@ -290,8 +197,20 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
   // Handle finish switch
   const handleFinishChange = (finish: FinishOption) => {
     setActiveFinish(finish);
-    if (frameMaterialRef.current) {
-      frameMaterialRef.current.color.setHex(finish.metalColor);
+    if (phoneGroupRef.current) {
+      phoneGroupRef.current.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          const material = mesh.material as THREE.MeshStandardMaterial;
+          // Attempt to change color of materials that might be the frame/body
+          // Without knowing the exact material name, we can check for names like "body", "frame", "metal", etc.
+          // Or we just change materials that are not completely black or white, or we change everything for a tint.
+          // For now, if the material name includes 'frame' or 'body', we apply it.
+          if (material.name && (material.name.toLowerCase().includes('frame') || material.name.toLowerCase().includes('body'))) {
+            material.color.setHex(finish.metalColor);
+          }
+        }
+      });
     }
   };
 

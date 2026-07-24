@@ -27,12 +27,26 @@ const formSchema = z.object({
   contactPhone: z.string().min(9, 'Le numéro de téléphone doit comporter au moins 9 chiffres.'),
 });
 
-const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = error => reject(error);
-});
+const uploadToCloudinary = async (file: File): Promise<string> => {
+  const CLOUDINARY_CLOUD_NAME = 'dm6yuokre';
+  const CLOUDINARY_UPLOAD_PRESET = 'khalil_apple';
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error('Erreur lors du téléchargement de l\'image');
+  }
+
+  const data = await response.json();
+  return data.secure_url;
+};
 
 export default function ExchangePage() {
   const [isPending, setIsPending] = useState(false);
@@ -54,12 +68,12 @@ export default function ExchangePage() {
     setIsPending(true);
     try {
       const photoFiles = Array.from(values.photos);
-      const photoDataUris = await Promise.all(photoFiles.map(file => toBase64(file)));
+      const photoUrls = await Promise.all(photoFiles.map(file => uploadToCloudinary(file)));
 
       const result = await createExchangeRequest({
         currentModel: values.currentModel,
         desiredModel: values.desiredModel,
-        photoDataUris,
+        photoUrls,
         contactPhone: values.contactPhone,
       });
 

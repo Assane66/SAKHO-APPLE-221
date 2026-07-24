@@ -112,10 +112,10 @@ export default function OrdersPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {order.deliveryMethod === 'Livraison à domicile' ? <Truck className="h-4 w-4" /> : <Store className="h-4 w-4" />}
-                          {order.deliveryMethod}
+                          {order.deliveryMethod || '1-Clic'}
                         </div>
                       </TableCell>
-                      <TableCell>{order.totalFormatted || `${order.total.toLocaleString('fr-FR')} CFA`}</TableCell>
+                      <TableCell>{order.totalFormatted || (order.total != null ? `${order.total.toLocaleString('fr-FR')} CFA` : (order.price ? `${order.price} CFA` : 'N/A'))}</TableCell>
                       <TableCell>
                         <Badge variant={statusColors[order.status as OrderStatus] || 'outline'}>
                           {order.status}
@@ -173,12 +173,12 @@ export default function OrdersPage() {
                     <h3 className="font-semibold">Informations Client</h3>
                     <p className="text-sm"><strong>Nom:</strong> {selectedOrder.customerName}</p>
                     <p className="text-sm"><strong>Téléphone:</strong> {selectedOrder.customerPhone}</p>
-                    <p className="text-sm"><strong>Adresse:</strong> {selectedOrder.customerAddress}</p>
+                    <p className="text-sm"><strong>Adresse:</strong> {selectedOrder.customerAddress || selectedOrder.address || 'N/A'}</p>
                 </div>
                  <div className="space-y-2">
                     <h3 className="font-semibold">Informations Commande</h3>
                     <p className="text-sm"><strong>Date:</strong> {selectedOrder.date?.seconds ? new Date(selectedOrder.date.seconds * 1000).toLocaleString('fr-FR') : 'N/A'}</p>
-                    <p className="text-sm"><strong>Livraison:</strong> {selectedOrder.deliveryMethod}</p>
+                    <p className="text-sm"><strong>Livraison:</strong> {selectedOrder.deliveryMethod || 'Achat 1-Clic'}</p>
                     <p className="text-sm"><strong>Statut:</strong> <Badge variant={statusColors[selectedOrder.status as OrderStatus] || 'outline'}>{selectedOrder.status}</Badge></p>
                     <p className="text-lg font-bold"><strong>Total:</strong> {selectedOrder.totalFormatted}</p>
                 </div>
@@ -198,11 +198,11 @@ export default function OrdersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {selectedOrder.items?.map((item: any) => (
+                    {selectedOrder.items && selectedOrder.items.length > 0 ? selectedOrder.items.map((item: any) => (
                       <TableRow key={item.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <Image src={item.thumbnail} alt={item.name} width={40} height={40} className="rounded-md object-cover" />
+                            {item.thumbnail && <Image src={item.thumbnail} alt={item.name} width={40} height={40} className="rounded-md object-cover" />}
                             <div>
                                 <p className="font-medium">{item.name}</p>
                                 <p className="text-xs text-muted-foreground">{item.storage}</p>
@@ -210,10 +210,17 @@ export default function OrdersPage() {
                           </div>
                         </TableCell>
                         <TableCell>{item.quantity}</TableCell>
-                        <TableCell className="text-right">{item.price.toLocaleString('fr-FR')} CFA</TableCell>
-                        <TableCell className="text-right">{(item.price * item.quantity).toLocaleString('fr-FR')} CFA</TableCell>
+                        <TableCell className="text-right">{item.price?.toLocaleString('fr-FR')} CFA</TableCell>
+                        <TableCell className="text-right">{((item.price || 0) * (item.quantity || 1)).toLocaleString('fr-FR')} CFA</TableCell>
                       </TableRow>
-                    ))}
+                    )) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-4">
+                          <p className="font-medium">{selectedOrder.productName || 'Produit 1-Clic'}</p>
+                          <p className="text-xs text-muted-foreground">{selectedOrder.storage || ''}</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>

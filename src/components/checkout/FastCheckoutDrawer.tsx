@@ -3,8 +3,10 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ShieldCheck, MapPin, Phone, CheckCircle2, Sparkles, Truck } from 'lucide-react';
+import { X, ShieldCheck, MapPin, Phone, CheckCircle2, Sparkles, Truck, User } from 'lucide-react';
 import { SlideToBuy } from './SlideToBuy';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 interface FastCheckoutDrawerProps {
   isOpen: boolean;
@@ -14,6 +16,7 @@ interface FastCheckoutDrawerProps {
   storage?: string;
   image?: string;
   whatsappNumber?: string;
+  variants?: { storage: string; price: number; promoPrice?: number }[];
 }
 
 export function FastCheckoutDrawer({
@@ -24,23 +27,71 @@ export function FastCheckoutDrawer({
   storage = '256 GB',
   image = 'https://res.cloudinary.com/dm6yuokre/image/upload/v1784658568/apple-iphone-17-pro-max-256-go-ecran-69-puce-a19-pro-orange-removebg-preview_vmy8i6.png',
   whatsappNumber = '221770000000',
+  variants,
 }: FastCheckoutDrawerProps) {
   const [selectedStorage, setSelectedStorage] = useState(storage);
+  const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [isOrdered, setIsOrdered] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleOrderSuccess = () => {
-    setIsOrdered(true);
+  const currentVariant = variants?.find(v => v.storage === selectedStorage);
+  const displayPrice = currentVariant 
+    ? (currentVariant.promoPrice || currentVariant.price).toLocaleString('fr-FR')
+    : price;
 
-    // Format WhatsApp message
-    const message = `Bonjour Khalil Apple ! Je souhaite commander en 1-Clic :\n- Produit : ${productName}\n- Stockage : ${selectedStorage}\n- Prix : ${price} CFA\n- Téléphone : ${phone || 'Non précisé'}\n- Adresse : ${address || 'Non précisée'}`;
-    const targetNumber = whatsappNumber.replace(/\+/g, '');
-    const whatsappUrl = `https://wa.me/${targetNumber}?text=${encodeURIComponent(message)}`;
+  const storageOptions = variants?.map(v => v.storage) || ['128 GB', '256 GB', '512 GB', '1 TB'];
 
-    setTimeout(() => {
-      window.open(whatsappUrl, '_blank');
-    }, 800);
+  const handleOrderSuccess = async () => {
+    if (!fullName || !phone || !address) return;
+    setIsSubmitting(true);
+
+    try {
+      const priceNumber = parseInt(displayPrice.replace(/\D/g, ''), 10) || 0;
+
+      // Save order to Firestore
+      await addDoc(collection(db, 'orders'), {
+        customerName: fullName,
+        customerPhone: phone,
+        customerAddress: address,
+        deliveryMethod: 'Livraison express (1-Clic)',
+        productName: productName,
+        storage: selectedStorage,
+        price: displayPrice,
+        total: priceNumber,
+        totalFormatted: `${displayPrice} CFA`,
+        status: 'En attente',
+        createdAt: serverTimestamp(),
+        date: serverTimestamp(),
+        items: [
+          {
+            id: 'fast-checkout-item',
+            name: productName,
+            storage: selectedStorage,
+            quantity: 1,
+            price: priceNumber,
+            thumbnail: image || '',
+          }
+        ]
+      });
+
+      setIsOrdered(true);
+
+      // Format WhatsApp message
+      const message = `Bonjour Khalil Apple ! Je souhaite commander en 1-Clic :\n- Produit : ${productName}\n- Stockage : ${selectedStorage}\n- Prix : ${displayPrice} CFA\n- Client : ${fullName}\n- Téléphone : ${phone}\n- Adresse : ${address}`;
+      const targetNumber = whatsappNumber.replace(/\+/g, '');
+      const whatsappUrl = `https://wa.me/${targetNumber}?text=${encodeURIComponent(message)}`;
+
+      setTimeout(() => {
+        window.open(whatsappUrl, '_blank');
+      }, 800);
+    } catch (error) {
+      console.error("Erreur lors de la commande:", error);
+      alert("Une erreur est survenue lors de l'enregistrement de votre commande. Veuillez réessayer.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -113,7 +164,7 @@ export function FastCheckoutDrawer({
                   <h4 className="font-bold text-sm truncate">{productName}</h4>
                   <p className="text-xs text-zinc-400">Garantie 1 Mois Inclus</p>
                   <div className="flex items-baseline gap-1.5 pt-1">
-                    <span className="text-lg font-extrabold text-amber-400">{price}</span>
+                    <span className="text-lg font-extrabold text-amber-400">{displayPrice}</span>
                     <span className="text-[10px] font-bold text-zinc-400">CFA</span>
                   </div>
                 </div>
@@ -124,12 +175,12 @@ export function FastCheckoutDrawer({
                 <label className="text-xs font-bold uppercase tracking-wider text-zinc-300">
                   Capacité de Stockage :
                 </label>
-                <div className="flex gap-2">
-                  {['128 GB', '256 GB', '512 GB', '1 TB'].map((cap) => (
+                <div className="flex flex-wrap gap-2">
+                  {storageOptions.map((cap) => (
                     <button
                       key={cap}
                       onClick={() => setSelectedStorage(cap)}
-                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                      className={`flex-1 min-w-[70px] py-2 rounded-xl text-xs font-bold transition-all ${
                         selectedStorage === cap
                           ? 'bg-amber-400 text-black shadow-lg shadow-amber-400/20'
                           : 'bg-white/5 text-zinc-300 border border-white/10 hover:bg-white/10'
@@ -145,6 +196,20 @@ export function FastCheckoutDrawer({
               <div className="space-y-3 pt-1">
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1 mb-1.5">
+                    <User className="w-3.5 h-3.5 text-amber-400" />
+                    Prénom et Nom :
+                  </label>
+                  <input
+                    type="text"
+                    placeholder=""
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-zinc-400 text-sm focus:border-amber-400 focus:outline-none transition-colors font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1 mb-1.5">
                     <Phone className="w-3.5 h-3.5 text-amber-400" />
                     Numéro de Téléphone :
                   </label>
@@ -152,7 +217,7 @@ export function FastCheckoutDrawer({
                     type="tel"
                     placeholder="ex: 77 000 00 00"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
                     className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-zinc-400 text-sm focus:border-amber-400 focus:outline-none transition-colors font-medium"
                   />
                 </div>
@@ -180,7 +245,11 @@ export function FastCheckoutDrawer({
 
               {/* Swipe To Buy Action Slider */}
               <div className="pt-2">
-                <SlideToBuy onSuccess={handleOrderSuccess} text="GLISSER POUR COMMANDER" />
+                <SlideToBuy 
+                  onSuccess={handleOrderSuccess} 
+                  text={isSubmitting ? "ENREGISTREMENT..." : "GLISSER POUR COMMANDER"} 
+                  disabled={!fullName || !phone || !address || isSubmitting}
+                />
               </div>
             </>
           )}

@@ -10,7 +10,7 @@ import type { Product } from '@/types';
 
 interface BentoGridSectionProps {
   products?: Product[];
-  onQuickBuy?: (productName: string, price: string, storage: string) => void;
+  onQuickBuy?: (productName: string, price: string, storage: string, variants?: any[]) => void;
 }
 
 export function BentoGridSection({ products = [], onQuickBuy }: BentoGridSectionProps) {
@@ -108,6 +108,7 @@ export function BentoGridSection({ products = [], onQuickBuy }: BentoGridSection
       gridSpan: layout.gridSpan,
       accentColor: layout.accentColor,
       isTradeIn: false,
+      variants: product.variants,
     };
   });
 
@@ -258,7 +259,7 @@ export function BentoGridSection({ products = [], onQuickBuy }: BentoGridSection
                 ) : (
                   <>
                     <button
-                      onClick={() => onQuickBuy?.(item.title, item.price, item.storageOptions[0])}
+                      onClick={() => onQuickBuy?.(item.title, item.price, item.storageOptions[0], item.variants)}
                       className="px-5 py-2.5 rounded-full bg-amber-400 text-black hover:bg-amber-300 font-bold text-xs uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 shadow-lg shadow-amber-400/20"
                     >
                       <Zap className="w-3.5 h-3.5 fill-black" />

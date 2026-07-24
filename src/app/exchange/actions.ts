@@ -1,12 +1,10 @@
-'use server';
-
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 interface ExchangeRequestInput {
   currentModel: string;
   desiredModel: string;
-  photoDataUris: string[];
+  photoUrls: string[];
   contactPhone: string;
 }
 
@@ -20,7 +18,7 @@ export async function createExchangeRequest(input: ExchangeRequestInput): Promis
     await addDoc(collection(db, 'exchanges'), {
       currentModel: input.currentModel,
       desiredModel: input.desiredModel,
-      photoDataUris: input.photoDataUris,
+      photoUrls: input.photoUrls,
       contactPhone: input.contactPhone,
       status: 'En attente', // Initial status
       createdAt: serverTimestamp(),

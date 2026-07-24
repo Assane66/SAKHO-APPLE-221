@@ -23,18 +23,42 @@ import { cn } from '@/lib/utils';
 /* ─── Data fetching ──────────────────────────────── */
 async function getHomePageData() {
   try {
-    const [bannerSnap, catSnap, prodSnap, promoSnap, settingsSnap] = await Promise.all([
+    const [bannerSnap, catSnap, prodSnap, promoSnap, settingsSnap, inventorySnap] = await Promise.all([
       getDocs(query(collection(db, 'banners'), where('status', '==', 'Actif'))),
       getDocs(query(collection(db, 'categories'), orderBy('name', 'asc'))),
       getDocs(query(collection(db, 'products'), where('status', '==', 'active'))),
       getDocs(query(collection(db, 'promotions'), where('endDate', '>', Timestamp.now()))),
       getDoc(doc(db, 'settings', 'general')),
+      getDocs(query(collection(db, 'inventory'), where('status', '==', 'disponible')))
     ]);
 
     const settings = settingsSnap.exists() ? settingsSnap.data() : {};
+    const inventory = inventorySnap.docs.map(d => d.data());
 
     const promotions = promoSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     let productList = prodSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+
+    // IMEI Visibility Logic
+    const productsWithAvailableIMEI = new Set();
+    productList.forEach(p => {
+      if (p.hasIMEI) {
+        const hasStock = inventory.some(inv => inv.productId === p.id);
+        if (hasStock) {
+           productsWithAvailableIMEI.add(p.name);
+        }
+      }
+    });
+
+    productList = productList.filter(p => {
+       if (p.hasIMEI) {
+          return inventory.some(inv => inv.productId === p.id);
+       } else {
+          if (productsWithAvailableIMEI.has(p.name)) {
+             return false; // Stay in the shadow
+          }
+          return true;
+       }
+    });
 
     productList = productList.map(p => {
       const matchingPromos = promotions.filter(promo => {
@@ -110,6 +134,7 @@ export default function Home() {
     price: string;
     storage: string;
     image?: string;
+    variants?: any[];
   }>({
     name: 'iPhone 17 Pro Max',
     price: '890 000',
@@ -160,8 +185,8 @@ export default function Home() {
       };
   }, []);
 
-  const handleOpenCheckout = (name: string, price: string, storage: string, image?: string) => {
-    setSelectedCheckoutProduct({ name, price, storage, image });
+  const handleOpenCheckout = (name: string, price: string, storage: string, image?: string, variants?: any[]) => {
+    setSelectedCheckoutProduct({ name, price, storage, image, variants });
     setIsCheckoutOpen(true);
   };
 
@@ -257,7 +282,7 @@ export default function Home() {
       <section className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-12 w-full">
         <BentoGridSection
           products={products}
-          onQuickBuy={(name, price, storage) => handleOpenCheckout(name, price, storage)}
+          onQuickBuy={(name, price, storage, variants) => handleOpenCheckout(name, price, storage, undefined, variants)}
         />
       </section>
 
@@ -379,7 +404,7 @@ export default function Home() {
                     {/* Actions */}
                     <div className="flex items-center gap-2 pt-1">
                       <button
-                        onClick={() => handleOpenCheckout(product.name, getLowestPrice(product.variants), '256 GB', product.thumbnail)}
+                        onClick={() => handleOpenCheckout(product.name, getLowestPrice(product.variants), product.variants[0]?.storage || '256 GB', product.thumbnail, product.variants)}
                         className="px-3.5 py-1.5 rounded-full bg-amber-400 text-black hover:bg-amber-300 font-bold text-[11px] uppercase tracking-wider transition-colors"
                       >
                         Achat 1-Clic
@@ -421,6 +446,7 @@ export default function Home() {
         storage={selectedCheckoutProduct.storage}
         image={selectedCheckoutProduct.image}
         whatsappNumber={contactPhone}
+        variants={selectedCheckoutProduct.variants}
       />
 
     </div>
