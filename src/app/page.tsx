@@ -287,19 +287,21 @@ export default function Home() {
       </section>
 
       {/* ═══ 4. VENTE FLASH & FLIP CLOCK SECTION ═══ */}
-      <section className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-8 w-full">
-        {(() => {
-          const promoTitle = activePromo?.title || "OFFRE FLASH EXCLUSIVE";
-          const promoDiscount = activePromo?.discountAmount ? `- ${activePromo.discountAmount} CFA` : 'Réductions exceptionnelles';
-          const promoTargetText = activePromo?.targetType === 'all' ? 'sur tous nos produits' : 'sur notre sélection';
-          const promoSubtitle = `${promoDiscount} ${promoTargetText}`;
-          const promoEndDate = activePromo?.endDate ? (typeof activePromo.endDate.toMillis === 'function' ? activePromo.endDate.toMillis() : new Date(activePromo.endDate).getTime()) : undefined;
+      {activePromo && (
+        <section className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-8 w-full">
+          {(() => {
+            const promoTitle = activePromo.title || "OFFRE FLASH EXCLUSIVE";
+            const promoDiscount = activePromo.discountAmount ? `- ${activePromo.discountAmount} CFA` : 'Réductions exceptionnelles';
+            const promoTargetText = activePromo.targetType === 'all' ? 'sur tous nos produits' : 'sur notre sélection';
+            const promoSubtitle = `${promoDiscount} ${promoTargetText}`;
+            const promoEndDate = activePromo.endDate ? (typeof activePromo.endDate.toMillis === 'function' ? activePromo.endDate.toMillis() : new Date(activePromo.endDate).getTime()) : undefined;
 
-          return (
-            <FlipClockTimer title={promoTitle} subtitle={promoSubtitle} targetDate={promoEndDate} />
-          );
-        })()}
-      </section>
+            return (
+              <FlipClockTimer title={promoTitle} subtitle={promoSubtitle} targetDate={promoEndDate} />
+            );
+          })()}
+        </section>
+      )}
 
       {/* ═══ 5. CATALOGUE FILTER & SEARCH SECTION ═══ */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-12 w-full space-y-8">
@@ -325,13 +327,13 @@ export default function Home() {
         </div>
 
         {/* Category Pills */}
-        <div className="flex gap-2 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex flex-wrap gap-2 pb-2">
           {[{ id: 'all', name: 'Tous les modèles' }, ...categories].map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
               className={cn(
-                'px-5 py-2 rounded-full text-xs font-bold transition-all duration-300 whitespace-nowrap',
+                'px-5 py-2 rounded-full text-xs font-bold transition-all duration-300 flex-shrink-0',
                 selectedCategory === cat.id
                   ? 'bg-amber-400 text-black shadow-lg shadow-amber-400/20'
                   : 'bg-zinc-900 text-zinc-400 hover:text-white border border-white/10'

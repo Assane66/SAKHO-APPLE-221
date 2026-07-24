@@ -16,9 +16,11 @@ interface SettingsData {
   shopName: string;
   contactEmail: string;
   contactPhone: string;
-  address: string;
   paymentCashOnDelivery: boolean;
   paymentMobileMoney: boolean;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  tiktokUrl?: string;
 }
 
 export default function SettingsPage() {
@@ -29,6 +31,9 @@ export default function SettingsPage() {
     address: 'Tivaouane Peulh',
     paymentCashOnDelivery: true,
     paymentMobileMoney: true,
+    facebookUrl: '',
+    instagramUrl: '',
+    tiktokUrl: 'https://vm.tiktok.com/ZMHgBjJwjqgsS-ysH6R/',
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -121,6 +126,33 @@ export default function SettingsPage() {
           <div className="space-y-2">
             <Label htmlFor="address">Adresse</Label>
             <Input id="address" value={settings.address} onChange={handleChange} />
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Enregistrer les modifications
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Réseaux Sociaux</CardTitle>
+          <CardDescription>Gérez les liens vers vos pages sociales.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="facebookUrl">Facebook URL</Label>
+            <Input id="facebookUrl" type="url" placeholder="https://facebook.com/..." value={settings.facebookUrl || ''} onChange={handleChange} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="instagramUrl">Instagram URL</Label>
+            <Input id="instagramUrl" type="url" placeholder="https://instagram.com/..." value={settings.instagramUrl || ''} onChange={handleChange} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="tiktokUrl">TikTok URL</Label>
+            <Input id="tiktokUrl" type="url" placeholder="https://tiktok.com/..." value={settings.tiktokUrl || ''} onChange={handleChange} />
           </div>
         </CardContent>
         <CardFooter>
