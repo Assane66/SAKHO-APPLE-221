@@ -23,42 +23,20 @@ import { cn } from '@/lib/utils';
 /* ─── Data fetching ──────────────────────────────── */
 async function getHomePageData() {
   try {
-    const [bannerSnap, catSnap, prodSnap, promoSnap, settingsSnap, inventorySnap] = await Promise.all([
+    const [bannerSnap, catSnap, prodSnap, promoSnap, settingsSnap] = await Promise.all([
       getDocs(query(collection(db, 'banners'), where('status', '==', 'Actif'))),
       getDocs(query(collection(db, 'categories'), orderBy('name', 'asc'))),
-      getDocs(query(collection(db, 'products'), where('status', '==', 'active'))),
+      getDocs(collection(db, 'products')),
       getDocs(query(collection(db, 'promotions'), where('endDate', '>', Timestamp.now()))),
       getDoc(doc(db, 'settings', 'general')),
-      getDocs(query(collection(db, 'inventory'), where('status', '==', 'disponible')))
     ]);
 
     const settings = settingsSnap.exists() ? settingsSnap.data() : {};
-    const inventory = inventorySnap.docs.map(d => d.data());
 
     const promotions = promoSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    let productList = prodSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
-
-    // IMEI Visibility Logic
-    const productsWithAvailableIMEI = new Set();
-    productList.forEach(p => {
-      if (p.hasIMEI) {
-        const hasStock = inventory.some(inv => inv.productId === p.id);
-        if (hasStock) {
-           productsWithAvailableIMEI.add(p.name);
-        }
-      }
-    });
-
-    productList = productList.filter(p => {
-       if (p.hasIMEI) {
-          return inventory.some(inv => inv.productId === p.id);
-       } else {
-          if (productsWithAvailableIMEI.has(p.name)) {
-             return false; // Stay in the shadow
-          }
-          return true;
-       }
-    });
+    let productList = prodSnap.docs
+      .map(d => ({ id: d.id, ...d.data() } as Product))
+      .filter(p => p.status === 'active' || (p.status as string) === 'Actif');
 
     productList = productList.map(p => {
       const matchingPromos = promotions.filter(promo => {

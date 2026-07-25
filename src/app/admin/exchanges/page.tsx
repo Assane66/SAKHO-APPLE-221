@@ -2,6 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AdminTableFilters } from '@/components/admin/AdminTableFilters';
+import { useAdminTableFilters, searchInFields, sortByString, sortByDate } from '@/hooks/use-admin-table-filters';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -53,6 +55,36 @@ export default function ExchangesPage() {
     }
   };
 
+  const {
+    searchTerm, setSearchTerm, sortBy, setSortBy, filterBy, setFilterBy,
+    filtered: filteredExchanges, resetFilters, resultCount, totalCount,
+  } = useAdminTableFilters(exchanges, {
+    searchFn: (ex, term) =>
+      searchInFields(ex as Record<string, unknown>, term, ['currentModel', 'desiredModel', 'contactPhone', 'status']),
+    filterFn: (ex, filter) => filter === 'all' || ex.status === filter,
+    sortFn: (a, b, sort) => {
+      switch (sort) {
+        case 'date-desc': return sortByDate(a.createdAt, b.createdAt, 'desc');
+        case 'date-asc': return sortByDate(a.createdAt, b.createdAt, 'asc');
+        case 'model-asc': return sortByString(a.currentModel ?? '', b.currentModel ?? '', 'asc');
+        default: return 0;
+      }
+    },
+    defaultSort: 'date-desc',
+  });
+
+  const exchangeFilterOptions = [
+    { value: 'all', label: 'Tous les statuts' },
+    { value: 'En attente', label: 'En attente' },
+    { value: 'Traitée', label: 'Traitée' },
+  ];
+
+  const exchangeSortOptions = [
+    { value: 'date-desc', label: 'Date (récent)' },
+    { value: 'date-asc', label: 'Date (ancien)' },
+    { value: 'model-asc', label: 'Modèle (A-Z)' },
+  ];
+
 
   return (
     <div className="space-y-8">
@@ -64,6 +96,21 @@ export default function ExchangesPage() {
           <CardDescription>Examinez les demandes de reprise envoyées par les clients.</CardDescription>
         </CardHeader>
         <CardContent>
+          <AdminTableFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher une demande..."
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            sortOptions={exchangeSortOptions}
+            filterBy={filterBy}
+            onFilterChange={setFilterBy}
+            filterOptions={exchangeFilterOptions}
+            resultCount={resultCount}
+            totalCount={totalCount}
+            onReset={resetFilters}
+            className="mb-4"
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -83,14 +130,14 @@ export default function ExchangesPage() {
                     <Loader2 className="mx-auto h-8 w-8 animate-spin" />
                   </TableCell>
                 </TableRow>
-              ) : exchanges.length === 0 ? (
+              ) : filteredExchanges.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center">
                     Aucune demande d'échange pour le moment.
                   </TableCell>
                 </TableRow>
               ) : (
-                exchanges.map((exchange) => (
+                filteredExchanges.map((exchange) => (
                   <TableRow key={exchange.id}>
                     <TableCell>
                       {exchange.createdAt?.seconds ? new Date(exchange.createdAt.seconds * 1000).toLocaleDateString('fr-FR') : 'N/A'}

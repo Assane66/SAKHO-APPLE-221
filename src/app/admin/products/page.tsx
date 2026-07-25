@@ -3,13 +3,13 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Search, MoreHorizontal, Loader2, Trash, Edit } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Loader2, Trash, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
+import { AdminTableFilters } from "@/components/admin/AdminTableFilters";
+import { useAdminTableFilters, searchInFields, sortByString, sortByNumber } from "@/hooks/use-admin-table-filters";
 import Image from 'next/image';
 import Link from "next/link";
 import { db } from "@/lib/firebase";
@@ -68,10 +68,54 @@ export default function ProductsPage() {
     }
   };
 
-  const filteredProducts = (status: 'active' | 'inactive' | 'all') => {
-    if (status === 'all') return products;
-    return products.filter(p => p.status === status);
-  }
+  const {
+    searchTerm, setSearchTerm, sortBy, setSortBy, filterBy, setFilterBy,
+    filtered: filteredProducts, resetFilters, resultCount, totalCount,
+  } = useAdminTableFilters(products, {
+    searchFn: (p, term) =>
+      searchInFields(p as unknown as Record<string, unknown>, term, ['name', 'slug']) ||
+      (categories.get(p.categoryId)?.toLowerCase().includes(term) ?? false),
+    filterFn: (p, filter) => {
+      if (filter === 'all') return true;
+      if (filter.startsWith('cat:')) return p.categoryId === filter.slice(4);
+      return p.status === filter;
+    },
+    sortFn: (a, b, sort) => {
+      switch (sort) {
+        case 'name-asc': return sortByString(a.name, b.name, 'asc');
+        case 'name-desc': return sortByString(a.name, b.name, 'desc');
+        case 'price-asc': return sortByNumber(
+          Math.min(...(a.variants?.map(v => v.price) ?? [0])),
+          Math.min(...(b.variants?.map(v => v.price) ?? [0])),
+          'asc'
+        );
+        case 'price-desc': return sortByNumber(
+          Math.min(...(a.variants?.map(v => v.price) ?? [0])),
+          Math.min(...(b.variants?.map(v => v.price) ?? [0])),
+          'desc'
+        );
+        default: return 0;
+      }
+    },
+  });
+
+  const categoryFilterOptions = [
+    { value: 'all', label: 'Tous les statuts' },
+    { value: 'active', label: 'Actifs' },
+    { value: 'inactive', label: 'Inactifs' },
+    ...Array.from(categories.entries()).map(([id, name]) => ({
+      value: `cat:${id}`,
+      label: name,
+    })),
+  ];
+
+  const sortOptions = [
+    { value: 'default', label: 'Par défaut' },
+    { value: 'name-asc', label: 'Nom (A-Z)' },
+    { value: 'name-desc', label: 'Nom (Z-A)' },
+    { value: 'price-asc', label: 'Prix croissant' },
+    { value: 'price-desc', label: 'Prix décroissant' },
+  ];
 
   const renderProductRows = (productList: Product[]) => {
     if (isLoading) {
@@ -157,73 +201,38 @@ export default function ProductsPage() {
           <CardDescription>Gérez votre inventaire de produits.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="all">
-            <div className="flex items-center justify-between">
-              <TabsList>
-                <TabsTrigger value="all">Tous</TabsTrigger>
-                <TabsTrigger value="active">Actifs</TabsTrigger>
-                <TabsTrigger value="inactive">Inactifs</TabsTrigger>
-              </TabsList>
-              <div className="relative w-full max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Rechercher un produit..." className="pl-10" />
-              </div>
-            </div>
+          <AdminTableFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher un produit..."
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            sortOptions={sortOptions}
+            filterBy={filterBy}
+            onFilterChange={setFilterBy}
+            filterOptions={categoryFilterOptions}
+            filterLabel="Filtrer"
+            resultCount={resultCount}
+            totalCount={totalCount}
+            onReset={resetFilters}
+            className="mb-4"
+          />
 
-            <TabsContent value="all" className="mt-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[60px]">Image</TableHead>
-                    <TableHead>Nom du produit</TableHead>
-                    <TableHead>Catégorie</TableHead>
-                    <TableHead>Stockage</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="text-right w-[100px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {renderProductRows(filteredProducts('all'))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-            
-            <TabsContent value="active" className="mt-4">
-              <Table>
-                <TableHeader>
-                   <TableRow>
-                    <TableHead className="w-[60px]">Image</TableHead>
-                    <TableHead>Nom du produit</TableHead>
-                    <TableHead>Catégorie</TableHead>
-                    <TableHead>Stockage</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="text-right w-[100px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {renderProductRows(filteredProducts('active'))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-
-            <TabsContent value="inactive" className="mt-4">
-               <Table>
-                <TableHeader>
-                   <TableRow>
-                    <TableHead className="w-[60px]">Image</TableHead>
-                    <TableHead>Nom du produit</TableHead>
-                    <TableHead>Catégorie</TableHead>
-                    <TableHead>Stockage</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="text-right w-[100px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {renderProductRows(filteredProducts('inactive'))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-          </Tabs>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[60px]">Image</TableHead>
+                <TableHead>Nom du produit</TableHead>
+                <TableHead>Catégorie</TableHead>
+                <TableHead>Stockage</TableHead>
+                <TableHead>Statut</TableHead>
+                <TableHead className="text-right w-[100px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {renderProductRows(filteredProducts)}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

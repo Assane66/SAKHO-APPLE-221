@@ -2,6 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AdminTableFilters } from '@/components/admin/AdminTableFilters';
+import { useAdminTableFilters, searchInFields, sortByString, sortByNumber, sortByDate } from '@/hooks/use-admin-table-filters';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -217,6 +219,39 @@ export default function PromotionsPage() {
     return { icon: Tag, label: promo.productName || promo.variantStorage || 'Ancien format' };
   };
 
+  const {
+    searchTerm, setSearchTerm, sortBy, setSortBy, filterBy, setFilterBy,
+    filtered: filteredPromotions, resetFilters, resultCount, totalCount,
+  } = useAdminTableFilters(promotions, {
+    searchFn: (p, term) =>
+      searchInFields(p as unknown as Record<string, unknown>, term, ['title', 'status']) ||
+      getTargetLabel(p).label.toLowerCase().includes(term),
+    filterFn: (p, filter) => filter === 'all' || p.status === filter,
+    sortFn: (a, b, sort) => {
+      switch (sort) {
+        case 'date-desc': return sortByDate(a.endDate, b.endDate, 'desc');
+        case 'date-asc': return sortByDate(a.endDate, b.endDate, 'asc');
+        case 'discount-desc': return sortByNumber(a.discountAmount ?? 0, b.discountAmount ?? 0, 'desc');
+        case 'title-asc': return sortByString(a.title ?? '', b.title ?? '', 'asc');
+        default: return 0;
+      }
+    },
+    defaultSort: 'date-desc',
+  });
+
+  const promoFilterOptions = [
+    { value: 'all', label: 'Tous les statuts' },
+    { value: 'Actif', label: 'Actif' },
+    { value: 'Inactif', label: 'Inactif' },
+  ];
+
+  const promoSortOptions = [
+    { value: 'date-desc', label: 'Date fin (récent)' },
+    { value: 'date-asc', label: 'Date fin (ancien)' },
+    { value: 'discount-desc', label: 'Réduction ↓' },
+    { value: 'title-asc', label: 'Titre (A-Z)' },
+  ];
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -390,6 +425,21 @@ export default function PromotionsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <AdminTableFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher une promotion..."
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            sortOptions={promoSortOptions}
+            filterBy={filterBy}
+            onFilterChange={setFilterBy}
+            filterOptions={promoFilterOptions}
+            resultCount={resultCount}
+            totalCount={totalCount}
+            onReset={resetFilters}
+            className="mb-4"
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -408,14 +458,14 @@ export default function PromotionsPage() {
                     <Loader2 className="mx-auto h-8 w-8 animate-spin" />
                   </TableCell>
                 </TableRow>
-              ) : promotions.length === 0 ? (
+              ) : filteredPromotions.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                    Aucune promotion active. Cliquez sur « Nouvelle promotion » pour commencer.
+                    Aucune promotion trouvée.
                   </TableCell>
                 </TableRow>
               ) : (
-                promotions.map(promo => {
+                filteredPromotions.map(promo => {
                   const target = getTargetLabel(promo);
                   return (
                     <TableRow key={promo.id}>

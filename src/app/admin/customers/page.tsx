@@ -2,10 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AdminTableFilters } from '@/components/admin/AdminTableFilters';
+import { useAdminTableFilters, sortByString, sortByNumber } from '@/hooks/use-admin-table-filters';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Search, Loader2 } from "lucide-react";
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, DocumentData } from 'firebase/firestore';
 
@@ -59,6 +59,35 @@ export default function CustomersPage() {
     return () => unsubscribe();
   }, []);
 
+  const {
+    searchTerm, setSearchTerm, sortBy, setSortBy,
+    filtered: filteredCustomers, resetFilters, resultCount, totalCount,
+  } = useAdminTableFilters(customers, {
+    searchFn: (c, term) =>
+      c.name.toLowerCase().includes(term) ||
+      c.phone.toLowerCase().includes(term) ||
+      (c.address?.toLowerCase().includes(term) ?? false),
+    sortFn: (a, b, sort) => {
+      switch (sort) {
+        case 'name-asc': return sortByString(a.name, b.name, 'asc');
+        case 'name-desc': return sortByString(a.name, b.name, 'desc');
+        case 'spent-desc': return sortByNumber(a.totalSpent, b.totalSpent, 'desc');
+        case 'spent-asc': return sortByNumber(a.totalSpent, b.totalSpent, 'asc');
+        case 'orders-desc': return sortByNumber(a.orderCount, b.orderCount, 'desc');
+        default: return 0;
+      }
+    },
+  });
+
+  const customerSortOptions = [
+    { value: 'default', label: 'Par défaut' },
+    { value: 'name-asc', label: 'Nom (A-Z)' },
+    { value: 'name-desc', label: 'Nom (Z-A)' },
+    { value: 'spent-desc', label: 'Total dépensé ↓' },
+    { value: 'spent-asc', label: 'Total dépensé ↑' },
+    { value: 'orders-desc', label: 'Plus de commandes' },
+  ];
+
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">Clients</h1>
@@ -69,12 +98,18 @@ export default function CustomersPage() {
           <CardDescription>Consultez les informations sur vos clients (basé sur les commandes).</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-end mb-4">
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Rechercher un client..." className="pl-10" />
-            </div>
-          </div>
+          <AdminTableFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher un client..."
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            sortOptions={customerSortOptions}
+            resultCount={resultCount}
+            totalCount={totalCount}
+            onReset={resetFilters}
+            className="mb-4"
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -91,14 +126,14 @@ export default function CustomersPage() {
                     <Loader2 className="mx-auto h-8 w-8 animate-spin" />
                   </TableCell>
                 </TableRow>
-              ) : customers.length === 0 ? (
+              ) : filteredCustomers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="h-24 text-center">
                     Aucun client trouvé.
                   </TableCell>
                 </TableRow>
               ) : (
-                customers.map((customer) => (
+                filteredCustomers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
                     <TableCell>{customer.phone}</TableCell>

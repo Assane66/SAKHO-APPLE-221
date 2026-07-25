@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AdminTableFilters } from '@/components/admin/AdminTableFilters';
+import { useAdminTableFilters, searchInFields, sortByString, sortByNumber, sortByDate } from '@/hooks/use-admin-table-filters';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, QrCode, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { Loader2, QrCode, Plus } from 'lucide-react';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -21,7 +23,6 @@ export default function StockPage() {
   const [stock, setStock] = useState<StockItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isSellDialogOpen, setIsSellDialogOpen] = useState(false);
@@ -96,7 +97,7 @@ export default function StockPage() {
     // Rechercher l'item dans le stock local d'abord
     const item = stock.find(s => s.imei === imei);
     if (item) {
-      if (item.status === 'available') {
+      if (item.status === 'disponible') {
         setSelectedItem(item);
         setIsSellDialogOpen(true);
       } else {
@@ -152,11 +153,39 @@ export default function StockPage() {
     }
   };
 
-  const filteredStock = stock.filter(item => 
-    item.imei.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const {
+    searchTerm, setSearchTerm, sortBy, setSortBy, filterBy, setFilterBy,
+    filtered: filteredStock, resetFilters, resultCount, totalCount,
+  } = useAdminTableFilters(stock, {
+    searchFn: (item, term) =>
+      searchInFields(item as unknown as Record<string, unknown>, term, ['imei', 'productName', 'storage', 'customerName', 'customerPhone']),
+    filterFn: (item, filter) => filter === 'all' || item.status === filter,
+    sortFn: (a, b, sort) => {
+      switch (sort) {
+        case 'product-asc': return sortByString(a.productName, b.productName, 'asc');
+        case 'product-desc': return sortByString(a.productName, b.productName, 'desc');
+        case 'date-desc': return sortByDate(a.addedAt, b.addedAt, 'desc');
+        case 'date-asc': return sortByDate(a.addedAt, b.addedAt, 'asc');
+        case 'price-desc': return sortByNumber(a.finalPrice ?? 0, b.finalPrice ?? 0, 'desc');
+        default: return 0;
+      }
+    },
+    defaultSort: 'date-desc',
+  });
+
+  const stockFilterOptions = [
+    { value: 'all', label: 'Tous les statuts' },
+    { value: 'disponible', label: 'En stock' },
+    { value: 'vendu', label: 'Vendu' },
+  ];
+
+  const stockSortOptions = [
+    { value: 'date-desc', label: 'Date (récent)' },
+    { value: 'date-asc', label: 'Date (ancien)' },
+    { value: 'product-asc', label: 'Produit (A-Z)' },
+    { value: 'product-desc', label: 'Produit (Z-A)' },
+    { value: 'price-desc', label: 'Prix décroissant' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -179,15 +208,20 @@ export default function StockPage() {
 
       <Card>
         <CardHeader>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher par IMEI, modèle ou client..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          <AdminTableFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher par IMEI, modèle ou client..."
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            sortOptions={stockSortOptions}
+            filterBy={filterBy}
+            onFilterChange={setFilterBy}
+            filterOptions={stockFilterOptions}
+            resultCount={resultCount}
+            totalCount={totalCount}
+            onReset={resetFilters}
+          />
         </CardHeader>
         <CardContent>
           {loading ? (

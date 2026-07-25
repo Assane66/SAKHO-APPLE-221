@@ -2,6 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AdminTableFilters } from '@/components/admin/AdminTableFilters';
+import { useAdminTableFilters, searchInFields, sortByString, sortByNumber } from '@/hooks/use-admin-table-filters';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -127,6 +129,31 @@ export default function CategoriesPage() {
     }
   };
 
+  const {
+    searchTerm, setSearchTerm, sortBy, setSortBy,
+    filtered: filteredCategories, resetFilters, resultCount, totalCount,
+  } = useAdminTableFilters(categories, {
+    searchFn: (cat, term) =>
+      searchInFields(cat as Record<string, unknown>, term, ['name', 'slug']),
+    sortFn: (a, b, sort) => {
+      switch (sort) {
+        case 'name-asc': return sortByString(a.name ?? '', b.name ?? '', 'asc');
+        case 'name-desc': return sortByString(a.name ?? '', b.name ?? '', 'desc');
+        case 'count-desc': return sortByNumber(a.productCount ?? 0, b.productCount ?? 0, 'desc');
+        case 'count-asc': return sortByNumber(a.productCount ?? 0, b.productCount ?? 0, 'asc');
+        default: return 0;
+      }
+    },
+  });
+
+  const categorySortOptions = [
+    { value: 'default', label: 'Par défaut' },
+    { value: 'name-asc', label: 'Nom (A-Z)' },
+    { value: 'name-desc', label: 'Nom (Z-A)' },
+    { value: 'count-desc', label: 'Plus de produits' },
+    { value: 'count-asc', label: 'Moins de produits' },
+  ];
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -173,6 +200,18 @@ export default function CategoriesPage() {
           <CardDescription>Gérez les catégories de vos produits.</CardDescription>
         </CardHeader>
         <CardContent>
+          <AdminTableFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher une catégorie..."
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            sortOptions={categorySortOptions}
+            resultCount={resultCount}
+            totalCount={totalCount}
+            onReset={resetFilters}
+            className="mb-4"
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -189,14 +228,14 @@ export default function CategoriesPage() {
                     <Loader2 className="mx-auto h-8 w-8 animate-spin" />
                   </TableCell>
                 </TableRow>
-              ) : categories.length === 0 ? (
+              ) : filteredCategories.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="h-24 text-center">
                     Aucune catégorie trouvée.
                   </TableCell>
                 </TableRow>
               ) : (
-                categories.map((category) => (
+                filteredCategories.map((category) => (
                   <TableRow key={category.id}>
                     <TableCell className="font-medium">{category.name}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">{category.slug}</TableCell>

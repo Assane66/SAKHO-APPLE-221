@@ -2,6 +2,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { AdminTableFilters } from '@/components/admin/AdminTableFilters';
+import { useAdminTableFilters, searchInFields, sortByString } from '@/hooks/use-admin-table-filters';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -153,6 +155,34 @@ export default function BannersPage() {
     }
   };
 
+  const {
+    searchTerm, setSearchTerm, sortBy, setSortBy, filterBy, setFilterBy,
+    filtered: filteredBanners, resetFilters, resultCount, totalCount,
+  } = useAdminTableFilters(banners, {
+    searchFn: (b, term) =>
+      searchInFields(b as Record<string, unknown>, term, ['name', 'link', 'status']),
+    filterFn: (b, filter) => filter === 'all' || b.status === filter,
+    sortFn: (a, b, sort) => {
+      switch (sort) {
+        case 'name-asc': return sortByString(a.name ?? '', b.name ?? '', 'asc');
+        case 'name-desc': return sortByString(a.name ?? '', b.name ?? '', 'desc');
+        default: return 0;
+      }
+    },
+  });
+
+  const bannerFilterOptions = [
+    { value: 'all', label: 'Tous les statuts' },
+    { value: 'Actif', label: 'Actif' },
+    { value: 'Inactif', label: 'Inactif' },
+  ];
+
+  const bannerSortOptions = [
+    { value: 'default', label: 'Par défaut' },
+    { value: 'name-asc', label: 'Nom (A-Z)' },
+    { value: 'name-desc', label: 'Nom (Z-A)' },
+  ];
+
 
   return (
     <div className="space-y-8">
@@ -225,6 +255,21 @@ export default function BannersPage() {
           <CardDescription>Ajoutez, supprimez et organisez les bannières promotionnelles de votre site.</CardDescription>
         </CardHeader>
         <CardContent>
+          <AdminTableFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher une bannière..."
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            sortOptions={bannerSortOptions}
+            filterBy={filterBy}
+            onFilterChange={setFilterBy}
+            filterOptions={bannerFilterOptions}
+            resultCount={resultCount}
+            totalCount={totalCount}
+            onReset={resetFilters}
+            className="mb-4"
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -242,14 +287,14 @@ export default function BannersPage() {
                     <Loader2 className="mx-auto h-8 w-8 animate-spin" />
                   </TableCell>
                 </TableRow>
-              ) : banners.length === 0 ? (
+              ) : filteredBanners.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
                     Aucune bannière trouvée.
                   </TableCell>
                 </TableRow>
               ) : (
-                banners.map((banner) => (
+                filteredBanners.map((banner) => (
                   <TableRow key={banner.id}>
                     <TableCell>
                       <Image src={banner.imageUrl || 'https://placehold.co/150x75.png'} alt={banner.name} width={150} height={75} className="rounded-md object-cover" />

@@ -2,6 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AdminTableFilters } from '@/components/admin/AdminTableFilters';
+import { useAdminTableFilters, searchInFields, sortByString, sortByDate } from '@/hooks/use-admin-table-filters';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -84,6 +86,39 @@ export default function FlashSalesPage() {
     }
   };
 
+  const {
+    searchTerm, setSearchTerm, sortBy, setSortBy, filterBy, setFilterBy,
+    filtered: filteredFlashSales, resetFilters, resultCount, totalCount,
+  } = useAdminTableFilters(flashSales, {
+    searchFn: (s, term) =>
+      searchInFields(s as unknown as Record<string, unknown>, term, ['productName', 'status', 'slug']),
+    filterFn: (s, filter) => filter === 'all' || s.status === filter,
+    sortFn: (a, b, sort) => {
+      switch (sort) {
+        case 'date-desc': return sortByDate(a.endDate, b.endDate, 'desc');
+        case 'date-asc': return sortByDate(a.endDate, b.endDate, 'asc');
+        case 'name-asc': return sortByString(a.productName, b.productName, 'asc');
+        case 'name-desc': return sortByString(a.productName, b.productName, 'desc');
+        default: return 0;
+      }
+    },
+    defaultSort: 'date-desc',
+  });
+
+  const flashFilterOptions = [
+    { value: 'all', label: 'Tous les statuts' },
+    { value: 'Actif', label: 'Actif' },
+    { value: 'Programmé', label: 'Programmé' },
+    { value: 'Terminé', label: 'Terminé' },
+  ];
+
+  const flashSortOptions = [
+    { value: 'date-desc', label: 'Date fin (récent)' },
+    { value: 'date-asc', label: 'Date fin (ancien)' },
+    { value: 'name-asc', label: 'Produit (A-Z)' },
+    { value: 'name-desc', label: 'Produit (Z-A)' },
+  ];
+
   return (
     <AlertDialog>
       <div className="space-y-8">
@@ -103,6 +138,21 @@ export default function FlashSalesPage() {
             <CardDescription>Gérez vos ventes flash à durée et stock limités.</CardDescription>
           </CardHeader>
           <CardContent>
+            <AdminTableFilters
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Rechercher une vente flash..."
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              sortOptions={flashSortOptions}
+              filterBy={filterBy}
+              onFilterChange={setFilterBy}
+              filterOptions={flashFilterOptions}
+              resultCount={resultCount}
+              totalCount={totalCount}
+              onReset={resetFilters}
+              className="mb-4"
+            />
             <Table>
               <TableHeader>
                 <TableRow>
@@ -121,14 +171,14 @@ export default function FlashSalesPage() {
                       <Loader2 className="mx-auto h-8 w-8 animate-spin" />
                     </TableCell>
                   </TableRow>
-                ) : flashSales.length === 0 ? (
+                ) : filteredFlashSales.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center">
-                      Aucune vente flash en cours ou programmée.
+                      Aucune vente flash trouvée.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  flashSales.map((sale) => {
+                  filteredFlashSales.map((sale) => {
                     const { totalInitial, totalSold, percentage } = getSaleProgress(sale);
                     const lowestPrice = sale.variants?.length > 0 ? Math.min(...sale.variants.map(v => v.discountPrice)) : 0;
                     return (

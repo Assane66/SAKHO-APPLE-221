@@ -2,6 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AdminTableFilters } from '@/components/admin/AdminTableFilters';
+import { useAdminTableFilters, searchInFields, sortByString, sortByNumber, sortByDate } from '@/hooks/use-admin-table-filters';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -61,6 +63,42 @@ export default function OrdersPage() {
     setSelectedOrder(order);
   };
 
+  const {
+    searchTerm, setSearchTerm, sortBy, setSortBy, filterBy, setFilterBy,
+    filtered: filteredOrders, resetFilters, resultCount, totalCount,
+  } = useAdminTableFilters(orders, {
+    searchFn: (o, term) =>
+      searchInFields(o as Record<string, unknown>, term, ['id', 'customerName', 'customerPhone', 'status']),
+    filterFn: (o, filter) => filter === 'all' || o.status === filter,
+    sortFn: (a, b, sort) => {
+      switch (sort) {
+        case 'date-desc': return sortByDate(a.date, b.date, 'desc');
+        case 'date-asc': return sortByDate(a.date, b.date, 'asc');
+        case 'total-desc': return sortByNumber(a.total ?? 0, b.total ?? 0, 'desc');
+        case 'total-asc': return sortByNumber(a.total ?? 0, b.total ?? 0, 'asc');
+        case 'name-asc': return sortByString(a.customerName ?? '', b.customerName ?? '', 'asc');
+        default: return 0;
+      }
+    },
+    defaultSort: 'date-desc',
+  });
+
+  const orderFilterOptions = [
+    { value: 'all', label: 'Tous les statuts' },
+    { value: 'En attente', label: 'En attente' },
+    { value: 'En cours', label: 'En cours' },
+    { value: 'Livrée', label: 'Livrée' },
+    { value: 'Annulée', label: 'Annulée' },
+  ];
+
+  const orderSortOptions = [
+    { value: 'date-desc', label: 'Date (récent)' },
+    { value: 'date-asc', label: 'Date (ancien)' },
+    { value: 'total-desc', label: 'Total décroissant' },
+    { value: 'total-asc', label: 'Total croissant' },
+    { value: 'name-asc', label: 'Client (A-Z)' },
+  ];
+
   return (
     <>
       <div className="space-y-8">
@@ -78,6 +116,21 @@ export default function OrdersPage() {
             <CardDescription>Suivez et gérez les commandes des clients.</CardDescription>
           </CardHeader>
           <CardContent>
+            <AdminTableFilters
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Rechercher une commande..."
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              sortOptions={orderSortOptions}
+              filterBy={filterBy}
+              onFilterChange={setFilterBy}
+              filterOptions={orderFilterOptions}
+              resultCount={resultCount}
+              totalCount={totalCount}
+              onReset={resetFilters}
+              className="mb-4"
+            />
             <Table>
               <TableHeader>
                 <TableRow>
@@ -97,14 +150,14 @@ export default function OrdersPage() {
                       <Loader2 className="mx-auto h-8 w-8 animate-spin" />
                     </TableCell>
                   </TableRow>
-                ) : orders.length === 0 ? (
+                ) : filteredOrders.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center">
                       Aucune commande trouvée.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  orders.map((order) => (
+                  filteredOrders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-mono">{order.id.substring(0, 7)}</TableCell>
                       <TableCell>{order.customerName}</TableCell>
