@@ -76,7 +76,7 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
     import('three/examples/jsm/loaders/GLTFLoader.js').then(({ GLTFLoader }) => {
       const loader = new GLTFLoader();
       loader.load(
-        'https://res.cloudinary.com/dm6yuokre/image/upload/v1784907643/iphone_17_pro_max_eahild.glb',
+        'https://res.cloudinary.com/dm6yuokre/image/upload/v1785360868/iphone_17_pro_max_1_vznyvo.glb',
         (gltf) => {
           const model = gltf.scene;
 
