@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { Sparkles, ArrowRight, ShieldCheck, Zap, Cpu, HardDrive, CheckCircle2, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Product } from '@/types';
+import { getOptimizedImageUrl } from '@/lib/image-optimizer';
 
 interface BentoGridSectionProps {
   products?: Product[];
@@ -235,7 +236,7 @@ export function BentoGridSection({ products = [], onQuickBuy }: BentoGridSection
                       {/* Inner studio glow */}
                       <div className="absolute inset-0 bg-radial-gradient from-amber-500/10 to-transparent pointer-events-none" />
                       <Image
-                        src={item.image}
+                        src={getOptimizedImageUrl(item.image, 600)}
                         alt={item.title}
                         fill
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

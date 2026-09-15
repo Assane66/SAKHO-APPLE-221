@@ -19,6 +19,8 @@ import { MarqueeBanner } from '@/components/home/MarqueeBanner';
 import { FlipClockTimer } from '@/components/home/FlipClockTimer';
 import { FastCheckoutDrawer } from '@/components/checkout/FastCheckoutDrawer';
 import { cn } from '@/lib/utils';
+import { getOptimizedImageUrl } from '@/lib/image-optimizer';
+import { setCachedCatalog } from '@/lib/product-cache';
 
 /* ─── Data fetching ──────────────────────────────── */
 async function getHomePageData() {
@@ -68,9 +70,15 @@ async function getHomePageData() {
       return p;
     });
 
+    const bannerList = bannerSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const categoryList = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Mettre en cache pour accès instantané sur la page Produits
+    setCachedCatalog(productList, categoryList);
+
     return {
-      bannerList: bannerSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-      categoryList: catSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      bannerList,
+      categoryList,
       productList,
       activePromo: promotions.length > 0 ? promotions[0] : null,
       contactPhone: settings.contactPhone || '221770000000',
@@ -349,7 +357,7 @@ export default function Home() {
                   {/* Product Image */}
                   <div className="relative w-24 h-28 rounded-2xl bg-zinc-900 flex-shrink-0 overflow-hidden">
                     <Image
-                      src={product.thumbnail || 'https://res.cloudinary.com/dm6yuokre/image/upload/v1784658568/apple-iphone-17-pro-max-256-go-ecran-69-puce-a19-pro-orange-removebg-preview_vmy8i6.png'}
+                      src={getOptimizedImageUrl(product.thumbnail, 300)}
                       alt={product.name}
                       fill
                       sizes="(max-width: 768px) 100px, 120px"
