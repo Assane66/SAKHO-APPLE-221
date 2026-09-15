@@ -36,8 +36,43 @@ export type StockItem = {
   soldAt?: any;
   customerName?: string;
   customerPhone?: string;
+  catalogPrice?: number;
+  unitPrice?: number;
+  hasCustomPrice?: boolean;
+  isVenant?: boolean;
+  isSecondHand?: boolean;
+  note?: string;
   finalPrice?: number; // Prix de vente final (peut être différent du prix catalogue)
 };
+
+export type DebtStatus = 'À payer' | 'Partiellement payé' | 'Payé';
+
+export interface DebtPayment {
+  id: string;
+  amount: number;
+  date: any;
+  note?: string;
+}
+
+export interface Debt {
+  id: string;
+  firstName: string;
+  lastName: string;
+  customerName: string;
+  phone: string;
+  item: string;
+  quantity: number;
+  amountDue: number;
+  amountPaid: number;
+  amountRemaining: number;
+  date: any;
+  dueDate?: any;
+  note?: string;
+  status: DebtStatus;
+  payments?: DebtPayment[];
+  createdAt?: any;
+  updatedAt?: any;
+}
 
 export type FlashSaleVariant = {
   storage: string;

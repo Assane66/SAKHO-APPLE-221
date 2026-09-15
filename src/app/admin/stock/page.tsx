@@ -9,14 +9,63 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, QrCode, Plus } from 'lucide-react';
-import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import { 
+  Loader2, 
+  QrCode, 
+  Plus, 
+  Tag, 
+  MoreHorizontal, 
+  Edit, 
+  Trash2, 
+  ShoppingCart, 
+  FileText, 
+  Info,
+  CheckCircle2,
+  DollarSign,
+  Phone
+} from 'lucide-react';
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  serverTimestamp 
+} from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { QRScanner } from '@/components/admin/qr-scanner';
-import type { StockItem, Product } from '@/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { StockItem, Product, ProductVariant } from '@/types';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter, 
+  DialogDescription 
+} from '@/components/ui/dialog';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+
+const fallbackStorages = ['64GB', '128GB', '256GB', '512GB', '1TB'];
 
 export default function StockPage() {
   const { toast } = useToast();
@@ -24,36 +73,53 @@ export default function StockPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  
+  // Dialogs
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isSellDialogOpen, setIsSellDialogOpen] = useState(false);
+  const [isEditItemOpen, setIsEditItemOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
 
-  // Formulaire ajout
+  // Formulaire ajout stock
   const [newImei, setNewImei] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('');
   const [selectedStorage, setSelectedStorage] = useState('');
+  const [availableStorages, setAvailableStorages] = useState<string[]>(fallbackStorages);
+  const [catalogPrice, setCatalogPrice] = useState<number>(0);
+  const [isVenant, setIsVenant] = useState(false);
+  const [isSecondHand, setIsSecondHand] = useState(false);
+  const [hasCustomPrice, setHasCustomPrice] = useState(false);
+  const [customPrice, setCustomPrice] = useState<string>('');
+  const [itemNote, setItemNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Formulaire vente
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [finalPrice, setFinalPrice] = useState<number>(0);
-  const [isEditingPrice, setIsEditingPrice] = useState(false);
+  const [sellPrice, setSellPrice] = useState<number>(0);
+  const [createDebtOnRemaining, setCreateDebtOnRemaining] = useState(false);
+  const [amountReceived, setAmountReceived] = useState<string>('');
+
+  // Formulaire modification item
+  const [editPrice, setEditPrice] = useState<number>(0);
+  const [editNote, setEditNote] = useState('');
 
   useEffect(() => {
-    // Charger les produits pour le select
+    // Charger les produits actifs
     const qProducts = query(collection(db, 'products'), where('status', '==', 'active'));
     const unsubscribeProducts = onSnapshot(qProducts, (snapshot) => {
       const productsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       setProducts(productsData);
     });
 
-    // Charger le stock (collection 'inventory' selon la capture d'écran)
+    // Charger le stock (collection 'inventory')
     const qStock = query(collection(db, 'inventory'));
     const unsubscribeStock = onSnapshot(qStock, (snapshot) => {
       const stockData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StockItem));
       setStock(stockData);
-      setLoading(loading && false);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error loading inventory:", error);
       setLoading(false);
     });
 
@@ -63,27 +129,109 @@ export default function StockPage() {
     };
   }, []);
 
+  // Synchronisation dynamique quand le produit sélectionné change
+  const handleProductChange = (productId: string) => {
+    setSelectedProductId(productId);
+    const product = products.find(p => p.id === productId);
+    if (product && product.variants && product.variants.length > 0) {
+      const storages = product.variants.map((v: ProductVariant) => v.storage);
+      setAvailableStorages(storages);
+      const defaultStorage = storages[0];
+      setSelectedStorage(defaultStorage);
+      const variant = product.variants.find((v: ProductVariant) => v.storage === defaultStorage);
+      const price = variant?.price || 0;
+      setCatalogPrice(price);
+      if (!hasCustomPrice) {
+        setCustomPrice(String(price));
+      }
+    } else {
+      setAvailableStorages(fallbackStorages);
+      setSelectedStorage(fallbackStorages[0]);
+      setCatalogPrice(0);
+      if (!hasCustomPrice) {
+        setCustomPrice('0');
+      }
+    }
+  };
+
+  // Synchronisation quand le stockage change
+  const handleStorageChange = (storage: string) => {
+    setSelectedStorage(storage);
+    const product = products.find(p => p.id === selectedProductId);
+    if (product && product.variants) {
+      const variant = product.variants.find((v: ProductVariant) => v.storage === storage);
+      const price = variant?.price || 0;
+      setCatalogPrice(price);
+      if (!hasCustomPrice) {
+        setCustomPrice(String(price));
+      }
+    }
+  };
+
+  const openAddStockDialog = () => {
+    setNewImei('');
+    setIsVenant(false);
+    setIsSecondHand(false);
+    setHasCustomPrice(false);
+    setCustomPrice('');
+    setItemNote('');
+
+    if (products.length > 0) {
+      handleProductChange(products[0].id);
+    } else {
+      setSelectedProductId('');
+      setSelectedStorage(fallbackStorages[0]);
+      setCatalogPrice(0);
+    }
+    setIsAddDialogOpen(true);
+  };
+
   const handleAddStock = async () => {
-    if (!newImei || !selectedProductId || !selectedStorage) {
-      toast({ variant: 'destructive', title: 'Erreur', description: 'Veuillez remplir tous les champs.' });
+    const cleanImei = newImei.trim();
+    if (!cleanImei || !selectedProductId || !selectedStorage) {
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Veuillez renseigner le produit, le stockage et l\'IMEI.' });
+      return;
+    }
+
+    // Vérification d'unicité de l'IMEI en stock actif
+    const duplicate = stock.find(s => s.imei.trim().toLowerCase() === cleanImei.toLowerCase() && s.status === 'disponible');
+    if (duplicate) {
+      toast({ 
+        variant: 'destructive', 
+        title: 'IMEI déjà présent', 
+        description: `L'IMEI ${cleanImei} est déjà enregistré en stock pour ${duplicate.productName} (${duplicate.storage}).` 
+      });
       return;
     }
 
     setIsSubmitting(true);
     try {
       const product = products.find(p => p.id === selectedProductId);
+      const finalUnitPrice = hasCustomPrice && Number(customPrice) > 0 
+        ? Number(customPrice) 
+        : catalogPrice;
+
       await addDoc(collection(db, 'inventory'), {
         productId: selectedProductId,
         productName: product?.name || 'Inconnu',
-        imei: newImei,
+        imei: cleanImei,
         storage: selectedStorage,
         status: 'disponible',
+        catalogPrice: Number(catalogPrice) || 0,
+        unitPrice: Number(finalUnitPrice) || 0,
+        hasCustomPrice: Boolean(hasCustomPrice),
+        isVenant: Boolean(isVenant),
+        isSecondHand: Boolean(isSecondHand),
+        note: itemNote.trim() || null,
         addedAt: serverTimestamp()
       });
-      toast({ title: 'Succès', description: 'Appareil ajouté au stock.' });
+
+      toast({ title: 'Appareil ajouté', description: `L'IMEI ${cleanImei} a été enregistré avec succès.` });
       setIsAddDialogOpen(false);
       setNewImei('');
+      setItemNote('');
     } catch (error) {
+      console.error(error);
       toast({ variant: 'destructive', title: 'Erreur', description: "Impossible d'ajouter au stock." });
     } finally {
       setIsSubmitting(false);
@@ -92,73 +240,160 @@ export default function StockPage() {
 
   const handleScan = async (imei: string) => {
     setIsScannerOpen(false);
-    setSearchTerm(imei);
+    const cleanImei = imei.trim();
+    setSearchTerm(cleanImei);
     
-    // Rechercher l'item dans le stock local d'abord
-    const item = stock.find(s => s.imei === imei);
+    const item = stock.find(s => s.imei.trim().toLowerCase() === cleanImei.toLowerCase());
     if (item) {
       if (item.status === 'disponible') {
-        setSelectedItem(item);
-        setIsSellDialogOpen(true);
+        openSellDialog(item);
       } else {
-        toast({ title: 'Info', description: `Cet appareil (IMEI: ${imei}) est déjà vendu.` });
+        toast({ title: 'Appareil déjà vendu', description: `L'appareil ${item.productName} (IMEI: ${cleanImei}) est déjà marqué vendu.` });
       }
     } else {
-      toast({ variant: 'destructive', title: 'Non trouvé', description: `Aucun appareil trouvé avec l'IMEI: ${imei}` });
-    }
-  };
-
-  const handleUpdatePrice = async () => {
-    if (!selectedItem || !finalPrice) return;
-    setIsSubmitting(true);
-    try {
-      await updateDoc(doc(db, 'inventory', selectedItem.id), {
-        finalPrice: Number(finalPrice)
+      toast({ 
+        variant: 'destructive', 
+        title: 'Non trouvé dans le stock', 
+        description: `Aucun appareil trouvé avec l'IMEI: ${cleanImei}. Vous pouvez l'ajouter via "Ajouter au stock".` 
       });
-      toast({ title: 'Prix mis à jour', description: 'Le prix de vente a été modifié.' });
-      setIsEditingPrice(false);
-      setSelectedItem(null);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de modifier le prix.' });
-    } finally {
-      setIsSubmitting(false);
+      // Préremplir l'IMEI dans le modal d'ajout
+      setNewImei(cleanImei);
+      openAddStockDialog();
     }
   };
 
-  const handleSell = async () => {
-    if (!selectedItem || !customerName) {
-      toast({ variant: 'destructive', title: 'Erreur', description: 'Le nom du client est obligatoire.' });
+  const openSellDialog = (item: StockItem) => {
+    setSelectedItem(item);
+    const defaultPrice = item.unitPrice || item.catalogPrice || item.finalPrice || 0;
+    setSellPrice(defaultPrice);
+    setCustomerName(item.customerName || '');
+    setCustomerPhone(item.customerPhone || '');
+    setAmountReceived(String(defaultPrice));
+    setCreateDebtOnRemaining(false);
+    setIsSellDialogOpen(true);
+  };
+
+  const handleConfirmSell = async () => {
+    if (!selectedItem) return;
+    if (!customerName.trim()) {
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Le nom du client est requis.' });
       return;
     }
 
     setIsSubmitting(true);
     try {
+      const price = Number(sellPrice) || 0;
+      const received = Number(amountReceived) || 0;
+      const remaining = Math.max(0, price - received);
+
+      // 1. Mettre à jour l'item en vendu
       await updateDoc(doc(db, 'inventory', selectedItem.id), {
         status: 'vendu',
         soldAt: serverTimestamp(),
-        customerName,
-        customerPhone,
-        finalPrice: finalPrice || 0
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim() || null,
+        finalPrice: price
       });
-      toast({ title: 'Vendu !', description: `La vente de l'IMEI ${selectedItem.imei} a été enregistrée.` });
+
+      // 2. Si le client doit un reliquat et l'option dette est cochée, créer la dette automatiquement
+      if (createDebtOnRemaining && remaining > 0) {
+        const parts = customerName.trim().split(/\s+/);
+        const fName = parts[0] || '';
+        const lName = parts.slice(1).join(' ') || '';
+
+        await addDoc(collection(db, 'debts'), {
+          firstName: fName,
+          lastName: lName,
+          customerName: customerName.trim(),
+          phone: customerPhone.trim() || 'Non renseigné',
+          item: `${selectedItem.productName} (${selectedItem.storage}) - IMEI: ${selectedItem.imei}`,
+          quantity: 1,
+          amountDue: price,
+          amountPaid: received,
+          amountRemaining: remaining,
+          date: new Date().toISOString().split('T')[0],
+          dueDate: null,
+          note: `Vente boutique IMEI ${selectedItem.imei}. Acompte reçu : ${received.toLocaleString('fr-FR')} CFA.`,
+          status: 'Partiellement payé',
+          payments: received > 0 ? [{
+            id: Date.now().toString(),
+            amount: received,
+            date: new Date().toISOString(),
+            note: "Acompte à la vente",
+          }] : [],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      toast({ 
+        title: 'Vente validée !', 
+        description: `Vente de l'appareil ${selectedItem.productName} (${selectedItem.storage}) enregistrée avec succès.` 
+      });
       setIsSellDialogOpen(false);
       setSelectedItem(null);
-      setCustomerName('');
-      setCustomerPhone('');
-      setFinalPrice(0);
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Erreur', description: "Erreur lors de l'enregistrement de la vente." });
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Erreur', description: "Impossible d'enregistrer la vente." });
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const openEditDialog = (item: StockItem) => {
+    setSelectedItem(item);
+    setEditPrice(item.unitPrice || item.finalPrice || item.catalogPrice || 0);
+    setEditNote(item.note || '');
+    setIsEditItemOpen(true);
+  };
+
+  const handleUpdateItem = async () => {
+    if (!selectedItem) return;
+    setIsSubmitting(true);
+    try {
+      const updatePayload: Record<string, any> = {
+        note: editNote.trim() || null,
+      };
+
+      if (selectedItem.status === 'disponible') {
+        updatePayload.unitPrice = Number(editPrice) || 0;
+        updatePayload.hasCustomPrice = true;
+      } else {
+        updatePayload.finalPrice = Number(editPrice) || 0;
+      }
+
+      await updateDoc(doc(db, 'inventory', selectedItem.id), updatePayload);
+      toast({ title: 'Fiche mise à jour', description: 'Les informations du stock ont été enregistrées.' });
+      setIsEditItemOpen(false);
+      setSelectedItem(null);
+    } catch (error) {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour la fiche.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!confirm("Voulez-vous supprimer cet appareil du stock ?")) return;
+    try {
+      await deleteDoc(doc(db, 'inventory', itemId));
+      toast({ title: 'Supprimé', description: 'Appareil retiré de l\'inventaire.' });
+    } catch (error) {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de supprimer.' });
+    }
+  };
+
+  // Filtres et recherche
   const {
     searchTerm, setSearchTerm, sortBy, setSortBy, filterBy, setFilterBy,
     filtered: filteredStock, resetFilters, resultCount, totalCount,
   } = useAdminTableFilters(stock, {
     searchFn: (item, term) =>
-      searchInFields(item as unknown as Record<string, unknown>, term, ['imei', 'productName', 'storage', 'customerName', 'customerPhone']),
+      searchInFields(item as unknown as Record<string, unknown>, term, [
+        'imei', 'productName', 'storage', 'customerName', 'customerPhone', 'note'
+      ]),
     filterFn: (item, filter) => filter === 'all' || item.status === filter,
     sortFn: (a, b, sort) => {
       switch (sort) {
@@ -166,7 +401,7 @@ export default function StockPage() {
         case 'product-desc': return sortByString(a.productName, b.productName, 'desc');
         case 'date-desc': return sortByDate(a.addedAt, b.addedAt, 'desc');
         case 'date-asc': return sortByDate(a.addedAt, b.addedAt, 'asc');
-        case 'price-desc': return sortByNumber(a.finalPrice ?? 0, b.finalPrice ?? 0, 'desc');
+        case 'price-desc': return sortByNumber((a.unitPrice || a.finalPrice || 0), (b.unitPrice || b.finalPrice || 0), 'desc');
         default: return 0;
       }
     },
@@ -180,38 +415,61 @@ export default function StockPage() {
   ];
 
   const stockSortOptions = [
-    { value: 'date-desc', label: 'Date (récent)' },
-    { value: 'date-asc', label: 'Date (ancien)' },
+    { value: 'date-desc', label: 'Date d\'ajout (récent)' },
+    { value: 'date-asc', label: 'Date d\'ajout (ancien)' },
     { value: 'product-asc', label: 'Produit (A-Z)' },
     { value: 'product-desc', label: 'Produit (Z-A)' },
     { value: 'price-desc', label: 'Prix décroissant' },
   ];
 
+  const inStockCount = stock.filter(s => s.status === 'disponible').length;
+  const soldCount = stock.filter(s => s.status === 'vendu').length;
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gestion du Stock (IMEI)</h1>
-          <p className="text-muted-foreground">Gérez vos iPhones uniques et scannez-les pour les ventes en boutique.</p>
+          <h1 className="text-3xl font-bold tracking-tight font-headline">Gestion du Stock (IMEI)</h1>
+          <p className="text-muted-foreground text-sm">
+            Inventaire unitaire des iPhones, traçabilité par numéro IMEI, venant/deuxième main et prix spécifiques.
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setIsScannerOpen(true)} variant="outline" className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100">
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setIsScannerOpen(true)} variant="outline" className="bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary">
             <QrCode className="mr-2 h-4 w-4" />
-            Scanner QR Code
+            Scanner Caméra / Photo
           </Button>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Button onClick={openAddStockDialog}>
             <Plus className="mr-2 h-4 w-4" />
             Ajouter au stock
           </Button>
         </div>
       </div>
 
+      {/* Mini KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <Card className="p-4 border-l-4 border-l-primary">
+          <span className="text-xs text-muted-foreground block">Total Unités</span>
+          <span className="text-2xl font-bold">{stock.length}</span>
+        </Card>
+        <Card className="p-4 border-l-4 border-l-emerald-500">
+          <span className="text-xs text-muted-foreground block">Disponibles en stock</span>
+          <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{inStockCount}</span>
+        </Card>
+        <Card className="p-4 border-l-4 border-l-muted-foreground col-span-2 sm:col-span-1">
+          <span className="text-xs text-muted-foreground block">Vendus</span>
+          <span className="text-2xl font-bold text-muted-foreground">{soldCount}</span>
+        </Card>
+      </div>
+
+      {/* Tableau du stock */}
       <Card>
         <CardHeader>
           <AdminTableFilters
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
-            searchPlaceholder="Rechercher par IMEI, modèle ou client..."
+            searchPlaceholder="Rechercher par IMEI, modèle, client ou note..."
             sortBy={sortBy}
             onSortChange={setSortBy}
             sortOptions={stockSortOptions}
@@ -225,65 +483,161 @@ export default function StockPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex justify-center py-8">
+            <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-xs text-muted-foreground mt-2">Chargement du stock...</p>
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>IMEI</TableHead>
-                    <TableHead>Produit</TableHead>
+                    <TableHead>Modèle</TableHead>
                     <TableHead>Stockage</TableHead>
+                    <TableHead>État</TableHead>
+                    <TableHead>Prix de vente</TableHead>
                     <TableHead>Statut</TableHead>
-                    <TableHead>Prix Final</TableHead>
-                    <TableHead>Client / Date</TableHead>
+                    <TableHead>Note / Échange</TableHead>
+                    <TableHead>Client / Vente</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredStock.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                         Aucun appareil trouvé.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredStock.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-mono font-medium">{item.imei}</TableCell>
-                        <TableCell>{item.productName}</TableCell>
-                        <TableCell>{item.storage}</TableCell>
-                        <TableCell>
-                          <Badge variant={item.status === 'disponible' ? 'default' : 'secondary'}>
-                            {item.status === 'disponible' ? 'En stock' : 'Vendu'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {item.finalPrice ? `${item.finalPrice.toLocaleString()} CFA` : '-'}
-                        </TableCell>
-                        <TableCell>
-                          {item.status === 'vendu' ? (
-                            <div className="text-xs">
-                              <p className="font-semibold">{item.customerName}</p>
-                              <p className="text-muted-foreground">{item.customerPhone}</p>
+                    filteredStock.map((item) => {
+                      const displayPrice = item.status === 'vendu' 
+                        ? item.finalPrice 
+                        : (item.unitPrice || item.catalogPrice);
+
+                      return (
+                        <TableRow key={item.id}>
+                          {/* IMEI */}
+                          <TableCell className="font-mono text-xs font-semibold tracking-wider">
+                            {item.imei}
+                          </TableCell>
+
+                          {/* Produit */}
+                          <TableCell className="font-medium text-foreground">
+                            {item.productName}
+                          </TableCell>
+
+                          {/* Stockage */}
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {item.storage}
+                            </Badge>
+                          </TableCell>
+
+                          {/* État (Venant / Deuxième main) */}
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {item.isVenant && (
+                                <Badge className="bg-sky-600 hover:bg-sky-700 text-[10px] px-1.5 py-0">
+                                  Venant
+                                </Badge>
+                              )}
+                              {item.isSecondHand && (
+                                <Badge className="bg-amber-600 hover:bg-amber-700 text-[10px] px-1.5 py-0">
+                                  2e main
+                                </Badge>
+                              )}
+                              {!item.isVenant && !item.isSecondHand && (
+                                <span className="text-xs text-muted-foreground">-</span>
+                              )}
                             </div>
-                          ) : '-'}
-                        </TableCell>
-                        <TableCell className="text-right flex justify-end gap-2">
-                          {item.status === 'disponible' ? (
-                            <Button size="sm" variant="outline" onClick={() => { setSelectedItem(item); setIsSellDialogOpen(true); }}>
-                              Vendre
-                            </Button>
-                          ) : (
-                            <Button size="sm" variant="ghost" onClick={() => { setSelectedItem(item); setFinalPrice(item.finalPrice || 0); setIsEditingPrice(true); }}>
-                              Modifier Prix
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                          </TableCell>
+
+                          {/* Prix de vente */}
+                          <TableCell>
+                            <div>
+                              <span className="font-semibold text-foreground text-sm">
+                                {displayPrice ? `${Number(displayPrice).toLocaleString('fr-FR')} CFA` : '-'}
+                              </span>
+                              {item.hasCustomPrice && item.status === 'disponible' && (
+                                <span className="block text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                  Prix personnalisé
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          {/* Statut */}
+                          <TableCell>
+                            <Badge variant={item.status === 'disponible' ? 'default' : 'secondary'}>
+                              {item.status === 'disponible' ? 'En stock' : 'Vendu'}
+                            </Badge>
+                          </TableCell>
+
+                          {/* Note / Échange */}
+                          <TableCell className="max-w-[150px] truncate text-xs text-muted-foreground" title={item.note || ''}>
+                            {item.note || '-'}
+                          </TableCell>
+
+                          {/* Client / Vente */}
+                          <TableCell>
+                            {item.status === 'vendu' ? (
+                              <div className="text-xs">
+                                <p className="font-semibold text-foreground">{item.customerName || 'Inconnu'}</p>
+                                {item.customerPhone && (
+                                  <p className="text-muted-foreground flex items-center gap-1 font-mono">
+                                    <Phone className="h-2.5 w-2.5" />
+                                    {item.customerPhone}
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+
+                          {/* Actions */}
+                          <TableCell className="text-right">
+                            <div className="flex justify-end items-center gap-1">
+                              {item.status === 'disponible' && (
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => openSellDialog(item)}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs gap-1"
+                                >
+                                  <ShoppingCart className="h-3.5 w-3.5" />
+                                  Vendre
+                                </Button>
+                              )}
+
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Options</DropdownMenuLabel>
+                                  <DropdownMenuItem onClick={() => openEditDialog(item)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Modifier Prix & Note
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDeleteItem(item.id)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Supprimer
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -292,22 +646,29 @@ export default function StockPage() {
         </CardContent>
       </Card>
 
-      {/* Scanner Modal */}
+      {/* Scanner QR / Code-Barres Modal */}
       {isScannerOpen && (
         <QRScanner onScan={handleScan} onClose={() => setIsScannerOpen(false)} />
       )}
 
-      {/* Add Stock Dialog */}
+      {/* Modal : Ajouter un appareil au stock */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
-            <DialogTitle>Ajouter un iPhone au stock</DialogTitle>
-            <DialogDescription>Entrez l'IMEI unique pour cet appareil spécifique.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" />
+              Ajouter un iPhone au stock
+            </DialogTitle>
+            <DialogDescription>
+              Sélectionnez le modèle depuis le catalogue, précisez l&apos;état et saisissez l&apos;IMEI unique.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Produit</Label>
-              <Select onValueChange={setSelectedProductId}>
+
+          <div className="space-y-4 py-3">
+            {/* Sélection Produit */}
+            <div className="space-y-1.5">
+              <Label>Modèle du produit *</Label>
+              <Select value={selectedProductId} onValueChange={handleProductChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner un modèle" />
                 </SelectTrigger>
@@ -318,29 +679,131 @@ export default function StockPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Stockage</Label>
-              <Select onValueChange={setSelectedStorage}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner le stockage" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="64GB">64 GB</SelectItem>
-                  <SelectItem value="128GB">128 GB</SelectItem>
-                  <SelectItem value="256GB">256 GB</SelectItem>
-                  <SelectItem value="512GB">512 GB</SelectItem>
-                  <SelectItem value="1TB">1 TB</SelectItem>
-                </SelectContent>
-              </Select>
+
+            {/* Sélection Stockage & Prix catalogue auto */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Stockage *</Label>
+                <Select value={selectedStorage} onValueChange={handleStorageChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Capacité" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableStorages.map(s => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-muted-foreground">Prix catalogue</Label>
+                <div className="h-10 px-3 py-2 bg-muted/60 border rounded-md font-semibold text-sm flex items-center justify-between text-muted-foreground">
+                  <span>{catalogPrice.toLocaleString('fr-FR')} CFA</span>
+                  <Tag className="h-3.5 w-3.5 text-muted-foreground/70" />
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="imei">IMEI</Label>
-              <Input id="imei" value={newImei} onChange={(e) => setNewImei(e.target.value)} placeholder="Ex: 356789..." />
+
+            {/* Options État : Venant & Deuxième main */}
+            <div className="p-3 bg-muted/30 rounded-lg border space-y-2.5">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+                État de l&apos;appareil
+              </Label>
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                  <Checkbox 
+                    checked={isVenant} 
+                    onCheckedChange={(checked) => setIsVenant(Boolean(checked))} 
+                  />
+                  <span>Venant</span>
+                </label>
+                <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                  <Checkbox 
+                    checked={isSecondHand} 
+                    onCheckedChange={(checked) => setIsSecondHand(Boolean(checked))} 
+                  />
+                  <span>Deuxième main</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Option Nouveau prix spécifique */}
+            <div className="p-3 bg-muted/30 rounded-lg border space-y-3">
+              <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+                <Checkbox 
+                  checked={hasCustomPrice} 
+                  onCheckedChange={(checked) => {
+                    const isChecked = Boolean(checked);
+                    setHasCustomPrice(isChecked);
+                    if (isChecked && (!customPrice || customPrice === '0')) {
+                      setCustomPrice(String(catalogPrice));
+                    }
+                  }} 
+                />
+                <span>Voulez-vous définir un nouveau prix ?</span>
+              </label>
+
+              {hasCustomPrice && (
+                <div className="pt-2 border-t border-border/50 space-y-1.5 animate-in fade-in">
+                  <Label htmlFor="custom-price" className="text-xs">Nouveau prix de vente (CFA) *</Label>
+                  <Input 
+                    id="custom-price" 
+                    type="number" 
+                    min="0"
+                    value={customPrice} 
+                    onChange={(e) => setCustomPrice(e.target.value)} 
+                    placeholder="Ex: 135000"
+                    autoFocus
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Ce prix s&apos;appliquera uniquement à cette unité sans modifier le catalogue général.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Numéro IMEI */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="imei">Numéro IMEI (15 chiffres) *</Label>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 text-xs text-primary gap-1 px-1.5"
+                  onClick={() => setIsScannerOpen(true)}
+                >
+                  <QrCode className="h-3.5 w-3.5" />
+                  Scanner
+                </Button>
+              </div>
+              <Input 
+                id="imei" 
+                value={newImei} 
+                onChange={(e) => setNewImei(e.target.value)} 
+                placeholder="Ex: 354896102345678" 
+                className="font-mono"
+                required
+              />
+            </div>
+
+            {/* Note / Remarque / Échange */}
+            <div className="space-y-1.5">
+              <Label htmlFor="itemNote">Note / Remarque (facultatif)</Label>
+              <Textarea 
+                id="itemNote" 
+                value={itemNote} 
+                onChange={(e) => setItemNote(e.target.value)} 
+                placeholder="Ex: Échange contre iPhone X + 40 000 FCFA, batterie 88%, état nickel..."
+                rows={2}
+              />
             </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Annuler</Button>
-            <Button onClick={handleAddStock} disabled={isSubmitting}>
+            <Button onClick={handleAddStock} disabled={isSubmitting || !newImei.trim()}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Ajouter au stock
             </Button>
@@ -348,33 +811,95 @@ export default function StockPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Sell Dialog */}
+      {/* Modal : Vente boutique */}
       <Dialog open={isSellDialogOpen} onOpenChange={setIsSellDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>Enregistrer une vente boutique</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-emerald-600" />
+              Enregistrer une vente boutique
+            </DialogTitle>
             <DialogDescription>
-              Appareil : {selectedItem?.productName} ({selectedItem?.storage})<br/>
-              IMEI : {selectedItem?.imei}
+              {selectedItem?.productName} ({selectedItem?.storage}) - IMEI: <span className="font-mono font-medium text-foreground">{selectedItem?.imei}</span>
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="cust-name">Nom du client</Label>
-              <Input id="cust-name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Prénom et Nom" />
+
+          <div className="space-y-4 py-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="cust-name">Prénom & Nom du client *</Label>
+                <Input 
+                  id="cust-name" 
+                  value={customerName} 
+                  onChange={(e) => setCustomerName(e.target.value)} 
+                  placeholder="Ex: Amadou Ba" 
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cust-phone">Téléphone</Label>
+                <Input 
+                  id="cust-phone" 
+                  value={customerPhone} 
+                  onChange={(e) => setCustomerPhone(e.target.value)} 
+                  placeholder="Ex: 77 000 00 00" 
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="cust-phone">Téléphone du client</Label>
-              <Input id="cust-phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Ex: 77..." />
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="sell-price">Prix de vente convenu (CFA) *</Label>
+                <Input 
+                  id="sell-price" 
+                  type="number" 
+                  min="0"
+                  value={sellPrice} 
+                  onChange={(e) => setSellPrice(Number(e.target.value))} 
+                  placeholder="Ex: 150000" 
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="amount-received">Montant encaissé (CFA)</Label>
+                <Input 
+                  id="amount-received" 
+                  type="number" 
+                  min="0"
+                  max={sellPrice}
+                  value={amountReceived} 
+                  onChange={(e) => setAmountReceived(e.target.value)} 
+                  placeholder="Ex: 150000" 
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="final-price">Prix de vente final (CFA)</Label>
-              <Input id="final-price" type="number" value={finalPrice || ''} onChange={(e) => setFinalPrice(Number(e.target.value))} placeholder="Ex: 150000" />
-            </div>
+
+            {/* Reliquat / Dette automatique */}
+            {sellPrice > Number(amountReceived || 0) && (
+              <div className="p-3 bg-red-50/20 border border-red-200 dark:border-red-900 rounded-lg space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Reliquat impayé :</span>
+                  <span className="font-bold text-red-600 dark:text-red-400">
+                    {(sellPrice - Number(amountReceived || 0)).toLocaleString('fr-FR')} CFA
+                  </span>
+                </div>
+                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                  <Checkbox 
+                    checked={createDebtOnRemaining} 
+                    onCheckedChange={(checked) => setCreateDebtOnRemaining(Boolean(checked))} 
+                  />
+                  <span>Créer automatiquement une dette pour ce solde ?</span>
+                </label>
+              </div>
+            )}
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSellDialogOpen(false)}>Annuler</Button>
-            <Button onClick={handleSell} disabled={isSubmitting} className="bg-green-600 hover:bg-green-700">
+            <Button 
+              onClick={handleConfirmSell} 
+              disabled={isSubmitting || !customerName.trim()} 
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirmer la vente
             </Button>
@@ -382,27 +907,45 @@ export default function StockPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Price Dialog */}
-      <Dialog open={isEditingPrice} onOpenChange={setIsEditingPrice}>
-        <DialogContent>
+      {/* Modal : Modifier Prix / Note */}
+      <Dialog open={isEditItemOpen} onOpenChange={setIsEditItemOpen}>
+        <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle>Modifier le prix de vente</DialogTitle>
+            <DialogTitle>Modifier la fiche de l&apos;appareil</DialogTitle>
             <DialogDescription>
-              Ajustez le prix final pour cet appareil déjà vendu.<br/>
-              IMEI : {selectedItem?.imei}
+              IMEI : <span className="font-mono">{selectedItem?.imei}</span> ({selectedItem?.productName})
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-final-price">Nouveau prix final (CFA)</Label>
-              <Input id="edit-final-price" type="number" value={finalPrice || ''} onChange={(e) => setFinalPrice(Number(e.target.value))} placeholder="Ex: 145000" />
+
+          <div className="space-y-4 py-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-price">Prix (CFA)</Label>
+              <Input 
+                id="edit-price" 
+                type="number" 
+                min="0"
+                value={editPrice} 
+                onChange={(e) => setEditPrice(Number(e.target.value))} 
+                placeholder="Ex: 145000" 
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-note">Remarque / Note</Label>
+              <Textarea 
+                id="edit-note" 
+                value={editNote} 
+                onChange={(e) => setEditNote(e.target.value)} 
+                placeholder="Détails, état, provenance..."
+                rows={3}
+              />
             </div>
           </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditingPrice(false)}>Annuler</Button>
-            <Button onClick={handleUpdatePrice} disabled={isSubmitting}>
+            <Button variant="outline" onClick={() => setIsEditItemOpen(false)}>Annuler</Button>
+            <Button onClick={handleUpdateItem} disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Enregistrer le prix
+              Enregistrer
             </Button>
           </DialogFooter>
         </DialogContent>

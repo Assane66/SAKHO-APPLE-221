@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Package, ShoppingCart, Repeat, Tag, Percent, ImageIcon, Users, Settings, Zap, Database } from "lucide-react";
+import { Home, Package, ShoppingCart, Repeat, Tag, Percent, ImageIcon, Users, Settings, Zap, Database, HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useAdminNotifications } from "@/context/AdminNotificationContext";
@@ -16,9 +16,10 @@ const navLinks = [
   { href: "/admin/exchanges", label: "Échanges", icon: Repeat, notificationKey: 'exchanges' },
   { href: "/admin/categories", label: "Catégories", icon: Tag, notificationKey: 'none' },
   { href: "/admin/promo", label: "Promotions", icon: Percent, notificationKey: 'none' },
-  { href: "/admin/flash-sales", label: "Ventes Flash", icon: Zap, notificationKey: 'none' },
+  { href: "/admin/flash-sales", label: "Ventes", icon: Zap, notificationKey: 'none' },
   { href: "/admin/banners", label: "Bannières", icon: ImageIcon, notificationKey: 'none' },
   { href: "/admin/customers", label: "Clients", icon: Users, notificationKey: 'none' },
+  { href: "/admin/debts", label: "Dettes", icon: HandCoins, notificationKey: 'none' },
   { href: "/admin/settings", label: "Paramètres", icon: Settings, notificationKey: 'none' },
 ];
 

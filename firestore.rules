@@ -69,6 +69,11 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // === DETTES ===
+    match /debts/{debtId} {
+      allow read, write: if isAdmin();
+    }
+
     // === CLIENTS (dérivés des commandes) ===
     // Il n'est pas nécessaire d'avoir des règles pour une collection qui n'existe pas.
     // Les données clients sont lues depuis la collection 'orders' par le backend admin.
