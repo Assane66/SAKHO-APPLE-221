@@ -20,7 +20,7 @@ import { FlipClockTimer } from '@/components/home/FlipClockTimer';
 import { FastCheckoutDrawer } from '@/components/checkout/FastCheckoutDrawer';
 import { cn } from '@/lib/utils';
 import { getOptimizedImageUrl } from '@/lib/image-optimizer';
-import { setCachedCatalog } from '@/lib/product-cache';
+import { getCachedHomePageData, setCachedHomePageData } from '@/lib/product-cache';
 
 /* ─── Data fetching ──────────────────────────────── */
 async function getHomePageData() {
@@ -72,17 +72,21 @@ async function getHomePageData() {
 
     const bannerList = bannerSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const categoryList = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const activePromo = promotions.length > 0 ? promotions[0] : null;
+    const contactPhone = settings.contactPhone || '221770000000';
 
-    // Mettre en cache pour accès instantané sur la page Produits
-    setCachedCatalog(productList, categoryList);
-
-    return {
+    const result = {
       bannerList,
       categoryList,
       productList,
-      activePromo: promotions.length > 0 ? promotions[0] : null,
-      contactPhone: settings.contactPhone || '221770000000',
+      activePromo,
+      contactPhone,
     };
+
+    // Mettre en cache pour affichage instantané (0 ms)
+    setCachedHomePageData(result);
+
+    return result;
   } catch (error) {
     console.error('Error fetching homepage data:', error);
     return { bannerList: [], categoryList: [], productList: [], activePromo: null, contactPhone: '221770000000' };
@@ -130,6 +134,18 @@ export default function Home() {
   useScrollReveal();
 
   useEffect(() => {
+    // 1. Affichage immédiat depuis le cache local (0 ms)
+    const cached = getCachedHomePageData();
+    if (cached && cached.productList && cached.productList.length > 0) {
+      setBanners(cached.bannerList || []);
+      setCategories(cached.categoryList || []);
+      setProducts(cached.productList || []);
+      setActivePromo(cached.activePromo || null);
+      setContactPhone(cached.contactPhone || '221770000000');
+      setIsLoading(false);
+    }
+
+    // 2. Synchronisation transparente en arrière-plan
     const fetchData = async () => {
       const data = await getHomePageData();
       setBanners(data.bannerList);
@@ -349,7 +365,7 @@ export default function Home() {
             </div>
           ) : (
             <>
-              {filteredProducts.slice(0, visibleCount).map((product) => (
+              {filteredProducts.slice(0, visibleCount).map((product, idx) => (
                 <div
                   key={product.id}
                   className="group relative rounded-3xl p-5 bg-zinc-950/80 border border-white/10 hover:border-amber-500/40 transition-all duration-500 flex items-center gap-4 overflow-hidden"
@@ -360,6 +376,9 @@ export default function Home() {
                       src={getOptimizedImageUrl(product.thumbnail, 300)}
                       alt={product.name}
                       fill
+                      priority={idx < 4}
+                      loading={idx < 4 ? undefined : "lazy"}
+                      decoding="async"
                       sizes="(max-width: 768px) 100px, 120px"
                       className="object-contain p-2 group-hover:scale-110 transition-transform duration-500"
                     />
