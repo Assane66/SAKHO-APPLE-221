@@ -40,6 +40,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { QRScanner } from '@/components/admin/qr-scanner';
+import { invalidateCatalogCache } from '@/lib/product-cache';
 import type { StockItem, Product, ProductVariant } from '@/types';
 import { 
   Dialog, 
@@ -218,6 +219,7 @@ export default function StockPage() {
         storage: selectedStorage,
         status: 'disponible',
         catalogPrice: Number(catalogPrice) || 0,
+        originalPrice: Number(catalogPrice) || 0,
         unitPrice: Number(finalUnitPrice) || 0,
         hasCustomPrice: Boolean(hasCustomPrice),
         isVenant: Boolean(isVenant),
@@ -227,6 +229,8 @@ export default function StockPage() {
       });
 
       toast({ title: 'Appareil ajouté', description: `L'IMEI ${cleanImei} a été enregistré avec succès.` });
+      // Invalider le cache pour affichage immédiat sur l'accueil
+      invalidateCatalogCache();
       setIsAddDialogOpen(false);
       setNewImei('');
       setItemNote('');
@@ -330,6 +334,7 @@ export default function StockPage() {
         title: 'Vente validée !', 
         description: `Vente de l'appareil ${selectedItem.productName} (${selectedItem.storage}) enregistrée avec succès.` 
       });
+      invalidateCatalogCache();
       setIsSellDialogOpen(false);
       setSelectedItem(null);
     } catch (error) {
@@ -364,6 +369,7 @@ export default function StockPage() {
 
       await updateDoc(doc(db, 'inventory', selectedItem.id), updatePayload);
       toast({ title: 'Fiche mise à jour', description: 'Les informations du stock ont été enregistrées.' });
+      invalidateCatalogCache();
       setIsEditItemOpen(false);
       setSelectedItem(null);
     } catch (error) {
@@ -378,6 +384,7 @@ export default function StockPage() {
     if (!confirm("Voulez-vous supprimer cet appareil du stock ?")) return;
     try {
       await deleteDoc(doc(db, 'inventory', itemId));
+      invalidateCatalogCache();
       toast({ title: 'Supprimé', description: 'Appareil retiré de l\'inventaire.' });
     } catch (error) {
       console.error(error);
@@ -714,14 +721,22 @@ export default function StockPage() {
                 <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
                   <Checkbox 
                     checked={isVenant} 
-                    onCheckedChange={(checked) => setIsVenant(Boolean(checked))} 
+                    onCheckedChange={(checked) => {
+                      const val = Boolean(checked);
+                      setIsVenant(val);
+                      if (val) setIsSecondHand(false);
+                    }} 
                   />
                   <span>Venant</span>
                 </label>
                 <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
                   <Checkbox 
                     checked={isSecondHand} 
-                    onCheckedChange={(checked) => setIsSecondHand(Boolean(checked))} 
+                    onCheckedChange={(checked) => {
+                      const val = Boolean(checked);
+                      setIsSecondHand(val);
+                      if (val) setIsVenant(false);
+                    }} 
                   />
                   <span>Deuxième main</span>
                 </label>

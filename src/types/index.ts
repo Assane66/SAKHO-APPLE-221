@@ -23,6 +23,13 @@ export type Product = {
   promoEndDate?: any; // To accommodate serverTimestamp
   sales?: number; // Pour le suivi des produits les plus vendus
   hasIMEI?: boolean; // Indique si ce produit peut avoir des exemplaires avec IMEI
+  imei?: string; // Numéro IMEI si exemplaire unique
+  isVenant?: boolean; // Appareil d'origine Venant
+  isSecondHand?: boolean; // Appareil d'occasion / 2ème main
+  originalPrice?: number; // Prix initial avant réduction éventuelle
+  unitPrice?: number; // Prix de vente
+  isUniqueItem?: boolean; // Indique un exemplaire unique issu du stock IMEI
+  storage?: string; // Capacité mémoire pour un exemplaire unique
 };
 
 export type StockItem = {
@@ -38,6 +45,7 @@ export type StockItem = {
   customerPhone?: string;
   catalogPrice?: number;
   unitPrice?: number;
+  originalPrice?: number;
   hasCustomPrice?: boolean;
   isVenant?: boolean;
   isSecondHand?: boolean;
@@ -91,6 +99,8 @@ export type FlashSale = {
   endDate: any; // Firestore timestamp
   status: 'Actif' | 'Programmé' | 'Terminé';
   createdAt: any;
+  discountPrice?: number;
+  originalPrice?: number;
 };
 
 

@@ -19,30 +19,35 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getOptimizedImageUrl } from '@/lib/image-optimizer';
 import { getCachedCatalog, setCachedCatalog } from '@/lib/product-cache';
 
-// Fetch all active products and all categories with caching and parallel execution
+// Fetch all active products, inventory stock items, and categories with caching and parallel execution
 async function getProductsAndCategories() {
   const cached = getCachedCatalog();
-  if (cached) {
+  if (cached && cached.products && cached.products.length > 0) {
     return { productList: cached.products, categoryList: cached.categories };
   }
 
   const now = Timestamp.now();
-  const productsQuery = query(collection(db, 'products'), where("status", "==", "active"));
+  const productsQuery = query(collection(db, 'products'));
   const categoriesQuery = query(collection(db, 'categories'));
   const promoQuery = query(collection(db, 'promotions'), where("endDate", ">", now));
+  const inventoryQuery = query(collection(db, 'inventory'), where("status", "==", "disponible"));
 
-  // Exécution 100% parallèle des 3 requêtes
-  const [productSnapshot, categorySnapshot, promoSnapshot] = await Promise.all([
+  // Exécution 100% parallèle des requêtes
+  const [productSnapshot, categorySnapshot, promoSnapshot, inventorySnapshot] = await Promise.all([
     getDocs(productsQuery),
     getDocs(categoriesQuery),
-    getDocs(promoQuery)
+    getDocs(promoQuery),
+    getDocs(inventoryQuery)
   ]);
 
-  let productList = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+  let rawProductList = productSnapshot.docs
+    .map(doc => ({ id: doc.id, ...doc.data() } as Product))
+    .filter(p => p.status === 'active' || (p.status as string) === 'Actif');
+
   const categoryList = categorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DocumentData));
   const promotions = promoSnapshot.docs.map(doc => doc.data());
 
-  const productListWithPromos = productList.map(product => {
+  const productListWithPromos = rawProductList.map(product => {
     const productPromos = promotions.filter(p => p.productId === product.id);
     if (productPromos.length > 0) {
       const mainPromo = productPromos.sort((a,b) => a.endDate.toMillis() - b.endDate.toMillis())[0];
@@ -59,10 +64,59 @@ async function getProductsAndCategories() {
     return product;
   });
 
-  // Sauvegarder dans le cache mémoire client
-  setCachedCatalog(productListWithPromos, categoryList);
+  // Mapper chaque exemplaire unique en stock avec son IMEI
+  const uniqueImeiProducts: Product[] = inventorySnapshot.docs.map(doc => {
+    const inv = doc.data();
+    const baseProd = productListWithPromos.find(p => p.id === inv.productId) ||
+                     productListWithPromos.find(p => p.name?.toLowerCase() === (inv.productName || '').toLowerCase());
 
-  return { productList: productListWithPromos, categoryList };
+    const initialPrice = Number(inv.catalogPrice) || Number(inv.originalPrice) || Number(baseProd?.variants?.[0]?.price) || 0;
+    const currentPrice = Number(inv.unitPrice) || initialPrice;
+    const storage = inv.storage || baseProd?.variants?.[0]?.storage || '128GB';
+
+    return {
+      id: `imei-${doc.id}`,
+      name: inv.productName || baseProd?.name || 'iPhone',
+      slug: baseProd?.slug || inv.productId || doc.id,
+      categoryId: baseProd?.categoryId || '',
+      categoryName: baseProd?.categoryName || '',
+      thumbnail: baseProd?.thumbnail || 'https://res.cloudinary.com/dm6yuokre/image/upload/v1784658568/apple-iphone-17-pro-max-256-go-ecran-69-puce-a19-pro-orange-removebg-preview_vmy8i6.png',
+      keywords: baseProd?.keywords || [],
+      batteryHealth: baseProd?.batteryHealth || '100%',
+      status: 'active',
+      hasIMEI: true,
+      imei: inv.imei,
+      isVenant: Boolean(inv.isVenant),
+      isSecondHand: Boolean(inv.isSecondHand),
+      storage: storage,
+      originalPrice: initialPrice,
+      unitPrice: currentPrice,
+      isUniqueItem: true,
+      variants: [
+        {
+          storage: storage,
+          price: currentPrice,
+          originalPrice: initialPrice,
+          isPromo: currentPrice < initialPrice,
+          promoPrice: currentPrice < initialPrice ? currentPrice : undefined,
+        }
+      ],
+      createdAt: inv.addedAt || null,
+    } as Product;
+  });
+
+  // Fusionner et placer TOUS les produits avec IMEI EN PRIORITÉ
+  let allProducts = [...uniqueImeiProducts, ...productListWithPromos];
+  allProducts.sort((a, b) => {
+    const aImei = a.hasIMEI || a.isUniqueItem ? 1 : 0;
+    const bImei = b.hasIMEI || b.isUniqueItem ? 1 : 0;
+    return bImei - aImei;
+  });
+
+  // Sauvegarder dans le cache mémoire client
+  setCachedCatalog(allProducts, categoryList);
+
+  return { productList: allProducts, categoryList };
 }
 
 const getLowestPrice = (variants: Product['variants'] = []) => {
@@ -173,12 +227,14 @@ function ProductsPageContent() {
   };
 
   const filteredAndSortedProducts = useMemo(() => {
-    let filtered = products;
+    let filtered = [...products];
 
     if (searchTerm) {
+      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.keywords?.join(' ').toLowerCase().includes(searchTerm.toLowerCase())
+        product.name.toLowerCase().includes(term) ||
+        product.keywords?.join(' ').toLowerCase().includes(term) ||
+        (product.imei && product.imei.toLowerCase().includes(term))
       );
     }
 
@@ -187,16 +243,23 @@ function ProductsPageContent() {
     }
 
     const getPrice = (product: Product): number => {
-        if (!product.variants || product.variants.length === 0) return 0;
-        const prices = product.variants.map(v => v.promoPrice || v.price);
-        return Math.min(...prices);
-    }
+      if (product.unitPrice && product.unitPrice > 0) return product.unitPrice;
+      if (!product.variants || product.variants.length === 0) return 0;
+      const prices = product.variants.map(v => v.promoPrice || v.price);
+      return Math.min(...prices);
+    };
 
-    if (sortOrder === 'price-asc') {
-      filtered.sort((a, b) => getPrice(a) - getPrice(b));
-    } else if (sortOrder === 'price-desc') {
-      filtered.sort((a, b) => getPrice(b) - getPrice(a));
-    }
+    filtered.sort((a, b) => {
+      const aImei = a.hasIMEI || a.isUniqueItem ? 1 : 0;
+      const bImei = b.hasIMEI || b.isUniqueItem ? 1 : 0;
+      // Priorité absolue : exemplaires et produits avec IMEI toujours en premier
+      if (bImei !== aImei) {
+        return bImei - aImei;
+      }
+      if (sortOrder === 'price-asc') return getPrice(a) - getPrice(b);
+      if (sortOrder === 'price-desc') return getPrice(b) - getPrice(a);
+      return 0;
+    });
 
     return filtered;
   }, [products, searchTerm, selectedCategory, sortOrder]);
@@ -257,21 +320,48 @@ function ProductsPageContent() {
           <div className="grid gap-6 lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2">
             {filteredAndSortedProducts.length > 0 ? (
               filteredAndSortedProducts.slice(0, visibleCount).map((product, idx) => {
-                const promoDetails = getPromoDetails(product.variants);
+                const storageDisplay = (product as any).storage || product.variants?.[0]?.storage;
+                const imeiQuery = (product as any).hasIMEI && (product as any).imei ? `?imei=${(product as any).imei}&storage=${encodeURIComponent(storageDisplay || '')}` : '';
+                const productUrl = `/products/${product.slug || product.id}${imeiQuery}`;
                 const optimizedImageUrl = getOptimizedImageUrl(product.thumbnail, 500);
+                const initialPrice = product.originalPrice || 0;
+                const currentPrice = product.unitPrice || product.variants?.[0]?.promoPrice || product.variants?.[0]?.price || 0;
+                const isLower = initialPrice > 0 && currentPrice < initialPrice;
 
                 return (
-                <Card key={product.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 flex flex-col group">
+                <Card key={product.id} className={`overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 flex flex-col group relative ${(product as any).hasIMEI ? 'ring-1 ring-amber-500/40' : ''}`}>
+                  {/* Condition badges */}
+                  {((product as any).isVenant || (product as any).isSecondHand) && (
+                    <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+                      {(product as any).isVenant && (
+                        <span className="px-2 py-0.5 rounded-full bg-amber-500 text-black text-[10px] font-extrabold uppercase tracking-wider shadow">✦ Venant</span>
+                      )}
+                      {(product as any).isSecondHand && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-extrabold uppercase tracking-wider shadow">2ème main</span>
+                      )}
+                    </div>
+                  )}
+                  {(product as any).hasIMEI && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <span className="px-1.5 py-0.5 rounded-md bg-amber-400 text-black text-[9px] font-mono font-extrabold shadow flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+                        {(product as any).imei ? `IMEI ••${(product as any).imei.slice(-4)}` : 'IMEI'}
+                      </span>
+                    </div>
+                  )}
                   <CardContent className="p-4 text-center flex-grow flex flex-col">
                       {getCategoryName(product.categoryId) && (
                           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">{getCategoryName(product.categoryId)}</p>
                       )}
-                      <CardTitle className="text-base font-headline text-foreground my-2 h-12 flex items-center justify-center">
-                          <Link href={`/products/${product.slug}`} className="hover:text-primary transition-colors line-clamp-2">
+                      <CardTitle className="text-base font-headline text-foreground my-2 flex items-center justify-center flex-col gap-1">
+                          <Link href={productUrl} className="hover:text-primary transition-colors line-clamp-2">
                             {product.name}
                           </Link>
+                          {storageDisplay && (
+                            <span className="px-2 py-0.5 rounded-md bg-muted/40 text-[10px] font-mono font-bold text-muted-foreground border border-border/50">{storageDisplay}</span>
+                          )}
                       </CardTitle>
-                      <Link href={`/products/${product.slug}`} className="block relative overflow-hidden rounded-xl bg-muted/20">
+                      <Link href={productUrl} className="block relative overflow-hidden rounded-xl bg-muted/20">
                           <Image
                             src={optimizedImageUrl}
                             width={400}
@@ -283,36 +373,43 @@ function ProductsPageContent() {
                             sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 25vw"
                             className="aspect-square object-contain mx-auto p-2 group-hover:scale-105 transition-transform duration-300"
                           />
-                          {promoDetails && (
-                          <Badge className="absolute bottom-3 left-3 bg-emerald-600 text-white text-xs font-bold shadow-md">
-                              -{promoDetails.discountPercentage}%
-                          </Badge>
-                          )}
                       </Link>
                   </CardContent>
                   <CardFooter className="p-4 pt-0">
                     <div className="flex flex-col w-full text-center space-y-2">
-                      {promoDetails ? (
-                        <div className="flex flex-col items-center">
-                            <span className="text-lg font-bold text-primary">
-                              {promoDetails.promoPrice} CFA
-                            </span>
-                            <span className="text-xs text-muted-foreground line-through">
-                              {promoDetails.originalPrice} CFA
-                            </span>
-                        </div>
-                      ) : getLowestPrice(product.variants) ? (
-                          <span className="text-lg font-bold text-primary">{getLowestPrice(product.variants)} CFA</span>
-                      ) : (
-                          <span className="text-sm text-muted-foreground">Prix sur demande</span>
-                      )}
+                      {isLower ? (
+                        (product as any).isVenant ? (
+                          <div className="flex flex-col items-center">
+                            <span className="text-lg font-bold text-primary">{currentPrice.toLocaleString('fr-FR')} CFA</span>
+                            <span className="text-xs text-muted-foreground line-through">{initialPrice.toLocaleString('fr-FR')} CFA</span>
+                          </div>
+                        ) : (
+                          <span className="text-lg font-bold text-primary">{currentPrice.toLocaleString('fr-FR')} CFA</span>
+                        )
+                      ) : (() => {
+                        const promoDetails = getPromoDetails(product.variants);
+                        if (promoDetails) return (
+                          <div className="flex flex-col items-center">
+                            <span className="text-lg font-bold text-primary">{promoDetails.promoPrice} CFA</span>
+                            <span className="text-xs text-muted-foreground line-through">{promoDetails.originalPrice} CFA</span>
+                          </div>
+                        );
+                        const displayPrice = currentPrice > 0
+                          ? `${currentPrice.toLocaleString('fr-FR')} CFA`
+                          : getLowestPrice(product.variants)
+                            ? `${getLowestPrice(product.variants)} CFA`
+                            : null;
+                        return displayPrice
+                          ? <span className="text-lg font-bold text-primary">{displayPrice}</span>
+                          : <span className="text-sm text-muted-foreground">Prix sur demande</span>;
+                      })()}
                       <Button asChild variant="outline" size="sm" className="w-full">
-                          <Link href={`/products/${product.slug}`}>Voir les options</Link>
+                          <Link href={productUrl}>Voir les options</Link>
                       </Button>
                     </div>
                   </CardFooter>
                 </Card>
-              )})
+                )})
             ) : (
               <p className="col-span-full text-center text-muted-foreground py-12">
                 Aucun produit ne correspond à votre recherche.

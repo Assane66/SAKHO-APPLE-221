@@ -25,22 +25,23 @@ import { getCachedHomePageData, setCachedHomePageData } from '@/lib/product-cach
 /* ─── Data fetching ──────────────────────────────── */
 async function getHomePageData() {
   try {
-    const [bannerSnap, catSnap, prodSnap, promoSnap, settingsSnap] = await Promise.all([
+    const [bannerSnap, catSnap, prodSnap, promoSnap, settingsSnap, invSnap] = await Promise.all([
       getDocs(query(collection(db, 'banners'), where('status', '==', 'Actif'))),
       getDocs(query(collection(db, 'categories'), orderBy('name', 'asc'))),
       getDocs(collection(db, 'products')),
       getDocs(query(collection(db, 'promotions'), where('endDate', '>', Timestamp.now()))),
       getDoc(doc(db, 'settings', 'general')),
+      getDocs(query(collection(db, 'inventory'), where('status', '==', 'disponible'))),
     ]);
 
     const settings = settingsSnap.exists() ? settingsSnap.data() : {};
 
-    const promotions = promoSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    let productList = prodSnap.docs
+    const promotions: any[] = promoSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let rawProductList = prodSnap.docs
       .map(d => ({ id: d.id, ...d.data() } as Product))
       .filter(p => p.status === 'active' || (p.status as string) === 'Actif');
 
-    productList = productList.map(p => {
+    let productList = rawProductList.map(p => {
       const matchingPromos = promotions.filter(promo => {
         if (promo.status === 'Inactif') return false;
         if (promo.endDate && promo.endDate.toMillis && promo.endDate.toMillis() <= Date.now()) return false;
@@ -57,7 +58,7 @@ async function getHomePageData() {
         p.promoEndDate = activePromo.endDate;
         const discount = Number(activePromo.discountAmount) || 0;
 
-        p.variants = p.variants.map(v => {
+        p.variants = p.variants?.map(v => {
           if (discount > 0) {
             const promoPrice = Math.max(0, v.price - discount);
             return { ...v, isPromo: true, promoPrice, originalPrice: v.price };
@@ -65,9 +66,60 @@ async function getHomePageData() {
             return { ...v, isPromo: true, promoPrice: activePromo.discountPrice, originalPrice: v.price };
           }
           return v;
-        });
+        }) || [];
       }
       return p;
+    });
+
+    // Transformer chaque appareil en stock avec IMEI en un exemplaire unique visible
+    const uniqueImeiProducts: Product[] = invSnap.docs.map(d => {
+      const inv = d.data();
+      const baseProd = productList.find(p => p.id === inv.productId) || 
+                       productList.find(p => p.name?.toLowerCase() === (inv.productName || '').toLowerCase());
+      
+      const initialPrice = Number(inv.catalogPrice) || Number(inv.originalPrice) || Number(baseProd?.variants?.[0]?.price) || 0;
+      const currentPrice = Number(inv.unitPrice) || initialPrice;
+      const storage = inv.storage || baseProd?.variants?.[0]?.storage || '128GB';
+
+      return {
+        id: `imei-${d.id}`,
+        name: inv.productName || baseProd?.name || 'iPhone',
+        slug: baseProd?.slug || inv.productId || d.id,
+        categoryId: baseProd?.categoryId || '',
+        categoryName: baseProd?.categoryName || '',
+        thumbnail: baseProd?.thumbnail || 'https://res.cloudinary.com/dm6yuokre/image/upload/v1784658568/apple-iphone-17-pro-max-256-go-ecran-69-puce-a19-pro-orange-removebg-preview_vmy8i6.png',
+        keywords: baseProd?.keywords || [],
+        batteryHealth: baseProd?.batteryHealth || '100%',
+        status: 'active',
+        hasIMEI: true,
+        imei: inv.imei,
+        isVenant: Boolean(inv.isVenant),
+        isSecondHand: Boolean(inv.isSecondHand),
+        storage: storage,
+        originalPrice: initialPrice,
+        unitPrice: currentPrice,
+        isUniqueItem: true,
+        variants: [
+          {
+            storage: storage,
+            price: currentPrice,
+            originalPrice: initialPrice,
+            isPromo: currentPrice < initialPrice,
+            promoPrice: currentPrice < initialPrice ? currentPrice : undefined,
+          }
+        ],
+        createdAt: inv.addedAt || null,
+      } as Product;
+    });
+
+    // Fusionner les exemplaires uniques IMEI avec la liste générale
+    let allProducts = [...uniqueImeiProducts, ...productList];
+
+    // Priorité absolue : les produits avec IMEI s'affichent TOUJOURS en premier
+    allProducts.sort((a, b) => {
+      const aImei = a.hasIMEI || a.isUniqueItem ? 1 : 0;
+      const bImei = b.hasIMEI || b.isUniqueItem ? 1 : 0;
+      return bImei - aImei;
     });
 
     const bannerList = bannerSnap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -78,7 +130,7 @@ async function getHomePageData() {
     const result = {
       bannerList,
       categoryList,
-      productList,
+      productList: allProducts,
       activePromo,
       contactPhone,
     };
@@ -160,12 +212,22 @@ export default function Home() {
 
   const filteredProducts = useMemo(() => {
     let list = products;
-    if (searchTerm) list = list.filter(p =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.keywords && p.keywords.join(' ').toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      list = list.filter(p =>
+        p.name.toLowerCase().includes(term) ||
+        (p.keywords && p.keywords.join(' ').toLowerCase().includes(term)) ||
+        (p.imei && p.imei.toLowerCase().includes(term))
+      );
+    }
     if (selectedCategory !== 'all') list = list.filter(p => p.categoryId === selectedCategory);
-    return list;
+    
+    // Priorité absolue : les produits / exemplaires avec IMEI s'affichent toujours en tête
+    return [...list].sort((a, b) => {
+      const aImei = a.hasIMEI || a.isUniqueItem ? 1 : 0;
+      const bImei = b.hasIMEI || b.isUniqueItem ? 1 : 0;
+      return bImei - aImei;
+    });
   }, [products, searchTerm, selectedCategory]);
 
   const getLowestPrice = useCallback((variants: Product['variants'] = []) => {
@@ -365,67 +427,152 @@ export default function Home() {
             </div>
           ) : (
             <>
-              {filteredProducts.slice(0, visibleCount).map((product, idx) => (
-                <div
-                  key={product.id}
-                  className="group relative rounded-3xl p-5 bg-zinc-950/80 border border-white/10 hover:border-amber-500/40 transition-all duration-500 flex items-center gap-4 overflow-hidden"
-                >
-                  {/* Product Image */}
-                  <div className="relative w-24 h-28 rounded-2xl bg-zinc-900 flex-shrink-0 overflow-hidden">
-                    <Image
-                      src={getOptimizedImageUrl(product.thumbnail, 300)}
-                      alt={product.name}
-                      fill
-                      priority={idx < 4}
-                      loading={idx < 4 ? undefined : "lazy"}
-                      decoding="async"
-                      sizes="(max-width: 768px) 100px, 120px"
-                      className="object-contain p-2 group-hover:scale-110 transition-transform duration-500"
-                    />
-                  </div>
+              {filteredProducts.slice(0, visibleCount).map((product, idx) => {
+                const storageDisplay = product.storage || product.variants?.[0]?.storage;
+                const imeiQuery = product.hasIMEI && product.imei ? `?imei=${product.imei}&storage=${encodeURIComponent(storageDisplay || '')}` : '';
+                const productUrl = `/products/${product.slug || product.id}${imeiQuery}`;
+                const initialPrice = product.originalPrice || product.variants?.[0]?.originalPrice || 0;
+                const currentPrice = product.unitPrice || product.variants?.[0]?.promoPrice || product.variants?.[0]?.price || 0;
 
-                  {/* Info */}
-                  <div className="flex-grow min-w-0 space-y-2">
-                    <h3 className="font-extrabold text-base leading-tight truncate text-foreground group-hover:text-amber-300 transition-colors">
-                      {product.name}
-                    </h3>
-                    
-                    {(() => {
-                      const promoDetails = getPromoDetails(product.variants);
-                      return promoDetails ? (
-                        <div className="flex flex-col">
-                           <div className="flex items-baseline gap-1">
-                             <span className="text-amber-400 font-extrabold text-xl">{promoDetails.promoPrice}</span>
-                             <span className="text-xs font-bold text-zinc-400">CFA</span>
-                           </div>
-                           <span className="text-xs font-bold text-zinc-500 line-through">{promoDetails.originalPrice} CFA</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-amber-400 font-extrabold text-xl">{getLowestPrice(product.variants)}</span>
-                          <span className="text-xs font-bold text-zinc-400">CFA</span>
-                        </div>
-                      );
-                    })()}
+                return (
+                  <div
+                    key={product.id}
+                    className="group relative rounded-3xl p-5 bg-zinc-950/80 border border-white/10 hover:border-amber-500/40 transition-all duration-500 flex items-center gap-4 overflow-hidden"
+                  >
+                    {/* Product Image (clickable) */}
+                    <Link href={productUrl} className="relative w-24 h-28 rounded-2xl bg-zinc-900 flex-shrink-0 overflow-hidden block">
+                      <Image
+                        src={getOptimizedImageUrl(product.thumbnail, 300)}
+                        alt={product.name}
+                        fill
+                        priority={idx < 4}
+                        loading={idx < 4 ? undefined : "lazy"}
+                        decoding="async"
+                        sizes="(max-width: 768px) 100px, 120px"
+                        className="object-contain p-2 group-hover:scale-110 transition-transform duration-500"
+                      />
+                    </Link>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 pt-1">
-                      <button
-                        onClick={() => handleOpenCheckout(product.name, getLowestPrice(product.variants), product.variants[0]?.storage || '256 GB', product.thumbnail, product.variants)}
-                        className="px-3.5 py-1.5 rounded-full bg-amber-400 text-black hover:bg-amber-300 font-bold text-[11px] uppercase tracking-wider transition-colors"
-                      >
-                        Achat 1-Clic
-                      </button>
-                      <Link
-                        href={`/products/${product.slug}`}
-                        className="text-xs text-zinc-400 hover:text-white font-semibold flex items-center"
-                      >
-                        Fiche <ChevronRight className="w-3 h-3" />
-                      </Link>
+                    {/* Info */}
+                    <div className="flex-grow min-w-0 space-y-1.5">
+                      {/* Badges row: Venant / 2ème main / Mémoire / IMEI */}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {product.isVenant && (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-extrabold uppercase tracking-wider">
+                            ✦ Venant
+                          </span>
+                        )}
+                        {product.isSecondHand && (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-extrabold uppercase tracking-wider">
+                            2ème main
+                          </span>
+                        )}
+                        {storageDisplay && (
+                          <span className="px-2 py-0.5 rounded-md bg-white/5 text-[10px] font-mono font-bold text-zinc-300 border border-white/10">
+                            {storageDisplay}
+                          </span>
+                        )}
+                        {product.hasIMEI && (
+                          <span className="px-1.5 py-0.5 rounded-md bg-amber-400/15 text-amber-400 border border-amber-400/30 text-[9px] font-mono font-bold flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-amber-400 animate-ping inline-block" />
+                            {product.imei ? `IMEI ••${product.imei.slice(-4)}` : 'IMEI'}
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="font-extrabold text-base leading-tight truncate text-foreground group-hover:text-amber-300 transition-colors">
+                        <Link href={productUrl}>
+                          {product.name}
+                        </Link>
+                      </h3>
+                      
+                      {/* Price display with strict Venant vs 2ème main rules */}
+                      {(() => {
+                        const isLower = initialPrice > 0 && currentPrice < initialPrice;
+
+                        if (isLower) {
+                          if (product.isVenant) {
+                            // Venant : Prix initial BARRÉ + Nouveau prix
+                            return (
+                              <div className="flex flex-col">
+                                <div className="flex items-baseline gap-1">
+                                  <span className="text-amber-400 font-extrabold text-xl">
+                                    {currentPrice.toLocaleString('fr-FR')}
+                                  </span>
+                                  <span className="text-xs font-bold text-zinc-400">CFA</span>
+                                </div>
+                                <span className="text-xs font-bold text-zinc-500 line-through">
+                                  {initialPrice.toLocaleString('fr-FR')} CFA
+                                </span>
+                              </div>
+                            );
+                          } else if (product.isSecondHand) {
+                            // 2ème main : UNIQUEMENT le nouveau prix (PAS de prix barré)
+                            return (
+                              <div className="flex flex-col">
+                                <div className="flex items-baseline gap-1">
+                                  <span className="text-amber-400 font-extrabold text-xl">
+                                    {currentPrice.toLocaleString('fr-FR')}
+                                  </span>
+                                  <span className="text-xs font-bold text-zinc-400">CFA</span>
+                                </div>
+                              </div>
+                            );
+                          }
+                        }
+
+                        // Promo standard sur produit catalogue générique
+                        const promoDetails = getPromoDetails(product.variants);
+                        if (promoDetails) {
+                          return (
+                            <div className="flex flex-col">
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-amber-400 font-extrabold text-xl">{promoDetails.promoPrice}</span>
+                                <span className="text-xs font-bold text-zinc-400">CFA</span>
+                              </div>
+                              <span className="text-xs font-bold text-zinc-500 line-through">{promoDetails.originalPrice} CFA</span>
+                            </div>
+                          );
+                        }
+
+                        // Prix standard
+                        const displayPrice = currentPrice > 0 
+                          ? currentPrice.toLocaleString('fr-FR') 
+                          : getLowestPrice(product.variants);
+
+                        return (
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-amber-400 font-extrabold text-xl">{displayPrice}</span>
+                            <span className="text-xs font-bold text-zinc-400">CFA</span>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          onClick={() => handleOpenCheckout(
+                            product.name, 
+                            currentPrice > 0 ? currentPrice.toLocaleString('fr-FR') : getLowestPrice(product.variants), 
+                            storageDisplay || '256 GB', 
+                            product.thumbnail, 
+                            product.variants
+                          )}
+                          className="px-3.5 py-1.5 rounded-full bg-amber-400 text-black hover:bg-amber-300 font-bold text-[11px] uppercase tracking-wider transition-colors"
+                        >
+                          Achat 1-Clic
+                        </button>
+                        <Link
+                          href={productUrl}
+                          className="text-xs text-zinc-400 hover:text-white font-semibold flex items-center gap-0.5 transition-colors"
+                        >
+                          Fiche <ChevronRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </>
           )}
         </div>

@@ -17,6 +17,7 @@ import type { Product, ProductVariant } from '@/types';
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
+import { invalidateCatalogCache } from '@/lib/product-cache';
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -31,6 +32,14 @@ export default function NewProductPage() {
   const [variants, setVariants] = useState<ProductVariant[]>([{ storage: '', price: 0 }]);
   const [hasIMEI, setHasIMEI] = useState(false);
   const [categories, setCategories] = useState<DocumentData[]>([]);
+
+  // Champs dédiés exemplaire initial IMEI
+  const [imeiNumber, setImeiNumber] = useState('');
+  const [imeiCondition, setImeiCondition] = useState<'venant' | 'secondHand' | 'none'>('venant');
+  const [imeiStorage, setImeiStorage] = useState('');
+  const [imeiOriginalPrice, setImeiOriginalPrice] = useState<number>(0);
+  const [imeiUnitPrice, setImeiUnitPrice] = useState<number>(0);
+  const [hasImeiCustomPrice, setHasImeiCustomPrice] = useState(false);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -64,9 +73,11 @@ export default function NewProductPage() {
     const newVariants = [...variants];
     const variant = newVariants[index];
     if (field === 'price') {
-        variant[field] = Number(value);
+      variant.price = Number(value);
+    } else if (field === 'storage') {
+      variant.storage = String(value);
     } else {
-        variant[field] = value as string;
+      (variant as any)[field] = value;
     }
     setVariants(newVariants);
   };
@@ -159,11 +170,36 @@ export default function NewProductPage() {
         createdAt: serverTimestamp()
       };
 
-      await addDoc(collection(db, 'products'), productData);
+      const docRef = await addDoc(collection(db, 'products'), productData);
+
+      // Si un numéro IMEI a été saisi, créer directement l'exemplaire dans l'inventaire
+      if (hasIMEI && imeiNumber.trim()) {
+        const selectedVar = variants.find(v => v.storage === imeiStorage) || variants[0];
+        const catalogP = Number(imeiOriginalPrice) || Number(selectedVar?.price) || 0;
+        const finalP = hasImeiCustomPrice && Number(imeiUnitPrice) > 0 ? Number(imeiUnitPrice) : catalogP;
+
+        await addDoc(collection(db, 'inventory'), {
+          productId: docRef.id,
+          productName: name,
+          imei: imeiNumber.trim(),
+          storage: imeiStorage || selectedVar?.storage || '128GB',
+          status: 'disponible',
+          catalogPrice: catalogP,
+          originalPrice: catalogP,
+          unitPrice: finalP,
+          hasCustomPrice: Boolean(hasImeiCustomPrice),
+          isVenant: imeiCondition === 'venant',
+          isSecondHand: imeiCondition === 'secondHand',
+          note: 'Enregistré à la création du modèle',
+          addedAt: serverTimestamp()
+        });
+      }
+
+      invalidateCatalogCache();
 
       toast({
         title: "Produit ajouté",
-        description: `Le produit "${name}" a été créé avec succès.`,
+        description: `Le produit "${name}" a été créé avec succès${hasIMEI && imeiNumber.trim() ? " avec son exemplaire IMEI en stock" : ""}.`,
       });
       router.push('/admin/products');
     } catch (error) {
@@ -311,11 +347,133 @@ export default function NewProductPage() {
                                 onChange={(e) => setHasIMEI(e.target.checked)}
                                 className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                             />
-                            <Label htmlFor="hasIMEI" className="flex items-center gap-2 cursor-pointer">
-                                <Smartphone className="h-4 w-4" />
+                            <Label htmlFor="hasIMEI" className="flex items-center gap-2 cursor-pointer font-semibold">
+                                <Smartphone className="h-4 w-4 text-primary" />
                                 Gérer par IMEI (Stock unique)
                             </Label>
                         </div>
+
+                        {hasIMEI && (
+                          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-3 animate-in fade-in">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                              <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                                Premier exemplaire IMEI (facultatif)
+                              </span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label htmlFor="imeiNumber" className="text-xs">Numéro IMEI (15 chiffres)</Label>
+                              <Input 
+                                id="imeiNumber"
+                                value={imeiNumber}
+                                onChange={(e) => setImeiNumber(e.target.value)}
+                                placeholder="Ex: 354896102345678"
+                                className="font-mono text-xs h-9"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="text-xs">État</Label>
+                              <div className="flex items-center gap-4">
+                                <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer">
+                                  <input 
+                                    type="radio" 
+                                    name="imeiCondition" 
+                                    checked={imeiCondition === 'venant'}
+                                    onChange={() => setImeiCondition('venant')}
+                                  />
+                                  <span>✦ Venant</span>
+                                </label>
+                                <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer">
+                                  <input 
+                                    type="radio" 
+                                    name="imeiCondition" 
+                                    checked={imeiCondition === 'secondHand'}
+                                    onChange={() => setImeiCondition('secondHand')}
+                                  />
+                                  <span>2ème main</span>
+                                </label>
+                                <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer">
+                                  <input 
+                                    type="radio" 
+                                    name="imeiCondition" 
+                                    checked={imeiCondition === 'none'}
+                                    onChange={() => setImeiCondition('none')}
+                                  />
+                                  <span>Standard</span>
+                                </label>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Stockage</Label>
+                                <Select 
+                                  value={imeiStorage || variants[0]?.storage || '128GB'} 
+                                  onValueChange={(val) => {
+                                    setImeiStorage(val);
+                                    const found = variants.find(v => v.storage === val);
+                                    if (found) {
+                                      setImeiOriginalPrice(found.price);
+                                      if (!hasImeiCustomPrice) setImeiUnitPrice(found.price);
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue placeholder="Stockage" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {variants.filter(v => v.storage).map((v) => (
+                                      <SelectItem key={v.storage} value={v.storage}>{v.storage}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div className="space-y-1">
+                                <Label className="text-xs">Prix catalogue (CFA)</Label>
+                                <Input 
+                                  type="number"
+                                  value={imeiOriginalPrice || variants[0]?.price || ''}
+                                  onChange={(e) => setImeiOriginalPrice(Number(e.target.value))}
+                                  placeholder="Prix"
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-border/40">
+                              <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                                <input 
+                                  type="checkbox"
+                                  checked={hasImeiCustomPrice}
+                                  onChange={(e) => {
+                                    setHasImeiCustomPrice(e.target.checked);
+                                    if (e.target.checked && !imeiUnitPrice) {
+                                      setImeiUnitPrice(imeiOriginalPrice || variants[0]?.price || 0);
+                                    }
+                                  }}
+                                  className="rounded border-gray-300"
+                                />
+                                <span>Définir un nouveau prix pour cette unité</span>
+                              </label>
+
+                              {hasImeiCustomPrice && (
+                                <div className="space-y-1">
+                                  <Label className="text-[11px] text-muted-foreground">Nouveau prix de vente (CFA)</Label>
+                                  <Input 
+                                    type="number"
+                                    value={imeiUnitPrice || ''}
+                                    onChange={(e) => setImeiUnitPrice(Number(e.target.value))}
+                                    placeholder="Ex: 320000"
+                                    className="h-8 text-xs"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         <div className="space-y-2">
                             <Label htmlFor="status">Statut</Label>
                             <Select value={status} onValueChange={(value) => setStatus(value as 'active' | 'inactive')}>

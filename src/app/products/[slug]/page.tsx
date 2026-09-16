@@ -1,8 +1,8 @@
 // src/app/products/[slug]/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { notFound } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { notFound, useParams, useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, limit, doc, getDoc, DocumentData } from 'firebase/firestore';
 import type { Product, ProductVariant, FlashSale } from '@/types';
@@ -19,16 +19,86 @@ import { useCart } from '@/context/CartContext';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 
-async function getProductData(slug: string): Promise<{ product: Product | null, similarProducts: Product[] }> {
+async function getProductData(rawSlug: string): Promise<{ product: Product | null, similarProducts: Product[], stockItems: any[] }> {
+    if (!rawSlug) return { product: null, similarProducts: [], stockItems: [] };
+    const slug = decodeURIComponent(rawSlug);
     const productsRef = collection(db, 'products');
-    const q = query(productsRef, where('slug', '==', slug), where('status', '==', 'active'), limit(1));
-    const querySnapshot = await getDocs(q);
 
-    if (querySnapshot.empty) {
-        return { product: null, similarProducts: [] };
+    let productDoc: any = null;
+
+    // 1. Recherche directe par slug
+    const qSlug = query(productsRef, where('slug', '==', slug), limit(1));
+    const snapSlug = await getDocs(qSlug);
+    if (!snapSlug.empty) {
+        productDoc = snapSlug.docs[0];
+    } else {
+        // 2. Recherche par rawSlug
+        const qRaw = query(productsRef, where('slug', '==', rawSlug), limit(1));
+        const snapRaw = await getDocs(qRaw);
+        if (!snapRaw.empty) {
+            productDoc = snapRaw.docs[0];
+        } else {
+            // 3. Recherche par ID direct dans 'products'
+            try {
+                const docSnap = await getDoc(doc(db, 'products', slug));
+                if (docSnap.exists()) {
+                    productDoc = docSnap;
+                }
+            } catch (e) {
+                // Non trouvé par doc id direct
+            }
+        }
     }
 
-    const productDoc = querySnapshot.docs[0];
+    // 4. Recherche si le slug est un ID d'exemplaire en stock ou préfixé 'imei-'
+    if (!productDoc) {
+        const cleanInvId = slug.replace(/^imei-/, '');
+        try {
+            const invSnap = await getDoc(doc(db, 'inventory', cleanInvId));
+            if (invSnap.exists()) {
+                const invData = invSnap.data();
+                if (invData.productId) {
+                    const linkedProductSnap = await getDoc(doc(db, 'products', invData.productId));
+                    if (linkedProductSnap.exists()) {
+                        productDoc = linkedProductSnap;
+                    }
+                }
+                if (!productDoc && invData.productName) {
+                    const qName = query(productsRef, where('name', '==', invData.productName), limit(1));
+                    const snapName = await getDocs(qName);
+                    if (!snapName.empty) {
+                        productDoc = snapName.docs[0];
+                    }
+                }
+            }
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    // 5. Fallback flexible : comparaison insensible à la casse ou par nom
+    if (!productDoc) {
+        try {
+            const allProdsSnap = await getDocs(productsRef);
+            const lowerSlug = slug.toLowerCase();
+            for (const d of allProdsSnap.docs) {
+                const data = d.data();
+                const docSlug = (data.slug || '').toLowerCase();
+                const docName = (data.name || '').toLowerCase().replace(/\s+/g, '-');
+                if (docSlug === lowerSlug || docName === lowerSlug || d.id === slug) {
+                    productDoc = d;
+                    break;
+                }
+            }
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    if (!productDoc) {
+        return { product: null, similarProducts: [], stockItems: [] };
+    }
+
     const product = { id: productDoc.id, ...productDoc.data() } as Product;
 
     // Fetch promotions for this product
@@ -36,7 +106,7 @@ async function getProductData(slug: string): Promise<{ product: Product | null, 
     const promoSnapshot = await getDocs(promoQuery);
     const promotions = promoSnapshot.docs.map(doc => doc.data());
 
-    if (promotions.length > 0) {
+    if (promotions.length > 0 && product.variants) {
         product.variants = product.variants.map(variant => {
             const promo = promotions.find(p => p.variantStorage === variant.storage);
             if (promo) {
@@ -50,20 +120,35 @@ async function getProductData(slug: string): Promise<{ product: Product | null, 
         });
     }
 
+    // Fetch available unique stock items (IMEI) for this product
+    let stockItems: any[] = [];
+    try {
+        const stockQuery = query(
+            collection(db, 'inventory'),
+            where('productId', '==', product.id),
+            where('status', '==', 'disponible')
+        );
+        const stockSnap = await getDocs(stockQuery);
+        stockItems = stockSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) {
+        console.error('Error fetching inventory for product:', e);
+    }
+
     let similarProducts: Product[] = [];
     if (product.categoryId) {
         const similarQuery = query(
             productsRef,
             where('categoryId', '==', product.categoryId),
-            where('status', '==', 'active'),
-            where('__name__', '!=', productDoc.ref.path.split('/').pop()), // exclude self by document ID
-            limit(4)
+            limit(5)
         );
         const similarSnapshot = await getDocs(similarQuery);
-        similarProducts = similarSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        similarProducts = similarSnapshot.docs
+            .filter(d => d.id !== productDoc.id)
+            .slice(0, 4)
+            .map(doc => ({ id: doc.id, ...doc.data() } as Product));
     }
 
-    return { product, similarProducts };
+    return { product, similarProducts, stockItems };
 }
 
 const getLowestPrice = (variants: Product['variants'] = []) => {
@@ -73,10 +158,16 @@ const getLowestPrice = (variants: Product['variants'] = []) => {
     return lowest.toLocaleString('fr-FR');
 };
 
+function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }) {
+    const routeParams = useParams();
+    const searchParams = useSearchParams();
+    const queryImei = searchParams?.get('imei') || '';
+    const queryStorage = searchParams?.get('storage') || '';
 
-export default function ProductDetailsPage({ params }: { params: { slug: string } }) {
+    const [resolvedSlug, setResolvedSlug] = useState<string>((routeParams?.slug as string) || '');
     const [product, setProduct] = useState<Product | null>(null);
     const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
+    const [stockItems, setStockItems] = useState<any[]>([]);
     const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
     const [flashSale, setFlashSale] = useState<FlashSale | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -85,25 +176,54 @@ export default function ProductDetailsPage({ params }: { params: { slug: string 
     const { addToCart } = useCart();
 
     useEffect(() => {
+        if (routeParams?.slug) {
+            setResolvedSlug(routeParams.slug as string);
+        } else if (params) {
+            if (typeof (params as any).then === 'function') {
+                (params as Promise<{ slug: string }>).then(p => {
+                    if (p?.slug) setResolvedSlug(p.slug);
+                });
+            } else if ((params as any).slug) {
+                setResolvedSlug((params as any).slug);
+            }
+        }
+    }, [routeParams, params]);
+
+    useEffect(() => {
+        if (!resolvedSlug) return;
         const fetchData = async () => {
             setIsLoading(true);
-            const { product, similarProducts } = await getProductData(params.slug);
+            const { product, similarProducts, stockItems } = await getProductData(resolvedSlug);
             if (!product) {
                 notFound();
                 return;
             }
             setProduct(product);
             setSimilarProducts(similarProducts);
+            setStockItems(stockItems);
 
             if (product && product.variants && product.variants.length > 0) {
                 const sortedVariants = [...product.variants].sort((a, b) => (a.promoPrice || a.price) - (b.promoPrice || b.price));
-                setSelectedVariant(sortedVariants[0]);
+                let initialVariant = sortedVariants[0];
+
+                if (queryStorage) {
+                    const matched = product.variants.find(v => v.storage.toLowerCase() === queryStorage.toLowerCase());
+                    if (matched) initialVariant = matched;
+                } else if (queryImei && stockItems.length > 0) {
+                    const matchedStock = stockItems.find(s => s.imei === queryImei);
+                    if (matchedStock) {
+                        const matched = product.variants.find(v => v.storage.toLowerCase() === matchedStock.storage.toLowerCase());
+                        if (matched) initialVariant = matched;
+                    }
+                }
+
+                setSelectedVariant(initialVariant);
             }
             
             setIsLoading(false);
         };
         fetchData();
-    }, [params.slug]);
+    }, [resolvedSlug, queryStorage, queryImei]);
 
     useEffect(() => {
         if (product && selectedVariant) {
@@ -216,6 +336,88 @@ export default function ProductDetailsPage({ params }: { params: { slug: string 
             </RadioGroup>
           </div>
 
+          {/* Exemplaires uniques avec IMEI en stock */}
+          {stockItems.length > 0 && (
+            <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  {stockItems.length} exemplaire{stockItems.length > 1 ? 's' : ''} unique{stockItems.length > 1 ? 's' : ''} avec IMEI disponible{stockItems.length > 1 ? 's' : ''}
+                </span>
+                <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-400">Stock Réel</Badge>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {stockItems.map((item) => {
+                  const initialPrice = Number(item.catalogPrice) || Number(item.originalPrice) || 0;
+                  const currentPrice = Number(item.unitPrice) || initialPrice;
+                  const isDiscounted = currentPrice < initialPrice && initialPrice > 0;
+                  const isSelectedImei = Boolean(queryImei && item.imei === queryImei);
+
+                  return (
+                    <div 
+                      key={item.id}
+                      onClick={() => {
+                        const matched = product.variants.find(v => v.storage === item.storage);
+                        if (matched) setSelectedVariant(matched);
+                      }}
+                      className={`cursor-pointer p-3 rounded-lg border transition-all flex flex-col justify-between space-y-2 ${
+                        isSelectedImei 
+                          ? 'bg-amber-500/15 border-amber-400 ring-2 ring-amber-400/80 shadow-md shadow-amber-400/20' 
+                          : 'bg-zinc-900/80 border-white/10 hover:border-amber-400/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-bold text-sm text-foreground">{item.storage}</span>
+                        <div className="flex items-center gap-1">
+                          {isSelectedImei && (
+                            <Badge className="bg-amber-400 text-black text-[9px] font-extrabold px-1.5 py-0">
+                              Sélectionné
+                            </Badge>
+                          )}
+                          {item.isVenant && (
+                            <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] px-1.5 py-0">
+                              Venant
+                            </Badge>
+                          )}
+                          {item.isSecondHand && (
+                            <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] px-1.5 py-0">
+                              2ème main
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-[11px] font-mono text-zinc-400">
+                        IMEI : •••• {item.imei?.slice(-4) || 'Vérifié'}
+                      </div>
+                      <div className="pt-1 border-t border-white/5 flex items-baseline justify-between">
+                        {isDiscounted ? (
+                          item.isVenant ? (
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-amber-400 font-extrabold text-sm">
+                                {currentPrice.toLocaleString('fr-FR')} CFA
+                              </span>
+                              <span className="text-[11px] text-zinc-500 line-through">
+                                {initialPrice.toLocaleString('fr-FR')} CFA
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-amber-400 font-extrabold text-sm">
+                              {currentPrice.toLocaleString('fr-FR')} CFA
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-amber-400 font-extrabold text-sm">
+                            {currentPrice.toLocaleString('fr-FR')} CFA
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-4">
             <div className="flex items-baseline gap-2">
               {originalPrice && (
@@ -295,4 +497,16 @@ export default function ProductDetailsPage({ params }: { params: { slug: string 
       )}
     </div>
   );
+}
+
+export default function ProductDetailsPage({ params }: { params: Promise<{ slug: string }> }) {
+    return (
+        <Suspense fallback={
+            <div className="flex h-[60vh] items-center justify-center">
+                <Loader2 className="h-12 w-12 animate-spin text-amber-400" />
+            </div>
+        }>
+            <ProductDetailsContent params={params} />
+        </Suspense>
+    );
 }
