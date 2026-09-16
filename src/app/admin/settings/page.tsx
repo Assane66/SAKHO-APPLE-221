@@ -16,6 +16,7 @@ interface SettingsData {
   shopName: string;
   contactEmail: string;
   contactPhone: string;
+  address?: string;
   paymentCashOnDelivery: boolean;
   paymentMobileMoney: boolean;
   facebookUrl?: string;

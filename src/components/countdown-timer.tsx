@@ -36,7 +36,8 @@ export function CountdownTimer({ endDate }: CountdownTimerProps) {
 
   const timerComponents: JSX.Element[] = [];
 
-  Object.entries(timeLeft).forEach(([interval, value]) => {
+  Object.entries(timeLeft).forEach(([interval, val]) => {
+    const value = Number(val) || 0;
     if (value <= 0 && interval !== 'secondes') { // Toujours afficher les secondes si c'est le seul restant
       if(Object.values(timeLeft).slice(0, Object.keys(timeLeft).indexOf(interval)).every(v => v === 0)) {
          // ne rien faire, pour ne pas afficher les jours s'il n'y en a pas

@@ -7,6 +7,7 @@ export interface HomePageCachedData {
   categoryList: DocumentData[];
   productList: Product[];
   activePromo: DocumentData | null;
+  flashSalesList?: DocumentData[];
   contactPhone: string;
 }
 

@@ -25,23 +25,34 @@ import { getCachedHomePageData, setCachedHomePageData } from '@/lib/product-cach
 /* ─── Data fetching ──────────────────────────────── */
 async function getHomePageData() {
   try {
-    const [bannerSnap, catSnap, prodSnap, promoSnap, settingsSnap, invSnap] = await Promise.all([
+    const [bannerSnap, catSnap, prodSnap, promoSnap, settingsSnap, invSnap, flashSnap] = await Promise.all([
       getDocs(query(collection(db, 'banners'), where('status', '==', 'Actif'))),
       getDocs(query(collection(db, 'categories'), orderBy('name', 'asc'))),
       getDocs(collection(db, 'products')),
       getDocs(query(collection(db, 'promotions'), where('endDate', '>', Timestamp.now()))),
       getDoc(doc(db, 'settings', 'general')),
       getDocs(query(collection(db, 'inventory'), where('status', '==', 'disponible'))),
+      getDocs(query(collection(db, 'flashSales'), where('status', '==', 'Actif'))).catch(() => ({ docs: [] } as any)),
     ]);
 
     const settings = settingsSnap.exists() ? settingsSnap.data() : {};
-
     const promotions: any[] = promoSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const availableInventory: any[] = invSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const flashSalesList = flashSnap.docs
+      .map((d: any) => ({ id: d.id, ...d.data() }))
+      .filter((f: any) => {
+        if (!f.endDate) return true;
+        const endMillis = f.endDate.toMillis ? f.endDate.toMillis() : new Date(f.endDate).getTime();
+        return endMillis > Date.now();
+      });
+
     let rawProductList = prodSnap.docs
       .map(d => ({ id: d.id, ...d.data() } as Product))
       .filter(p => p.status === 'active' || (p.status as string) === 'Actif');
 
     let productList = rawProductList.map(p => {
+      // Promotions
       const matchingPromos = promotions.filter(promo => {
         if (promo.status === 'Inactif') return false;
         if (promo.endDate && promo.endDate.toMillis && promo.endDate.toMillis() <= Date.now()) return false;
@@ -68,58 +79,47 @@ async function getHomePageData() {
           return v;
         }) || [];
       }
+
+      // 1. Stock physique disponible réel (SANS JAMAIS EXPOSER L'IMEI STRICTEMENT CONFIDENTIEL)
+      const matchingInv = availableInventory.filter(inv => 
+        inv.productId === p.id || 
+        (inv.productName && p.name && inv.productName.trim().toLowerCase() === p.name.trim().toLowerCase())
+      );
+
+      const inStockCount = matchingInv.length;
+      p.inStock = inStockCount > 0;
+      p.inStockCount = inStockCount;
+
+      if (p.inStock) {
+        // Détecter l'état dominant en stock si non spécifié sur le produit
+        const hasVenant = matchingInv.some(i => i.isVenant);
+        const hasSecondHand = matchingInv.some(i => i.isSecondHand);
+        if (hasVenant) p.isVenant = true;
+        if (hasSecondHand && !hasVenant) p.isSecondHand = true;
+
+        // Si une unité a un prix personnalisé inférieur
+        const customItems = matchingInv.filter(i => i.unitPrice && i.unitPrice > 0);
+        if (customItems.length > 0) {
+          const lowestCustom = Math.min(...customItems.map(i => i.unitPrice));
+          p.unitPrice = lowestCustom;
+          p.originalPrice = customItems[0].originalPrice || customItems[0].catalogPrice || p.variants?.[0]?.price;
+        }
+      }
+
+      // Nettoyer strictement toute trace d'IMEI pour les visiteurs
+      delete (p as any).imei;
+      delete (p as any).hasIMEI;
+
       return p;
     });
 
-    // Transformer chaque appareil en stock avec IMEI en un exemplaire unique visible
-    const uniqueImeiProducts: Product[] = invSnap.docs.map(d => {
-      const inv = d.data();
-      const baseProd = productList.find(p => p.id === inv.productId) || 
-                       productList.find(p => p.name?.toLowerCase() === (inv.productName || '').toLowerCase());
-      
-      const initialPrice = Number(inv.catalogPrice) || Number(inv.originalPrice) || Number(baseProd?.variants?.[0]?.price) || 0;
-      const currentPrice = Number(inv.unitPrice) || initialPrice;
-      const storage = inv.storage || baseProd?.variants?.[0]?.storage || '128GB';
-
-      return {
-        id: `imei-${d.id}`,
-        name: inv.productName || baseProd?.name || 'iPhone',
-        slug: baseProd?.slug || inv.productId || d.id,
-        categoryId: baseProd?.categoryId || '',
-        categoryName: baseProd?.categoryName || '',
-        thumbnail: baseProd?.thumbnail || 'https://res.cloudinary.com/dm6yuokre/image/upload/v1784658568/apple-iphone-17-pro-max-256-go-ecran-69-puce-a19-pro-orange-removebg-preview_vmy8i6.png',
-        keywords: baseProd?.keywords || [],
-        batteryHealth: baseProd?.batteryHealth || '100%',
-        status: 'active',
-        hasIMEI: true,
-        imei: inv.imei,
-        isVenant: Boolean(inv.isVenant),
-        isSecondHand: Boolean(inv.isSecondHand),
-        storage: storage,
-        originalPrice: initialPrice,
-        unitPrice: currentPrice,
-        isUniqueItem: true,
-        variants: [
-          {
-            storage: storage,
-            price: currentPrice,
-            originalPrice: initialPrice,
-            isPromo: currentPrice < initialPrice,
-            promoPrice: currentPrice < initialPrice ? currentPrice : undefined,
-          }
-        ],
-        createdAt: inv.addedAt || null,
-      } as Product;
-    });
-
-    // Fusionner les exemplaires uniques IMEI avec la liste générale
-    let allProducts = [...uniqueImeiProducts, ...productList];
-
-    // Priorité absolue : les produits avec IMEI s'affichent TOUJOURS en premier
-    allProducts.sort((a, b) => {
-      const aImei = a.hasIMEI || a.isUniqueItem ? 1 : 0;
-      const bImei = b.hasIMEI || b.isUniqueItem ? 1 : 0;
-      return bImei - aImei;
+    // Règle d'or : On NE SUPPRIME AUCUN PRODUIT du catalogue !
+    // Mais on donne la priorité d'affichage aux modèles disponibles en stock réel (inStock === true)
+    productList.sort((a, b) => {
+      const aStock = a.inStock ? 1 : 0;
+      const bStock = b.inStock ? 1 : 0;
+      if (bStock !== aStock) return bStock - aStock;
+      return 0;
     });
 
     const bannerList = bannerSnap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -130,18 +130,17 @@ async function getHomePageData() {
     const result = {
       bannerList,
       categoryList,
-      productList: allProducts,
+      productList,
       activePromo,
+      flashSalesList,
       contactPhone,
     };
 
-    // Mettre en cache pour affichage instantané (0 ms)
     setCachedHomePageData(result);
-
     return result;
   } catch (error) {
     console.error('Error fetching homepage data:', error);
-    return { bannerList: [], categoryList: [], productList: [], activePromo: null, contactPhone: '221770000000' };
+    return { bannerList: [], categoryList: [], productList: [], activePromo: null, flashSalesList: [], contactPhone: '221770000000' };
   }
 }
 
@@ -163,6 +162,7 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<DocumentData[]>([]);
   const [activePromo, setActivePromo] = useState<DocumentData | null>(null);
+  const [flashSales, setFlashSales] = useState<DocumentData[]>([]);
   const [contactPhone, setContactPhone] = useState('221770000000');
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -193,6 +193,7 @@ export default function Home() {
       setCategories(cached.categoryList || []);
       setProducts(cached.productList || []);
       setActivePromo(cached.activePromo || null);
+      setFlashSales(cached.flashSalesList || []);
       setContactPhone(cached.contactPhone || '221770000000');
       setIsLoading(false);
     }
@@ -204,6 +205,7 @@ export default function Home() {
       setCategories(data.categoryList);
       setProducts(data.productList);
       setActivePromo(data.activePromo);
+      setFlashSales(data.flashSalesList || []);
       setContactPhone(data.contactPhone);
       setIsLoading(false);
     };
@@ -216,17 +218,17 @@ export default function Home() {
       const term = searchTerm.toLowerCase();
       list = list.filter(p =>
         p.name.toLowerCase().includes(term) ||
-        (p.keywords && p.keywords.join(' ').toLowerCase().includes(term)) ||
-        (p.imei && p.imei.toLowerCase().includes(term))
+        (p.keywords && p.keywords.join(' ').toLowerCase().includes(term))
       );
     }
     if (selectedCategory !== 'all') list = list.filter(p => p.categoryId === selectedCategory);
     
-    // Priorité absolue : les produits / exemplaires avec IMEI s'affichent toujours en tête
+    // Priorité absolue : modèles avec stock disponible affichés en premier
     return [...list].sort((a, b) => {
-      const aImei = a.hasIMEI || a.isUniqueItem ? 1 : 0;
-      const bImei = b.hasIMEI || b.isUniqueItem ? 1 : 0;
-      return bImei - aImei;
+      const aStock = a.inStock ? 1 : 0;
+      const bStock = b.inStock ? 1 : 0;
+      if (bStock !== aStock) return bStock - aStock;
+      return 0;
     });
   }, [products, searchTerm, selectedCategory]);
 
@@ -342,19 +344,80 @@ export default function Home() {
         <MarqueeBanner />
       </section>
 
-      {/* ═══ 3. APPLE DESIGN BENTO GRID ═══ */}
-      <section className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-12 w-full">
-        <BentoGridSection
-          products={products}
-          onQuickBuy={(name, price, storage, variants) => handleOpenCheckout(name, price, storage, undefined, variants)}
-        />
-      </section>
+      {/* ═══ 3. VENTE FLASH (Affiché UNIQUEMENT si des ventes flash actives existent) ═══ */}
+      {flashSales.length > 0 && (
+        <section className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-8 w-full">
+          <div className="rounded-3xl p-6 md:p-8 bg-gradient-to-r from-red-950/40 via-zinc-950 to-amber-950/30 border border-red-500/30 backdrop-blur-xl space-y-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <span className="px-3 py-1 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 text-xs font-black uppercase tracking-widest inline-flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 fill-red-400" />
+                  Ventes Flash Limitées
+                </span>
+                <h2 className="text-2xl md:text-3xl font-extrabold text-white">
+                  Offres Exceptionnelles en Temps Réel
+                </h2>
+              </div>
+              <Link 
+                href="/products"
+                className="text-xs font-bold text-red-400 hover:text-red-300 flex items-center gap-1"
+              >
+                Voir toutes les ventes flash <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
 
-      {/* ═══ 4. VENTE FLASH & FLIP CLOCK SECTION ═══ */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {flashSales.slice(0, 3).map((sale: any) => {
+                const targetSlug = sale.slug || sale.id;
+                const saleUrl = `/flash-sale/${targetSlug}`;
+                const salePrice = sale.discountPrice || sale.variants?.[0]?.discountPrice || 0;
+                const origPrice = sale.originalPrice || sale.variants?.[0]?.originalPrice || 0;
+
+                return (
+                  <div key={sale.id} className="p-4 rounded-2xl bg-black/60 border border-white/10 hover:border-red-500/40 transition-all flex items-center gap-4">
+                    {sale.thumbnail && (
+                      <div className="relative w-20 h-20 rounded-xl bg-zinc-900/80 flex-shrink-0 overflow-hidden">
+                        <Image
+                          src={getOptimizedImageUrl(sale.thumbnail, 200)}
+                          alt={sale.productName || 'Vente flash'}
+                          fill
+                          className="object-contain p-2"
+                        />
+                      </div>
+                    )}
+                    <div className="flex-grow min-w-0 space-y-1">
+                      <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider">Flash</span>
+                      <h4 className="font-extrabold text-sm text-white truncate">{sale.productName}</h4>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-amber-400 font-extrabold text-base">
+                          {Number(salePrice).toLocaleString('fr-FR')} CFA
+                        </span>
+                        {origPrice > salePrice && (
+                          <span className="text-[11px] text-zinc-500 line-through">
+                            {Number(origPrice).toLocaleString('fr-FR')}
+                          </span>
+                        )}
+                      </div>
+                      <Link 
+                        href={saleUrl}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-red-400 hover:underline pt-1"
+                      >
+                        En profiter <ArrowRight className="w-3 h-3" />
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ═══ 4. PROMO (Affiché UNIQUEMENT si une promotion active existe) ═══ */}
       {activePromo && (
         <section className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-8 w-full">
           {(() => {
-            const promoTitle = activePromo.title || "OFFRE FLASH EXCLUSIVE";
+            const promoTitle = activePromo.title || "OFFRE PROMOTIONNELLE EXCLUSIVE";
             const promoDiscount = activePromo.discountAmount ? `- ${activePromo.discountAmount} CFA` : 'Réductions exceptionnelles';
             const promoTargetText = activePromo.targetType === 'all' ? 'sur tous nos produits' : 'sur notre sélection';
             const promoSubtitle = `${promoDiscount} ${promoTargetText}`;
@@ -367,14 +430,25 @@ export default function Home() {
         </section>
       )}
 
-      {/* ═══ 5. CATALOGUE FILTER & SEARCH SECTION ═══ */}
+      {/* ═══ 5. APPLE DESIGN BENTO GRID (Produits Vedettes) ═══ */}
+      <section className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-12 w-full">
+        <BentoGridSection
+          products={products}
+          onQuickBuy={(name, price, storage, variants) => handleOpenCheckout(name, price, storage, undefined, variants)}
+        />
+      </section>
+
+      {/* ═══ 6. CATALOGUE FILTER & SEARCH SECTION (Tous les modèles, disponibles en premier) ═══ */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-12 w-full space-y-8">
         <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4">
           <div className="space-y-2">
-            <span className="section-label">Catalogue Khalil</span>
+            <span className="section-label">Catalogue Khalil Apple</span>
             <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-              Tous nos <span className="gold-text">iPhones Disponibles</span>
+              Tous nos <span className="gold-text">iPhones du Catalogue</span>
             </h2>
+            <p className="text-xs text-zinc-400">
+              Modèles en stock immédiat priorisés en premier, ainsi que tous les modèles disponibles à la commande.
+            </p>
           </div>
 
           {/* Search bar */}
@@ -429,8 +503,7 @@ export default function Home() {
             <>
               {filteredProducts.slice(0, visibleCount).map((product, idx) => {
                 const storageDisplay = product.storage || product.variants?.[0]?.storage;
-                const imeiQuery = product.hasIMEI && product.imei ? `?imei=${product.imei}&storage=${encodeURIComponent(storageDisplay || '')}` : '';
-                const productUrl = `/products/${product.slug || product.id}${imeiQuery}`;
+                const productUrl = `/products/${product.slug || product.id}`;
                 const initialPrice = product.originalPrice || product.variants?.[0]?.originalPrice || 0;
                 const currentPrice = product.unitPrice || product.variants?.[0]?.promoPrice || product.variants?.[0]?.price || 0;
 
@@ -455,27 +528,40 @@ export default function Home() {
 
                     {/* Info */}
                     <div className="flex-grow min-w-0 space-y-1.5">
-                      {/* Badges row: Venant / 2ème main / Mémoire / IMEI */}
+                      {/* Badges row: En stock / Custom Badge / Venant / 2ème main / Mémoire */}
                       <div className="flex flex-wrap items-center gap-1.5">
+                        {product.inStock ? (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            ✓ En stock
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-white/5 text-[10px] font-medium">
+                            Sur commande
+                          </span>
+                        )}
+
+                        {product.customBadge && (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] font-extrabold uppercase tracking-wider">
+                            {product.customBadge}
+                          </span>
+                        )}
+
                         {product.isVenant && (
                           <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-extrabold uppercase tracking-wider">
                             ✦ Venant
                           </span>
                         )}
+
                         {product.isSecondHand && (
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-extrabold uppercase tracking-wider">
+                          <span className="px-2 py-0.5 rounded-full bg-zinc-700/50 text-zinc-300 border border-white/10 text-[10px] font-extrabold uppercase tracking-wider">
                             2ème main
                           </span>
                         )}
+
                         {storageDisplay && (
                           <span className="px-2 py-0.5 rounded-md bg-white/5 text-[10px] font-mono font-bold text-zinc-300 border border-white/10">
                             {storageDisplay}
-                          </span>
-                        )}
-                        {product.hasIMEI && (
-                          <span className="px-1.5 py-0.5 rounded-md bg-amber-400/15 text-amber-400 border border-amber-400/30 text-[9px] font-mono font-bold flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-amber-400 animate-ping inline-block" />
-                            {product.imei ? `IMEI ••${product.imei.slice(-4)}` : 'IMEI'}
                           </span>
                         )}
                       </div>
@@ -507,7 +593,7 @@ export default function Home() {
                               </div>
                             );
                           } else if (product.isSecondHand) {
-                            // 2ème main : UNIQUEMENT le nouveau prix (PAS de prix barré)
+                            // 2ème main : UNIQUEMENT le nouveau prix (JAMAIS de prix barré)
                             return (
                               <div className="flex flex-col">
                                 <div className="flex items-baseline gap-1">
@@ -521,7 +607,7 @@ export default function Home() {
                           }
                         }
 
-                        // Promo standard sur produit catalogue générique
+                        // Promo standard sur produit catalogue
                         const promoDetails = getPromoDetails(product.variants);
                         if (promoDetails) {
                           return (

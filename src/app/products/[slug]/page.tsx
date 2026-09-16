@@ -161,7 +161,6 @@ const getLowestPrice = (variants: Product['variants'] = []) => {
 function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }) {
     const routeParams = useParams();
     const searchParams = useSearchParams();
-    const queryImei = searchParams?.get('imei') || '';
     const queryStorage = searchParams?.get('storage') || '';
 
     const [resolvedSlug, setResolvedSlug] = useState<string>((routeParams?.slug as string) || '');
@@ -174,6 +173,13 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
 
     const { toast } = useToast();
     const { addToCart } = useCart();
+
+    // Fix critique : toujours commencer en haut de la page produit immédiatement
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        }
+    }, []);
 
     useEffect(() => {
         if (routeParams?.slug) {
@@ -191,6 +197,11 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
 
     useEffect(() => {
         if (!resolvedSlug) return;
+
+        if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        }
+
         const fetchData = async () => {
             setIsLoading(true);
             const { product, similarProducts, stockItems } = await getProductData(resolvedSlug);
@@ -209,12 +220,6 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
                 if (queryStorage) {
                     const matched = product.variants.find(v => v.storage.toLowerCase() === queryStorage.toLowerCase());
                     if (matched) initialVariant = matched;
-                } else if (queryImei && stockItems.length > 0) {
-                    const matchedStock = stockItems.find(s => s.imei === queryImei);
-                    if (matchedStock) {
-                        const matched = product.variants.find(v => v.storage.toLowerCase() === matchedStock.storage.toLowerCase());
-                        if (matched) initialVariant = matched;
-                    }
                 }
 
                 setSelectedVariant(initialVariant);
@@ -223,7 +228,7 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
             setIsLoading(false);
         };
         fetchData();
-    }, [resolvedSlug, queryStorage, queryImei]);
+    }, [resolvedSlug, queryStorage]);
 
     useEffect(() => {
         if (product && selectedVariant) {
@@ -336,91 +341,54 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
             </RadioGroup>
           </div>
 
-          {/* Exemplaires uniques avec IMEI en stock */}
-          {stockItems.length > 0 && (
-            <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-3">
+          {/* Stock Réel & Disponibilité (IMEI strictement masqué et sécurisé) */}
+          {stockItems.length > 0 ? (
+            <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
-                  <CheckCircle className="w-3.5 h-3.5" />
-                  {stockItems.length} exemplaire{stockItems.length > 1 ? 's' : ''} unique{stockItems.length > 1 ? 's' : ''} avec IMEI disponible{stockItems.length > 1 ? 's' : ''}
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                  <CheckCircle className="w-4 h-4 text-emerald-400" />
+                  En stock immédiat à Dakar
                 </span>
-                <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-400">Stock Réel</Badge>
+                <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+                  {stockItems.length} disponible{stockItems.length > 1 ? 's' : ''}
+                </Badge>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {stockItems.map((item) => {
-                  const initialPrice = Number(item.catalogPrice) || Number(item.originalPrice) || 0;
-                  const currentPrice = Number(item.unitPrice) || initialPrice;
-                  const isDiscounted = currentPrice < initialPrice && initialPrice > 0;
-                  const isSelectedImei = Boolean(queryImei && item.imei === queryImei);
-
-                  return (
-                    <div 
-                      key={item.id}
-                      onClick={() => {
-                        const matched = product.variants.find(v => v.storage === item.storage);
-                        if (matched) setSelectedVariant(matched);
-                      }}
-                      className={`cursor-pointer p-3 rounded-lg border transition-all flex flex-col justify-between space-y-2 ${
-                        isSelectedImei 
-                          ? 'bg-amber-500/15 border-amber-400 ring-2 ring-amber-400/80 shadow-md shadow-amber-400/20' 
-                          : 'bg-zinc-900/80 border-white/10 hover:border-amber-400/50'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="font-bold text-sm text-foreground">{item.storage}</span>
-                        <div className="flex items-center gap-1">
-                          {isSelectedImei && (
-                            <Badge className="bg-amber-400 text-black text-[9px] font-extrabold px-1.5 py-0">
-                              Sélectionné
-                            </Badge>
-                          )}
-                          {item.isVenant && (
-                            <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] px-1.5 py-0">
-                              Venant
-                            </Badge>
-                          )}
-                          {item.isSecondHand && (
-                            <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] px-1.5 py-0">
-                              2ème main
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-[11px] font-mono text-zinc-400">
-                        IMEI : •••• {item.imei?.slice(-4) || 'Vérifié'}
-                      </div>
-                      <div className="pt-1 border-t border-white/5 flex items-baseline justify-between">
-                        {isDiscounted ? (
-                          item.isVenant ? (
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-amber-400 font-extrabold text-sm">
-                                {currentPrice.toLocaleString('fr-FR')} CFA
-                              </span>
-                              <span className="text-[11px] text-zinc-500 line-through">
-                                {initialPrice.toLocaleString('fr-FR')} CFA
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-amber-400 font-extrabold text-sm">
-                              {currentPrice.toLocaleString('fr-FR')} CFA
-                            </span>
-                          )
-                        ) : (
-                          <span className="text-amber-400 font-extrabold text-sm">
-                            {currentPrice.toLocaleString('fr-FR')} CFA
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+              <p className="text-xs text-zinc-300">
+                Cet appareil est physiquement présent dans notre magasin. Disponible pour retrait immédiat ou livraison expresse en 24h.
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                {product.isVenant && (
+                  <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-extrabold uppercase">
+                    ✦ Qualité Venant
+                  </Badge>
+                )}
+                {product.isSecondHand && (
+                  <Badge className="bg-zinc-800 text-zinc-300 border border-white/10 text-[10px] font-extrabold uppercase">
+                    2ème main certifiée
+                  </Badge>
+                )}
               </div>
+            </div>
+          ) : (
+            <div className="p-4 rounded-2xl border border-white/10 bg-zinc-900/60 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                  <Truck className="w-4 h-4 text-amber-400" />
+                  Disponible sur commande
+                </span>
+                <Badge variant="outline" className="text-[10px] border-white/20 text-zinc-400">
+                  Sous 24h à 48h
+                </Badge>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Ce modèle fait partie de notre catalogue officiel. Votre commande sera préparée auprès de notre centrale fournisseur.
+              </p>
             </div>
           )}
 
           <div className="space-y-4">
             <div className="flex items-baseline gap-2">
-              {originalPrice && (
+              {originalPrice && !product.isSecondHand && (
                   <span className="text-2xl font-medium text-muted-foreground line-through">{originalPrice.toLocaleString('fr-FR')} CFA</span>
               )}
               <p className="text-4xl font-bold text-primary">

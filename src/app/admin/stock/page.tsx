@@ -24,7 +24,8 @@ import {
   Info,
   CheckCircle2,
   DollarSign,
-  Phone
+  Phone,
+  Printer
 } from 'lucide-react';
 import { 
   collection, 
@@ -80,6 +81,24 @@ export default function StockPage() {
   const [isSellDialogOpen, setIsSellDialogOpen] = useState(false);
   const [isEditItemOpen, setIsEditItemOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
+
+  // Facture / Reçu officiel de vente avec IMEI
+  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
+  const [invoiceData, setInvoiceData] = useState<{
+    invoiceNumber: string;
+    date: string;
+    customerName: string;
+    customerPhone: string;
+    productName: string;
+    storage: string;
+    condition: string;
+    imei: string;
+    price: number;
+    amountReceived: number;
+    remaining: number;
+    status: string;
+    note?: string;
+  } | null>(null);
 
   // Formulaire ajout stock
   const [newImei, setNewImei] = useState('');
@@ -330,6 +349,26 @@ export default function StockPage() {
         });
       }
 
+      const invNumber = `FAC-${Date.now().toString().slice(-6)}`;
+      const invDate = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const conditionStr = selectedItem.isVenant ? 'Venant' : (selectedItem.isSecondHand ? 'Deuxième main' : 'Standard');
+      
+      setInvoiceData({
+        invoiceNumber: invNumber,
+        date: invDate,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim() || 'Non renseigné',
+        productName: selectedItem.productName,
+        storage: selectedItem.storage,
+        condition: conditionStr,
+        imei: selectedItem.imei,
+        price: price,
+        amountReceived: received,
+        remaining: remaining,
+        status: remaining === 0 ? 'Payé intégralement' : 'Acompte versé',
+        note: selectedItem.note || '',
+      });
+
       toast({ 
         title: 'Vente validée !', 
         description: `Vente de l'appareil ${selectedItem.productName} (${selectedItem.storage}) enregistrée avec succès.` 
@@ -337,12 +376,39 @@ export default function StockPage() {
       invalidateCatalogCache();
       setIsSellDialogOpen(false);
       setSelectedItem(null);
+      setIsInvoiceOpen(true);
     } catch (error) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Erreur', description: "Impossible d'enregistrer la vente." });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleOpenInvoiceForItem = (item: StockItem) => {
+    const invNumber = `FAC-${item.id.slice(-6).toUpperCase()}`;
+    const invDate = item.soldAt 
+      ? (item.soldAt.toDate ? item.soldAt.toDate() : new Date(item.soldAt)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const conditionStr = item.isVenant ? 'Venant' : (item.isSecondHand ? 'Deuxième main' : 'Standard');
+    const price = Number(item.finalPrice || item.unitPrice || item.catalogPrice || 0);
+
+    setInvoiceData({
+      invoiceNumber: invNumber,
+      date: invDate,
+      customerName: item.customerName || 'Client Boutique',
+      customerPhone: item.customerPhone || 'Non renseigné',
+      productName: item.productName,
+      storage: item.storage,
+      condition: conditionStr,
+      imei: item.imei,
+      price: price,
+      amountReceived: price,
+      remaining: 0,
+      status: 'Payé intégralement',
+      note: item.note || '',
+    });
+    setIsInvoiceOpen(true);
   };
 
   const openEditDialog = (item: StockItem) => {
@@ -618,6 +684,19 @@ export default function StockPage() {
                                 </Button>
                               )}
 
+                              {item.status === 'vendu' && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => handleOpenInvoiceForItem(item)}
+                                  className="h-8 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/10"
+                                  title="Imprimer la Facture / Reçu officiel"
+                                >
+                                  <Printer className="h-3.5 w-3.5" />
+                                  Facture
+                                </Button>
+                              )}
+
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" className="h-8 w-8 p-0">
@@ -626,6 +705,12 @@ export default function StockPage() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuLabel>Options</DropdownMenuLabel>
+                                  {item.status === 'vendu' && (
+                                    <DropdownMenuItem onClick={() => handleOpenInvoiceForItem(item)}>
+                                      <Printer className="mr-2 h-4 w-4 text-primary" />
+                                      Imprimer Facture (avec IMEI)
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuItem onClick={() => openEditDialog(item)}>
                                     <Edit className="mr-2 h-4 w-4" />
                                     Modifier Prix & Note
@@ -961,6 +1046,164 @@ export default function StockPage() {
             <Button onClick={handleUpdateItem} disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal : Facture & Reçu Officiel de Vente (avec IMEI) */}
+      <Dialog open={isInvoiceOpen} onOpenChange={setIsInvoiceOpen}>
+        <DialogContent className="sm:max-w-[650px] p-0 overflow-hidden max-h-[90vh] flex flex-col">
+          <DialogHeader className="p-4 pb-2 border-b no-print flex flex-row items-center justify-between">
+            <div>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-5 w-5 text-primary" />
+                Facture & Reçu de Vente Officiel
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Document officiel avec traçabilité IMEI pour le client et la garantie 1 mois.
+              </DialogDescription>
+            </div>
+            <Button 
+              onClick={() => {
+                if (typeof window !== 'undefined') window.print();
+              }}
+              size="sm"
+              className="gap-1.5"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimer / PDF
+            </Button>
+          </DialogHeader>
+
+          {invoiceData && (
+            <div className="overflow-y-auto p-6 bg-white text-zinc-900" id="printable-invoice">
+              {/* En-tête Boutique */}
+              <div className="flex items-start justify-between border-b pb-4 mb-4">
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight text-black">SAKHO APPLE</h2>
+                  <p className="text-xs text-zinc-600 font-medium">Boutique Spécialisée iPhones & Produits Apple</p>
+                  <p className="text-xs text-zinc-500">Dakar, Sénégal</p>
+                  <p className="text-xs text-zinc-500 font-mono">Tél / WhatsApp : +221 77 000 00 00</p>
+                </div>
+                <div className="text-right space-y-1">
+                  <span className="inline-block px-2.5 py-1 rounded bg-black text-white text-[11px] font-bold tracking-wider uppercase">
+                    Facture / Reçu
+                  </span>
+                  <p className="text-xs font-mono font-bold text-zinc-700">{invoiceData.invoiceNumber}</p>
+                  <p className="text-[11px] text-zinc-500">{invoiceData.date}</p>
+                </div>
+              </div>
+
+              {/* Bloc Client */}
+              <div className="bg-zinc-50 p-3.5 rounded-lg border border-zinc-200 mb-5 grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-zinc-500 block mb-0.5">Facturé à</span>
+                  <p className="font-bold text-sm text-zinc-900">{invoiceData.customerName}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-zinc-500 block mb-0.5">Contact Client</span>
+                  <p className="font-mono text-zinc-800 font-semibold">{invoiceData.customerPhone}</p>
+                </div>
+              </div>
+
+              {/* Tableau Produit Vendu */}
+              <div className="border border-zinc-200 rounded-lg overflow-hidden mb-5">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-zinc-100 text-zinc-700 uppercase text-[10px] font-bold border-b border-zinc-200">
+                    <tr>
+                      <th className="p-3">Désignation & Caractéristiques</th>
+                      <th className="p-3 text-center">État</th>
+                      <th className="p-3 text-right">Prix Net</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-200">
+                    <tr>
+                      <td className="p-3 space-y-1.5">
+                        <div className="font-bold text-sm text-zinc-900">
+                          {invoiceData.productName} ({invoiceData.storage})
+                        </div>
+                        {/* IMEI OFFICIEL ENCADRÉ POUR GARANTIE */}
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-50 border border-amber-300 text-amber-950">
+                          <span className="text-[10px] font-bold uppercase tracking-wider">N° IMEI :</span>
+                          <span className="font-mono font-black text-xs tracking-widest">{invoiceData.imei}</span>
+                        </div>
+                        {invoiceData.note && (
+                          <p className="text-[11px] text-zinc-500 italic">Note : {invoiceData.note}</p>
+                        )}
+                      </td>
+                      <td className="p-3 text-center align-top">
+                        <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-zinc-200 text-zinc-800">
+                          {invoiceData.condition}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right font-bold text-sm text-zinc-900 align-top">
+                        {invoiceData.price.toLocaleString('fr-FR')} CFA
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Totaux & Règlements */}
+              <div className="flex justify-end mb-6">
+                <div className="w-64 space-y-2 text-xs">
+                  <div className="flex justify-between text-zinc-600">
+                    <span>Total de la vente :</span>
+                    <span className="font-semibold">{invoiceData.price.toLocaleString('fr-FR')} CFA</span>
+                  </div>
+                  <div className="flex justify-between text-zinc-600">
+                    <span>Montant encaissé :</span>
+                    <span className="font-semibold">{invoiceData.amountReceived.toLocaleString('fr-FR')} CFA</span>
+                  </div>
+                  {invoiceData.remaining > 0 && (
+                    <div className="flex justify-between text-red-600 font-bold border-t pt-1">
+                      <span>Reste à payer :</span>
+                      <span>{invoiceData.remaining.toLocaleString('fr-FR')} CFA</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-zinc-900 font-black text-sm border-t border-zinc-300 pt-2">
+                    <span>Statut :</span>
+                    <span className={invoiceData.remaining === 0 ? "text-emerald-700" : "text-amber-700"}>
+                      {invoiceData.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Clause de garantie & Signatures */}
+              <div className="border-t border-zinc-200 pt-4 space-y-4">
+                <div className="p-2.5 rounded bg-zinc-50 border border-zinc-200 text-[10px] text-zinc-600 leading-relaxed">
+                  <strong>Conditions de Garantie (1 Mois) :</strong> Cet appareil bénéficie d'une garantie de bon fonctionnement matériel d'un (1) mois à compter de ce jour. Le numéro IMEI mentionné ci-dessus fait foi pour toute prise en charge. La garantie ne couvre pas les chocs, l'immersion dans un liquide, ou les ouvertures par un tiers.
+                </div>
+
+                <div className="grid grid-cols-2 gap-8 pt-4 text-center text-xs text-zinc-600">
+                  <div>
+                    <p className="font-bold text-zinc-800 mb-10">Signature & Cachet Sakho Apple</p>
+                    <div className="border-b border-zinc-300 mx-8"></div>
+                  </div>
+                  <div>
+                    <p className="font-bold text-zinc-800 mb-10">Signature du Client</p>
+                    <div className="border-b border-zinc-300 mx-8"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="p-3 border-t bg-zinc-50 no-print flex justify-between sm:justify-between items-center">
+            <Button variant="outline" size="sm" onClick={() => setIsInvoiceOpen(false)}>
+              Fermer
+            </Button>
+            <Button 
+              size="sm" 
+              onClick={() => {
+                if (typeof window !== 'undefined') window.print();
+              }}
+              className="gap-1.5"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimer la facture
             </Button>
           </DialogFooter>
         </DialogContent>

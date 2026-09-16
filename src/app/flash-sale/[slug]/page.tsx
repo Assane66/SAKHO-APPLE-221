@@ -40,7 +40,8 @@ async function getFlashSaleData(slug: string): Promise<FlashSale | null> {
 }
 
 
-export default function FlashSalePage({ params }: { params: { slug: string } }) {
+export default function FlashSalePage({ params }: { params: Promise<{ slug: string }> }) {
+    const [resolvedSlug, setResolvedSlug] = useState<string>('');
     const [sale, setSale] = useState<FlashSale | null>(null);
     const [selectedVariant, setSelectedVariant] = useState<FlashSaleVariant | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -49,9 +50,28 @@ export default function FlashSalePage({ params }: { params: { slug: string } }) 
     const { addToCart } = useCart();
 
     useEffect(() => {
+        if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        }
+    }, []);
+
+    useEffect(() => {
+        if (params) {
+            if (typeof (params as any).then === 'function') {
+                params.then(p => {
+                    if (p?.slug) setResolvedSlug(p.slug);
+                });
+            } else if ((params as any).slug) {
+                setResolvedSlug((params as any).slug);
+            }
+        }
+    }, [params]);
+
+    useEffect(() => {
+        if (!resolvedSlug) return;
         const fetchData = async () => {
             setIsLoading(true);
-            const saleData = await getFlashSaleData(params.slug);
+            const saleData = await getFlashSaleData(resolvedSlug);
             if (!saleData) {
                 notFound();
                 return;
@@ -66,7 +86,7 @@ export default function FlashSalePage({ params }: { params: { slug: string } }) 
             setIsLoading(false);
         };
         fetchData();
-    }, [params.slug]);
+    }, [resolvedSlug]);
 
     const handleAddToCart = () => {
         if (!sale || !selectedVariant) return;

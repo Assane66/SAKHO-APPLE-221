@@ -64,53 +64,45 @@ async function getProductsAndCategories() {
     return product;
   });
 
-  // Mapper chaque exemplaire unique en stock avec son IMEI
-  const uniqueImeiProducts: Product[] = inventorySnapshot.docs.map(doc => {
-    const inv = doc.data();
-    const baseProd = productListWithPromos.find(p => p.id === inv.productId) ||
-                     productListWithPromos.find(p => p.name?.toLowerCase() === (inv.productName || '').toLowerCase());
+  const availableInventory = inventorySnapshot.docs.map(doc => doc.data());
 
-    const initialPrice = Number(inv.catalogPrice) || Number(inv.originalPrice) || Number(baseProd?.variants?.[0]?.price) || 0;
-    const currentPrice = Number(inv.unitPrice) || initialPrice;
-    const storage = inv.storage || baseProd?.variants?.[0]?.storage || '128GB';
+  const allProducts = productListWithPromos.map(product => {
+    const matchingInv = availableInventory.filter(inv =>
+      inv.productId === product.id ||
+      (inv.productName && product.name && inv.productName.trim().toLowerCase() === product.name.trim().toLowerCase())
+    );
 
-    return {
-      id: `imei-${doc.id}`,
-      name: inv.productName || baseProd?.name || 'iPhone',
-      slug: baseProd?.slug || inv.productId || doc.id,
-      categoryId: baseProd?.categoryId || '',
-      categoryName: baseProd?.categoryName || '',
-      thumbnail: baseProd?.thumbnail || 'https://res.cloudinary.com/dm6yuokre/image/upload/v1784658568/apple-iphone-17-pro-max-256-go-ecran-69-puce-a19-pro-orange-removebg-preview_vmy8i6.png',
-      keywords: baseProd?.keywords || [],
-      batteryHealth: baseProd?.batteryHealth || '100%',
-      status: 'active',
-      hasIMEI: true,
-      imei: inv.imei,
-      isVenant: Boolean(inv.isVenant),
-      isSecondHand: Boolean(inv.isSecondHand),
-      storage: storage,
-      originalPrice: initialPrice,
-      unitPrice: currentPrice,
-      isUniqueItem: true,
-      variants: [
-        {
-          storage: storage,
-          price: currentPrice,
-          originalPrice: initialPrice,
-          isPromo: currentPrice < initialPrice,
-          promoPrice: currentPrice < initialPrice ? currentPrice : undefined,
-        }
-      ],
-      createdAt: inv.addedAt || null,
-    } as Product;
+    const inStockCount = matchingInv.length;
+    product.inStock = inStockCount > 0;
+    product.inStockCount = inStockCount;
+
+    if (product.inStock) {
+      const hasVenant = matchingInv.some(i => i.isVenant);
+      const hasSecondHand = matchingInv.some(i => i.isSecondHand);
+      if (hasVenant) product.isVenant = true;
+      if (hasSecondHand && !hasVenant) product.isSecondHand = true;
+
+      const customItems = matchingInv.filter(i => i.unitPrice && i.unitPrice > 0);
+      if (customItems.length > 0) {
+        const lowestCustom = Math.min(...customItems.map(i => i.unitPrice));
+        product.unitPrice = lowestCustom;
+        product.originalPrice = customItems[0].originalPrice || customItems[0].catalogPrice || product.variants?.[0]?.price;
+      }
+    }
+
+    // Sécurité : ne jamais faire fuiter l'IMEI confidentiel côté client public
+    delete (product as any).imei;
+    delete (product as any).hasIMEI;
+
+    return product;
   });
 
-  // Fusionner et placer TOUS les produits avec IMEI EN PRIORITÉ
-  let allProducts = [...uniqueImeiProducts, ...productListWithPromos];
+  // Priorité absolue : les produits avec stock physique disponible s'affichent en premier
   allProducts.sort((a, b) => {
-    const aImei = a.hasIMEI || a.isUniqueItem ? 1 : 0;
-    const bImei = b.hasIMEI || b.isUniqueItem ? 1 : 0;
-    return bImei - aImei;
+    const aStock = a.inStock ? 1 : 0;
+    const bStock = b.inStock ? 1 : 0;
+    if (bStock !== aStock) return bStock - aStock;
+    return 0;
   });
 
   // Sauvegarder dans le cache mémoire client
@@ -233,8 +225,7 @@ function ProductsPageContent() {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(product =>
         product.name.toLowerCase().includes(term) ||
-        product.keywords?.join(' ').toLowerCase().includes(term) ||
-        (product.imei && product.imei.toLowerCase().includes(term))
+        product.keywords?.join(' ').toLowerCase().includes(term)
       );
     }
 
@@ -250,11 +241,11 @@ function ProductsPageContent() {
     };
 
     filtered.sort((a, b) => {
-      const aImei = a.hasIMEI || a.isUniqueItem ? 1 : 0;
-      const bImei = b.hasIMEI || b.isUniqueItem ? 1 : 0;
-      // Priorité absolue : exemplaires et produits avec IMEI toujours en premier
-      if (bImei !== aImei) {
-        return bImei - aImei;
+      if (sortOrder === 'default') {
+        const aStock = a.inStock ? 1 : 0;
+        const bStock = b.inStock ? 1 : 0;
+        if (bStock !== aStock) return bStock - aStock;
+        return 0;
       }
       if (sortOrder === 'price-asc') return getPrice(a) - getPrice(b);
       if (sortOrder === 'price-desc') return getPrice(b) - getPrice(a);
@@ -272,15 +263,15 @@ function ProductsPageContent() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">Tous les Produits</h1>
-        <p className="text-muted-foreground">Trouvez l&apos;appareil Apple parfait pour vous.</p>
+        <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">Catalogue des iPhones</h1>
+        <p className="text-muted-foreground">Trouvez l&apos;iPhone parfait pour vous — Modèles en stock immédiat et sur commande.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 sticky top-16 bg-background/95 backdrop-blur py-4 z-10">
         <div className="md:col-span-2 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
-                placeholder="Rechercher par nom ou mot-clé..." 
+                placeholder="Rechercher par nom de modèle ou mot-clé..." 
                 className="pl-10"
                 value={searchTerm}
                 onChange={handleSearchChange}
@@ -305,7 +296,7 @@ function ProductsPageContent() {
                     <SelectValue placeholder="Trier par" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="default">Par défaut</SelectItem>
+                    <SelectItem value="default">Disponibilité (En stock en premier)</SelectItem>
                     <SelectItem value="price-asc">Prix: Croissant</SelectItem>
                     <SelectItem value="price-desc">Prix: Décroissant</SelectItem>
                 </SelectContent>
@@ -321,34 +312,44 @@ function ProductsPageContent() {
             {filteredAndSortedProducts.length > 0 ? (
               filteredAndSortedProducts.slice(0, visibleCount).map((product, idx) => {
                 const storageDisplay = (product as any).storage || product.variants?.[0]?.storage;
-                const imeiQuery = (product as any).hasIMEI && (product as any).imei ? `?imei=${(product as any).imei}&storage=${encodeURIComponent(storageDisplay || '')}` : '';
-                const productUrl = `/products/${product.slug || product.id}${imeiQuery}`;
+                const productUrl = `/products/${product.slug || product.id}`;
                 const optimizedImageUrl = getOptimizedImageUrl(product.thumbnail, 500);
-                const initialPrice = product.originalPrice || 0;
+                const initialPrice = product.originalPrice || product.variants?.[0]?.originalPrice || 0;
                 const currentPrice = product.unitPrice || product.variants?.[0]?.promoPrice || product.variants?.[0]?.price || 0;
                 const isLower = initialPrice > 0 && currentPrice < initialPrice;
 
                 return (
-                <Card key={product.id} className={`overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 flex flex-col group relative ${(product as any).hasIMEI ? 'ring-1 ring-amber-500/40' : ''}`}>
-                  {/* Condition badges */}
+                <Card key={product.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 flex flex-col group relative">
+                  {/* Badges top left: En stock / Custom Badge */}
+                  <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+                    {product.inStock ? (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold uppercase tracking-wider shadow">
+                        ✓ En stock
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 text-[10px] font-medium shadow">
+                        Sur commande
+                      </span>
+                    )}
+                    {product.customBadge && (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-400 text-black text-[10px] font-extrabold uppercase tracking-wider shadow">
+                        {product.customBadge}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Badges top right: Condition */}
                   {((product as any).isVenant || (product as any).isSecondHand) && (
-                    <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+                    <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
                       {(product as any).isVenant && (
                         <span className="px-2 py-0.5 rounded-full bg-amber-500 text-black text-[10px] font-extrabold uppercase tracking-wider shadow">✦ Venant</span>
                       )}
                       {(product as any).isSecondHand && (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-extrabold uppercase tracking-wider shadow">2ème main</span>
+                        <span className="px-2 py-0.5 rounded-full bg-zinc-700 text-white text-[10px] font-extrabold uppercase tracking-wider shadow">2ème main</span>
                       )}
                     </div>
                   )}
-                  {(product as any).hasIMEI && (
-                    <div className="absolute top-2 right-2 z-10">
-                      <span className="px-1.5 py-0.5 rounded-md bg-amber-400 text-black text-[9px] font-mono font-extrabold shadow flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
-                        {(product as any).imei ? `IMEI ••${(product as any).imei.slice(-4)}` : 'IMEI'}
-                      </span>
-                    </div>
-                  )}
+
                   <CardContent className="p-4 text-center flex-grow flex flex-col">
                       {getCategoryName(product.categoryId) && (
                           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">{getCategoryName(product.categoryId)}</p>

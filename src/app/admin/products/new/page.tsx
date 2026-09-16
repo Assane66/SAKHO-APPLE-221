@@ -33,6 +33,13 @@ export default function NewProductPage() {
   const [hasIMEI, setHasIMEI] = useState(false);
   const [categories, setCategories] = useState<DocumentData[]>([]);
 
+  // Badges marketing et mise en avant
+  const [customBadge, setCustomBadge] = useState<string>('none');
+  const [isFeatured, setIsFeatured] = useState<boolean>(false);
+  const [isFlashSale, setIsFlashSale] = useState<boolean>(false);
+  const [flashSalePrice, setFlashSalePrice] = useState<number>(0);
+  const [flashSaleEndDate, setFlashSaleEndDate] = useState<string>('');
+
   // Champs dédiés exemplaire initial IMEI
   const [imeiNumber, setImeiNumber] = useState('');
   const [imeiCondition, setImeiCondition] = useState<'venant' | 'secondHand' | 'none'>('venant');
@@ -167,6 +174,11 @@ export default function NewProductPage() {
         keywords: keywords.split(',').map(k => k.trim()).filter(k => k),
         variants,
         hasIMEI,
+        customBadge: customBadge !== 'none' ? customBadge : undefined,
+        isFeatured: Boolean(isFeatured),
+        isFlashSale: Boolean(isFlashSale),
+        flashSalePrice: isFlashSale && Number(flashSalePrice) > 0 ? Number(flashSalePrice) : undefined,
+        flashSaleEndDate: isFlashSale && flashSaleEndDate ? new Date(flashSaleEndDate) : undefined,
         createdAt: serverTimestamp()
       };
 
@@ -339,6 +351,75 @@ export default function NewProductPage() {
                             <Label htmlFor="battery-health">Santé de la batterie</Label>
                             <Input id="battery-health" value={batteryHealth} onChange={(e) => setBatteryHealth(e.target.value)} placeholder="Ex: 90-100%" />
                         </div>
+
+                        {/* Badges Marketing & Vedettes */}
+                        <div className="p-3 bg-muted/40 rounded-xl border space-y-3">
+                          <div className="space-y-1.5">
+                            <Label htmlFor="custom-badge" className="text-xs font-bold">Badge Marketing Spécial</Label>
+                            <Select value={customBadge} onValueChange={setCustomBadge}>
+                              <SelectTrigger id="custom-badge" className="h-9 text-xs">
+                                <SelectValue placeholder="Aucun badge" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">Aucun badge</SelectItem>
+                                <SelectItem value="Bestseller">✦ Bestseller</SelectItem>
+                                <SelectItem value="Nouveauté">✨ Nouveauté</SelectItem>
+                                <SelectItem value="Offre Spéciale">🔥 Offre Spéciale</SelectItem>
+                                <SelectItem value="Populaire">★ Populaire</SelectItem>
+                                <SelectItem value="Coup de Cœur">❤️ Coup de Cœur</SelectItem>
+                                <SelectItem value="Flagship">👑 Flagship</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer pt-1">
+                            <input
+                              type="checkbox"
+                              checked={isFeatured}
+                              onChange={(e) => setIsFeatured(e.target.checked)}
+                              className="rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                            <span>Mettre en avant sur la page d'accueil (Bento Grid)</span>
+                          </label>
+                        </div>
+
+                        {/* Vente Flash */}
+                        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl space-y-3">
+                          <label className="flex items-center gap-2 text-xs font-bold text-red-500 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isFlashSale}
+                              onChange={(e) => setIsFlashSale(e.target.checked)}
+                              className="rounded border-red-400 text-red-600 focus:ring-red-500"
+                            />
+                            <span>Activer en Vente Flash</span>
+                          </label>
+
+                          {isFlashSale && (
+                            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-red-500/20">
+                              <div className="space-y-1">
+                                <Label className="text-[11px] text-muted-foreground">Prix Flash (CFA)</Label>
+                                <Input
+                                  type="number"
+                                  value={flashSalePrice || ''}
+                                  onChange={(e) => setFlashSalePrice(Number(e.target.value))}
+                                  placeholder="Prix promo"
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[11px] text-muted-foreground">Date limite</Label>
+                                <Input
+                                  type="datetime-local"
+                                  value={flashSaleEndDate}
+                                  onChange={(e) => setFlashSaleEndDate(e.target.value)}
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
                         <div className="flex items-center space-x-2 py-2">
                             <input 
                                 type="checkbox" 

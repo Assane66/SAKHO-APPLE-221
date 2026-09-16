@@ -44,14 +44,14 @@ export default function AdminDashboardPage() {
         const ordersQuery = query(collection(db, "orders"), orderBy("date", "desc"));
 
         const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
-            const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const orders: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             let totalRevenue = 0;
             const customerPhones = new Set<string>();
             const productSales = new Map<string, number>();
             const monthlySales: { [key: string]: number } = {};
 
-            orders.forEach(order => {
+            orders.forEach((order: any) => {
                 if (order.total) {
                     totalRevenue += order.total;
                 }

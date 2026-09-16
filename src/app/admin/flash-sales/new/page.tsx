@@ -38,12 +38,13 @@ export default function NewFlashSalePage() {
 
   const handleVariantChange = (index: number, field: keyof Omit<FlashSaleVariant, 'sold'>, value: string | number) => {
     const newVariants = [...variants];
-    const variant = newVariants[index];
-    if (typeof variant[field] === 'number') {
-        variant[field] = Number(value);
+    const variant: any = { ...newVariants[index] };
+    if (field === 'storage') {
+        variant[field] = String(value);
     } else {
-        variant[field] = value as string;
+        variant[field] = Number(value);
     }
+    newVariants[index] = variant;
     setVariants(newVariants);
   };
 

@@ -30,6 +30,7 @@ export function BentoGridSection({ products = [], onQuickBuy }: BentoGridSection
 
   const tradeInCard = {
     id: 'trade-in-ai',
+    slug: 'exchange',
     title: 'Programme Échange IA',
     subtitle: 'Faites estimer et revendez votre ancien iPhone au meilleur prix',
     price: 'Estimation Instantanée',
@@ -40,6 +41,11 @@ export function BentoGridSection({ products = [], onQuickBuy }: BentoGridSection
     isTradeIn: true,
     gridSpan: 'md:col-span-6 lg:col-span-6',
     accentColor: 'rgba(245, 215, 142, 0.25)',
+    image: '',
+    isPromo: false,
+    originalPrice: '',
+    discount: '',
+    variants: [] as any[],
   };
 
   const bentoLayouts = [
@@ -69,8 +75,15 @@ export function BentoGridSection({ products = [], onQuickBuy }: BentoGridSection
     }
   ];
 
-  const dynamicBentoItems = products.slice(0, 4).map((product, index) => {
-    const layout = bentoLayouts[index];
+  // Prioriser les produits avec isFeatured ou un customBadge
+  const sortedFeaturedProducts = [...products].sort((a, b) => {
+    const aScore = (a.isFeatured ? 2 : 0) + (a.customBadge ? 1 : 0) + (a.inStock ? 1 : 0);
+    const bScore = (b.isFeatured ? 2 : 0) + (b.customBadge ? 1 : 0) + (b.inStock ? 1 : 0);
+    return bScore - aScore;
+  });
+
+  const dynamicBentoItems = sortedFeaturedProducts.slice(0, 4).map((product, index) => {
+    const layout = bentoLayouts[index] || bentoLayouts[0];
     let minPrice = 0;
     let isPromo = false;
     let originalPrice = '';
@@ -92,19 +105,22 @@ export function BentoGridSection({ products = [], onQuickBuy }: BentoGridSection
        }
     }
 
+    const itemBadge = product.customBadge || layout.badge;
+    const itemCondition = product.isVenant ? 'Venant' : (product.isSecondHand ? '2ème main' : (product.inStock ? 'En stock' : 'Sur commande'));
+
     return {
       id: product.id,
       slug: product.slug,
       title: product.name,
-      subtitle: product.categoryName || 'Design premium & performances inédites',
+      subtitle: product.categoryName || 'Design titane, performances pro & autonomie record',
       price: minPrice ? minPrice.toLocaleString('fr-FR') : '890 000',
       isPromo,
       originalPrice,
       discount,
       storageOptions: product.variants?.map(v => v.storage).slice(0, 3) || [],
-      condition: 'Premium',
-      badge: layout.badge,
-      badgeColor: layout.badgeColor,
+      condition: itemCondition,
+      badge: itemBadge,
+      badgeColor: product.customBadge ? 'bg-amber-400 text-black font-extrabold' : layout.badgeColor,
       image: product.thumbnail || 'https://res.cloudinary.com/dm6yuokre/image/upload/v1784658568/apple-iphone-17-pro-max-256-go-ecran-69-puce-a19-pro-orange-removebg-preview_vmy8i6.png',
       gridSpan: layout.gridSpan,
       accentColor: layout.accentColor,
@@ -268,7 +284,7 @@ export function BentoGridSection({ products = [], onQuickBuy }: BentoGridSection
                     </button>
 
                     <Link
-                      href={`/products?search=${encodeURIComponent(item.title)}`}
+                      href={`/products/${item.slug || item.id}`}
                       className="text-xs font-semibold text-zinc-400 hover:text-white flex items-center gap-1 transition-colors"
                     >
                       Détails <ChevronRight className="w-3.5 h-3.5" />

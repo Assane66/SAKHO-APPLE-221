@@ -23,13 +23,20 @@ export type Product = {
   promoEndDate?: any; // To accommodate serverTimestamp
   sales?: number; // Pour le suivi des produits les plus vendus
   hasIMEI?: boolean; // Indique si ce produit peut avoir des exemplaires avec IMEI
-  imei?: string; // Numéro IMEI si exemplaire unique
+  imei?: string; // Numéro IMEI (strictement interne, pour traçabilité)
   isVenant?: boolean; // Appareil d'origine Venant
   isSecondHand?: boolean; // Appareil d'occasion / 2ème main
   originalPrice?: number; // Prix initial avant réduction éventuelle
   unitPrice?: number; // Prix de vente
-  isUniqueItem?: boolean; // Indique un exemplaire unique issu du stock IMEI
-  storage?: string; // Capacité mémoire pour un exemplaire unique
+  isUniqueItem?: boolean; // Indique un exemplaire issu du stock
+  storage?: string; // Capacité mémoire principale
+  customBadge?: string; // Badge administrable (ex: "Bestseller", "Nouveauté", "Offre Spéciale", "Populaire")
+  isFeatured?: boolean; // Produit vedette pour mise en avant / Bento Grid
+  isFlashSale?: boolean; // Activer la vente flash pour ce produit
+  flashSalePrice?: number; // Prix promotionnel flash
+  flashSaleEndDate?: any; // Date de fin de vente flash
+  inStock?: boolean; // Indique si des unités physiques sont en stock
+  inStockCount?: number; // Nombre d'unités physiques disponibles
 };
 
 export type StockItem = {
