@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RotateCw, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);

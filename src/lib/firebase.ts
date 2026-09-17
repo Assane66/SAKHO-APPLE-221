@@ -2,7 +2,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, Firestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -22,7 +22,20 @@ if (typeof window !== 'undefined') {
   setPersistence(auth, browserLocalPersistence);
 }
 
-const db = getFirestore(app);
+let db: Firestore;
+try {
+  if (typeof window !== 'undefined') {
+    db = initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+    });
+  } else {
+    db = getFirestore(app);
+  }
+} catch (e) {
+  db = getFirestore(app);
+}
+
 const storage = getStorage(app);
 
 // Initialize Analytics only on the client-side
