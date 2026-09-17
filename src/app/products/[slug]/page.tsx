@@ -214,12 +214,19 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
             setStockItems(stockItems);
 
             if (product && product.variants && product.variants.length > 0) {
+                // Si des items en stock existent, pré-sélectionner le premier stockage en stock
+                const inStockStorages = stockItems.map((s: any) => s.storage).filter(Boolean);
                 const sortedVariants = [...product.variants].sort((a, b) => (a.promoPrice || a.price) - (b.promoPrice || b.price));
+                
                 let initialVariant = sortedVariants[0];
 
                 if (queryStorage) {
                     const matched = product.variants.find(v => v.storage.toLowerCase() === queryStorage.toLowerCase());
                     if (matched) initialVariant = matched;
+                } else if (inStockStorages.length > 0) {
+                    // Forcer la sélection initiale sur la première variante disponible en stock
+                    const stockVariant = product.variants.find(v => inStockStorages.includes(v.storage));
+                    if (stockVariant) initialVariant = stockVariant;
                 }
 
                 setSelectedVariant(initialVariant);
@@ -280,8 +287,15 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
         )
     }
 
-    const displayPrice = flashSale?.discountPrice || selectedVariant?.promoPrice || selectedVariant?.price;
-    const originalPrice = flashSale ? flashSale.originalPrice : (selectedVariant?.isPromo ? selectedVariant.price : null);
+    // Prix à afficher : priorité au prix du stock (custom), puis flash sale, puis promo, puis catalogue
+    const stockItemForVariant = stockItems.find((s: any) => s.storage === selectedVariant?.storage);
+    const stockCustomPrice: number | null = stockItemForVariant?.unitPrice || stockItemForVariant?.sellingPrice || null;
+    const displayPrice = stockCustomPrice || flashSale?.discountPrice || selectedVariant?.promoPrice || selectedVariant?.price;
+    const originalPrice = stockCustomPrice
+      ? null // Produit stock à prix fixe : pas de prix barré
+      : flashSale
+        ? flashSale.originalPrice
+        : (selectedVariant?.isPromo ? selectedVariant.price : null);
 
     return (
     <div className="container mx-auto max-w-6xl py-8 px-4 md:px-6">
@@ -311,34 +325,75 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
           <Separator />
           
           <div>
-            <h2 className="text-lg font-semibold mb-3 font-headline">Choisir le stockage :</h2>
-            <RadioGroup
-              value={selectedVariant?.storage}
-              onValueChange={(storage) => {
-                const variant = product.variants.find(v => v.storage === storage);
-                if (variant) setSelectedVariant(variant);
-              }}
-              className="grid grid-cols-2 md:grid-cols-3 gap-3"
-            >
-              {product.variants.sort((a,b) => (a.promoPrice || a.price) - (b.promoPrice || b.price)).map((variant) => (
-                <Label
-                  key={variant.storage}
-                  htmlFor={variant.storage}
-                  className={`flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer transition-all ${selectedVariant?.storage === variant.storage ? 'border-primary ring-2 ring-primary' : 'border-muted hover:border-primary/50'}`}
-                >
-                  <RadioGroupItem value={variant.storage} id={variant.storage} className="sr-only" />
-                  <span className="font-bold text-lg">{variant.storage}</span>
-                    {variant.isPromo ? (
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-sm text-muted-foreground line-through">{variant.price.toLocaleString('fr-FR')} CFA</span>
-                            <span className="text-sm text-primary">{variant.promoPrice?.toLocaleString('fr-FR')} CFA</span>
-                        </div>
-                    ) : (
-                        <span className="text-sm text-muted-foreground">{variant.price.toLocaleString('fr-FR')} CFA</span>
-                    )}
-                </Label>
-              ))}
-            </RadioGroup>
+            {(() => {
+              // Si des items en stock existent, on ne montre QUE les variantes disponibles en stock
+              const inStockStorages = stockItems.map((s: any) => s.storage).filter(Boolean);
+              const hasRealStock = inStockStorages.length > 0;
+
+              // Variantes à afficher : filtrées par stock ou toutes du catalogue
+              const variantsToShow = hasRealStock
+                ? product.variants.filter(v => inStockStorages.includes(v.storage))
+                : [...product.variants].sort((a, b) => (a.promoPrice || a.price) - (b.promoPrice || b.price));
+
+              // Pour chaque variante en stock, chercher si un prix custom a été défini dans l'inventaire
+              const getStockPrice = (storage: string): number | null => {
+                const item = stockItems.find((s: any) => s.storage === storage);
+                return item?.unitPrice || item?.sellingPrice || null;
+              };
+
+              return (
+                <>
+                  <h2 className="text-lg font-semibold mb-3 font-headline">
+                    {hasRealStock ? 'Stockage disponible en boutique :' : 'Choisir le stockage :'}
+                  </h2>
+                  {hasRealStock && (
+                    <p className="text-xs text-zinc-400 mb-3">
+                      Seuls les stockages actuellement disponibles en stock sont proposés à la commande.
+                    </p>
+                  )}
+                  <RadioGroup
+                    value={selectedVariant?.storage}
+                    onValueChange={(storage) => {
+                      const variant = product.variants.find(v => v.storage === storage);
+                      if (variant) setSelectedVariant(variant);
+                    }}
+                    className="grid grid-cols-2 md:grid-cols-3 gap-3"
+                  >
+                    {variantsToShow.map((variant) => {
+                      const stockPrice = hasRealStock ? getStockPrice(variant.storage) : null;
+                      const displayCatalogPrice = variant.isPromo
+                        ? { promo: variant.promoPrice, original: variant.price }
+                        : { promo: null, original: variant.price };
+                      return (
+                        <Label
+                          key={variant.storage}
+                          htmlFor={variant.storage}
+                          className={`flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer transition-all ${
+                            selectedVariant?.storage === variant.storage
+                              ? 'border-primary ring-2 ring-primary'
+                              : 'border-muted hover:border-primary/50'
+                          }`}
+                        >
+                          <RadioGroupItem value={variant.storage} id={variant.storage} className="sr-only" />
+                          <span className="font-bold text-lg">{variant.storage}</span>
+                          {stockPrice ? (
+                            // Prix du stock (custom) — prioritaire sur le catalogue
+                            <span className="text-sm text-primary font-semibold">{stockPrice.toLocaleString('fr-FR')} CFA</span>
+                          ) : displayCatalogPrice.promo ? (
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-sm text-muted-foreground line-through">{displayCatalogPrice.original.toLocaleString('fr-FR')} CFA</span>
+                              <span className="text-sm text-primary">{displayCatalogPrice.promo?.toLocaleString('fr-FR')} CFA</span>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">{displayCatalogPrice.original.toLocaleString('fr-FR')} CFA</span>
+                          )}
+                        </Label>
+                      );
+                    })}
+                  </RadioGroup>
+                </>
+              );
+            })()}
           </div>
 
           {/* Stock Réel & Disponibilité (IMEI strictement masqué et sécurisé) */}

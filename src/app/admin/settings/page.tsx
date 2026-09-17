@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import Link from "next/link";
-import { Loader2, Sparkles, ChevronRight } from "lucide-react";
+import { Loader2, Sparkles, ChevronRight, Truck } from "lucide-react";
 
 interface SettingsData {
   shopName: string;
@@ -23,6 +23,7 @@ interface SettingsData {
   facebookUrl?: string;
   instagramUrl?: string;
   tiktokUrl?: string;
+  deliveryFee?: number;
 }
 
 export default function SettingsPage() {
@@ -36,6 +37,7 @@ export default function SettingsPage() {
     facebookUrl: '',
     instagramUrl: '',
     tiktokUrl: 'https://vm.tiktok.com/ZMHgBjJwjqgsS-ysH6R/',
+    deliveryFee: 5000,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -207,13 +209,13 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between rounded-lg border p-4">
             <div className="space-y-0.5">
               <Label htmlFor="paymentMobileMoney" className="text-base">Paiement mobile</Label>
-               <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Accepter les paiements via Wave, Orange Money, etc.
               </p>
             </div>
             <Switch id="paymentMobileMoney" checked={settings.paymentMobileMoney} onCheckedChange={(checked) => handleSwitchChange('paymentMobileMoney', checked)} />
           </div>
-           <div className="flex items-center justify-between rounded-lg border p-4">
+          <div className="flex items-center justify-between rounded-lg border p-4">
             <div className="space-y-0.5">
               <Label htmlFor="card-payment" className="text-base">Carte bancaire</Label>
               <p className="text-sm text-muted-foreground">
@@ -221,6 +223,48 @@ export default function SettingsPage() {
               </p>
             </div>
             <Switch id="card-payment" disabled />
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Enregistrer les modifications
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Truck className="w-5 h-5 text-amber-400" />
+            <CardTitle>Livraison</CardTitle>
+          </div>
+          <CardDescription>
+            Définissez le montant des frais de livraison à domicile à Dakar. Le retrait en boutique est toujours gratuit.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="deliveryFee">Frais de livraison à domicile (CFA)</Label>
+            <Input
+              id="deliveryFee"
+              type="number"
+              min={0}
+              step={500}
+              placeholder="ex: 5000"
+              value={settings.deliveryFee ?? 5000}
+              onChange={(e) => setSettings(prev => ({ ...prev, deliveryFee: Number(e.target.value) }))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Ce montant sera affiché et ajouté automatiquement lors d'une commande en livraison à domicile (Dakar). Pour toute livraison hors Dakar, le client devra contacter la boutique.
+            </p>
+          </div>
+          <div className="flex items-center justify-between rounded-lg border p-4 bg-zinc-900/50">
+            <div className="space-y-0.5">
+              <Label className="text-base">Retrait en boutique</Label>
+              <p className="text-sm text-muted-foreground">Toujours gratuit — le client vient chercher son produit directement à la boutique.</p>
+            </div>
+            <span className="text-emerald-400 font-bold text-sm">0 CFA</span>
           </div>
         </CardContent>
         <CardFooter>

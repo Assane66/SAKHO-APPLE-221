@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ShieldCheck, MapPin, Phone, CheckCircle2, Sparkles, Truck, User } from 'lucide-react';
+import { X, MapPin, Phone, CheckCircle2, Sparkles, Truck, User, Store } from 'lucide-react';
 import { SlideToBuy } from './SlideToBuy';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 
 interface FastCheckoutDrawerProps {
   isOpen: boolean;
@@ -33,34 +33,64 @@ export function FastCheckoutDrawer({
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState<'domicile' | 'retrait'>('domicile');
+  const [deliveryFee, setDeliveryFee] = useState(5000);
   const [isOrdered, setIsOrdered] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Charger les frais de livraison depuis Firestore
+  useEffect(() => {
+    const loadDeliveryFee = async () => {
+      try {
+        const settingsSnap = await getDoc(doc(db, 'settings', 'general'));
+        if (settingsSnap.exists()) {
+          const data = settingsSnap.data();
+          if (typeof data.deliveryFee === 'number') {
+            setDeliveryFee(data.deliveryFee);
+          }
+        }
+      } catch (e) {
+        // Valeur par défaut conservée
+      }
+    };
+    if (isOpen) loadDeliveryFee();
+  }, [isOpen]);
+
   const currentVariant = variants?.find(v => v.storage === selectedStorage);
-  const displayPrice = currentVariant 
-    ? (currentVariant.promoPrice || currentVariant.price).toLocaleString('fr-FR')
-    : price;
+  const basePrice = currentVariant
+    ? (currentVariant.promoPrice || currentVariant.price)
+    : parseInt((price || '0').replace(/\D/g, ''), 10) || 0;
+
+  const shippingCost = deliveryMethod === 'domicile' ? deliveryFee : 0;
+  const totalPrice = basePrice + shippingCost;
+
+  const displayPrice = basePrice.toLocaleString('fr-FR');
+  const displayTotal = totalPrice.toLocaleString('fr-FR');
 
   const storageOptions = variants?.map(v => v.storage) || ['128 GB', '256 GB', '512 GB', '1 TB'];
 
   const handleOrderSuccess = async () => {
-    if (!fullName || !phone || !address) return;
+    if (!fullName || !phone) return;
+    if (deliveryMethod === 'domicile' && !address) return;
     setIsSubmitting(true);
 
     try {
-      const priceNumber = parseInt(displayPrice.replace(/\D/g, ''), 10) || 0;
+      const deliveryLabel = deliveryMethod === 'domicile'
+        ? `Livraison à domicile (+${deliveryFee.toLocaleString('fr-FR')} CFA)`
+        : 'Retrait en boutique (Gratuit)';
 
       // Save order to Firestore
       await addDoc(collection(db, 'orders'), {
         customerName: fullName,
         customerPhone: phone,
-        customerAddress: address,
-        deliveryMethod: 'Livraison express (1-Clic)',
+        customerAddress: deliveryMethod === 'domicile' ? address : 'Retrait en boutique',
+        deliveryMethod: deliveryLabel,
         productName: productName,
         storage: selectedStorage,
         price: displayPrice,
-        total: priceNumber,
-        totalFormatted: `${displayPrice} CFA`,
+        deliveryFee: shippingCost,
+        total: totalPrice,
+        totalFormatted: `${displayTotal} CFA`,
         status: 'En attente',
         createdAt: serverTimestamp(),
         date: serverTimestamp(),
@@ -70,7 +100,7 @@ export function FastCheckoutDrawer({
             name: productName,
             storage: selectedStorage,
             quantity: 1,
-            price: priceNumber,
+            price: basePrice,
             thumbnail: image || '',
           }
         ]
@@ -79,7 +109,11 @@ export function FastCheckoutDrawer({
       setIsOrdered(true);
 
       // Format WhatsApp message
-      const message = `Bonjour Khalil Apple ! Je souhaite commander en 1-Clic :\n- Produit : ${productName}\n- Stockage : ${selectedStorage}\n- Prix : ${displayPrice} CFA\n- Client : ${fullName}\n- Téléphone : ${phone}\n- Adresse : ${address}`;
+      const adresseInfo = deliveryMethod === 'domicile'
+        ? `\n- Adresse : ${address}`
+        : '\n- Mode : Retrait en boutique';
+
+      const message = `Bonjour Khalil Apple ! Je souhaite commander :\n- Produit : ${productName}\n- Stockage : ${selectedStorage}\n- Prix produit : ${displayPrice} CFA\n- Livraison : ${deliveryMethod === 'domicile' ? `${deliveryFee.toLocaleString('fr-FR')} CFA` : 'Gratuit (retrait)'}\n- Total : ${displayTotal} CFA\n- Client : ${fullName}\n- Téléphone : ${phone}${adresseInfo}`;
       const targetNumber = whatsappNumber.replace(/\+/g, '');
       const whatsappUrl = `https://wa.me/${targetNumber}?text=${encodeURIComponent(message)}`;
 
@@ -192,6 +226,44 @@ export function FastCheckoutDrawer({
                 </div>
               </div>
 
+              {/* Delivery Method Selector */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1">
+                  <Truck className="w-3.5 h-3.5 text-amber-400" />
+                  Mode de livraison :
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setDeliveryMethod('domicile')}
+                    className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-xs font-bold transition-all border ${
+                      deliveryMethod === 'domicile'
+                        ? 'bg-amber-400 text-black border-amber-400 shadow-lg shadow-amber-400/20'
+                        : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    <Truck className="w-4 h-4" />
+                    <span>Domicile</span>
+                    <span className={`text-[10px] font-normal ${deliveryMethod === 'domicile' ? 'text-black/70' : 'text-zinc-500'}`}>
+                      +{deliveryFee.toLocaleString('fr-FR')} CFA
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setDeliveryMethod('retrait')}
+                    className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-xs font-bold transition-all border ${
+                      deliveryMethod === 'retrait'
+                        ? 'bg-amber-400 text-black border-amber-400 shadow-lg shadow-amber-400/20'
+                        : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    <Store className="w-4 h-4" />
+                    <span>Retrait boutique</span>
+                    <span className={`text-[10px] font-normal ${deliveryMethod === 'retrait' ? 'text-black/70' : 'text-emerald-400'}`}>
+                      Gratuit
+                    </span>
+                  </button>
+                </div>
+              </div>
+
               {/* Customer Express Info */}
               <div className="space-y-3 pt-1">
                 <div>
@@ -222,18 +294,38 @@ export function FastCheckoutDrawer({
                   />
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1 mb-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                    Adresse de Livraison :
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Saisissez votre adresse complète (ex: Sacré-Cœur 3, Dakar)"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-zinc-400 text-sm focus:border-amber-400 focus:outline-none transition-colors font-medium"
-                  />
+                {deliveryMethod === 'domicile' && (
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1 mb-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                      Adresse de Livraison :
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Saisissez votre adresse complète (ex: Sacré-Cœur 3, Dakar)"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-zinc-400 text-sm focus:border-amber-400 focus:outline-none transition-colors font-medium"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Total recap */}
+              <div className="rounded-2xl bg-white/5 border border-white/10 p-4 space-y-2">
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <span>Produit</span>
+                  <span className="font-bold text-white">{displayPrice} CFA</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <span>Livraison</span>
+                  <span className={`font-bold ${shippingCost === 0 ? 'text-emerald-400' : 'text-white'}`}>
+                    {shippingCost === 0 ? 'Gratuit' : `${shippingCost.toLocaleString('fr-FR')} CFA`}
+                  </span>
+                </div>
+                <div className="border-t border-white/10 pt-2 flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">Total</span>
+                  <span className="text-xl font-extrabold text-amber-400">{displayTotal} <span className="text-xs font-bold text-zinc-400">CFA</span></span>
                 </div>
               </div>
 
@@ -248,7 +340,7 @@ export function FastCheckoutDrawer({
                 <SlideToBuy 
                   onSuccess={handleOrderSuccess} 
                   text={isSubmitting ? "ENREGISTREMENT..." : "GLISSER POUR COMMANDER"} 
-                  disabled={!fullName || !phone || !address || isSubmitting}
+                  disabled={!fullName || !phone || (deliveryMethod === 'domicile' && !address) || isSubmitting}
                 />
               </div>
             </>
