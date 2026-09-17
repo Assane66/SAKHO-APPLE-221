@@ -157,3 +157,24 @@ export interface FeaturedSlots {
   specialOfferId?: string;   // ID du produit 🔥 Offre Spéciale (carte milieu droite)
   newArrivalId?: string;     // ID du produit ✨ Nouveauté (carte bas gauche)
 }
+
+export interface HeroConfig {
+  badge?: string;
+  title?: string;
+  subtitle?: string;
+  description?: string;
+  productId?: string;
+  buttonText?: string;
+  buttonPrice?: string;
+  buttonStorage?: string;
+  mediaType?: '3d' | 'image';
+  modelUrl?: string;
+  imageUrl?: string;
+  stat1Value?: string;
+  stat1Label?: string;
+  stat2Value?: string;
+  stat2Label?: string;
+  stat3Value?: string;
+  stat3Label?: string;
+}
+

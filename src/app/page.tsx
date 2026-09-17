@@ -8,7 +8,7 @@ import { Search, Clock, ChevronRight, Shield, Zap, Sparkles, Star, ArrowRight, C
 import { Input } from '@/components/ui/input';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, DocumentData, orderBy, Timestamp, doc, getDoc } from 'firebase/firestore';
-import type { Product, FeaturedSlots } from '@/types';
+import type { Product, FeaturedSlots, HeroConfig } from '@/types';
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 
 import dynamic from 'next/dynamic';
@@ -127,6 +127,7 @@ async function getHomePageData() {
     const activePromo = promotions.length > 0 ? promotions[0] : null;
     const contactPhone = settings.contactPhone || '221770000000';
     const featuredSlots = settings.featuredSlots || null;
+    const heroConfig = settings.heroConfig || null;
 
     const result = {
       bannerList,
@@ -136,13 +137,14 @@ async function getHomePageData() {
       flashSalesList,
       contactPhone,
       featuredSlots,
+      heroConfig,
     };
 
     setCachedHomePageData(result);
     return result;
   } catch (error) {
     console.error('Error fetching homepage data:', error);
-    return { bannerList: [], categoryList: [], productList: [], activePromo: null, flashSalesList: [], contactPhone: '221770000000', featuredSlots: null };
+    return { bannerList: [], categoryList: [], productList: [], activePromo: null, flashSalesList: [], contactPhone: '221770000000', featuredSlots: null, heroConfig: null };
   }
 }
 
@@ -167,6 +169,7 @@ export default function Home() {
   const [flashSales, setFlashSales] = useState<DocumentData[]>([]);
   const [contactPhone, setContactPhone] = useState('221770000000');
   const [featuredSlots, setFeaturedSlots] = useState<FeaturedSlots | undefined>(undefined);
+  const [heroConfig, setHeroConfig] = useState<HeroConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -199,6 +202,7 @@ export default function Home() {
       setFlashSales(cached.flashSalesList || []);
       setContactPhone(cached.contactPhone || '221770000000');
       if (cached.featuredSlots) setFeaturedSlots(cached.featuredSlots);
+      if (cached.heroConfig) setHeroConfig(cached.heroConfig);
       setIsLoading(false);
     }
 
@@ -212,6 +216,7 @@ export default function Home() {
       setFlashSales(data.flashSalesList || []);
       setContactPhone(data.contactPhone);
       if (data.featuredSlots) setFeaturedSlots(data.featuredSlots);
+      if (data.heroConfig) setHeroConfig(data.heroConfig);
       setIsLoading(false);
     };
     fetchData();
@@ -261,6 +266,50 @@ export default function Home() {
     setIsCheckoutOpen(true);
   };
 
+  // ── Configuration Hero Dynamique (ou valeurs par défaut) ──
+  const heroBadge = heroConfig?.badge || "L'Excellence Khalil Apple au Sénégal";
+  const heroTitle = heroConfig?.title || "iPhone 17 Pro Max.";
+  const heroSubtitle = heroConfig?.subtitle || "Design Titane Absolu.";
+  const heroDescription = heroConfig?.description || "Découvrez la toute nouvelle génération d'iPhones scellés et reconditionnés premium. Garantie 1 mois, livraison express en 24h et estimation IA instantanée.";
+  const heroBtnText = heroConfig?.buttonText || "Acheter Maintenant";
+  const heroBtnPrice = heroConfig?.buttonPrice || "890 000";
+  const heroBtnStorage = heroConfig?.buttonStorage || "256 GB";
+  const heroStat1Value = heroConfig?.stat1Value || "100%";
+  const heroStat1Label = heroConfig?.stat1Label || "Authentique";
+  const heroStat2Value = heroConfig?.stat2Value || "1 Mois";
+  const heroStat2Label = heroConfig?.stat2Label || "Garantie";
+  const heroStat3Value = heroConfig?.stat3Value || "24h";
+  const heroStat3Label = heroConfig?.stat3Label || "Livraison Dakar";
+
+  // Produit lié s'il est spécifié dans la config
+  const heroLinkedProduct = useMemo(() => {
+    if (!heroConfig?.productId) return null;
+    return products.find(p => p.id === heroConfig.productId) || null;
+  }, [heroConfig?.productId, products]);
+
+  const handleHeroCheckout = () => {
+    if (heroLinkedProduct) {
+      const price = heroLinkedProduct.variants?.length
+        ? Math.min(...heroLinkedProduct.variants.map(v => v.promoPrice || v.price)).toLocaleString('fr-FR')
+        : heroBtnPrice;
+      const storage = heroLinkedProduct.variants?.[0]?.storage || heroBtnStorage;
+      handleOpenCheckout(
+        heroLinkedProduct.name,
+        price,
+        storage,
+        heroLinkedProduct.thumbnail,
+        heroLinkedProduct.variants
+      );
+    } else {
+      handleOpenCheckout(
+        heroTitle.replace(/\.$/, ''),
+        heroBtnPrice,
+        heroBtnStorage,
+        heroConfig?.imageUrl
+      );
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen relative bg-black text-foreground overflow-x-hidden">
 
@@ -283,30 +332,32 @@ export default function Home() {
           {/* Left Text Column */}
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
 
-            {/* Apple Intelligence Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-extrabold uppercase tracking-widest animate-fadeInUp">
-              <Sparkles className="w-3.5 h-3.5" />
-              L'Excellence Khalil Apple au Sénégal
-            </div>
+            {/* Apple Intelligence / Excellence Badge */}
+            {heroBadge && (
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-extrabold uppercase tracking-widest animate-fadeInUp">
+                <Sparkles className="w-3.5 h-3.5" />
+                {heroBadge}
+              </div>
+            )}
 
             {/* Main Headline */}
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] text-white">
-              iPhone 17 Pro Max.<br />
-              <span className="gold-text">Design Titane Absolu.</span>
+              {heroTitle}<br />
+              <span className="gold-text">{heroSubtitle}</span>
             </h1>
 
             {/* Sub-description */}
             <p className="text-muted-foreground text-base md:text-xl max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-              Découvrez la toute nouvelle génération d'iPhones scellés et reconditionnés premium. Garantie 1 mois, livraison express en 24h et estimation IA instantanée.
+              {heroDescription}
             </p>
 
             {/* Interactive Magnetic CTA Button */}
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
               <MagneticButton
-                onClick={() => handleOpenCheckout('iPhone 17 Pro Max', '890 000', '256 GB')}
+                onClick={handleHeroCheckout}
                 badge="LIVRAISON 24H"
               >
-                Acheter Maintenant
+                {heroBtnText}
               </MagneticButton>
 
               <Link
@@ -321,24 +372,28 @@ export default function Home() {
             {/* Key Trust Signals */}
             <div className="pt-6 grid grid-cols-3 gap-4 border-t border-white/10 max-w-lg mx-auto lg:mx-0 text-center lg:text-left">
               <div>
-                <p className="text-lg md:text-xl font-extrabold text-amber-400">100%</p>
-                <p className="text-[11px] text-zinc-400 uppercase font-semibold">Authentique</p>
+                <p className="text-lg md:text-xl font-extrabold text-amber-400">{heroStat1Value}</p>
+                <p className="text-[11px] text-zinc-400 uppercase font-semibold">{heroStat1Label}</p>
               </div>
               <div>
-                <p className="text-lg md:text-xl font-extrabold text-amber-400">1 Mois</p>
-                <p className="text-[11px] text-zinc-400 uppercase font-semibold">Garantie</p>
+                <p className="text-lg md:text-xl font-extrabold text-amber-400">{heroStat2Value}</p>
+                <p className="text-[11px] text-zinc-400 uppercase font-semibold">{heroStat2Label}</p>
               </div>
               <div>
-                <p className="text-lg md:text-xl font-extrabold text-amber-400">24h</p>
-                <p className="text-[11px] text-zinc-400 uppercase font-semibold">Livraison Dakar</p>
+                <p className="text-lg md:text-xl font-extrabold text-amber-400">{heroStat3Value}</p>
+                <p className="text-[11px] text-zinc-400 uppercase font-semibold">{heroStat3Label}</p>
               </div>
             </div>
           </div>
 
-          {/* Right 3D Interactive iPhone Model */}
+          {/* Right 3D Interactive iPhone Model or High-Res Image */}
           <div className="lg:col-span-5 relative flex items-center justify-center">
             <IPhone3DViewer
-              onBuyClick={() => handleOpenCheckout('iPhone 17 Pro Max', '890 000', '256 GB')}
+              onBuyClick={handleHeroCheckout}
+              modelUrl={heroConfig?.modelUrl}
+              mediaType={heroConfig?.mediaType}
+              imageUrl={heroConfig?.imageUrl}
+              title={heroTitle}
             />
           </div>
         </div>

@@ -1,5 +1,4 @@
-// src/lib/product-cache.ts
-import type { Product } from '@/types';
+import type { Product, HeroConfig, FeaturedSlots } from '@/types';
 import type { DocumentData } from 'firebase/firestore';
 
 export interface HomePageCachedData {
@@ -9,6 +8,8 @@ export interface HomePageCachedData {
   activePromo: DocumentData | null;
   flashSalesList?: DocumentData[];
   contactPhone: string;
+  featuredSlots?: FeaturedSlots | null;
+  heroConfig?: HeroConfig | null;
 }
 
 interface StoredCache<T> {

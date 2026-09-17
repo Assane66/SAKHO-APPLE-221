@@ -2,15 +2,38 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { RotateCw, Sparkles } from 'lucide-react';
+import { RotateCw, Sparkles, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { getOptimizedImageUrl } from '@/lib/image-optimizer';
 
-export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
+interface IPhone3DViewerProps {
+  onBuyClick?: () => void;
+  modelUrl?: string;
+  mediaType?: '3d' | 'image';
+  imageUrl?: string;
+  title?: string;
+}
+
+const DEFAULT_MODEL_URL = 'https://res.cloudinary.com/dm6yuokre/image/upload/v1785360868/iphone_17_pro_max_1_vznyvo.glb';
+const DEFAULT_IMAGE_URL = 'https://res.cloudinary.com/dm6yuokre/image/upload/v1784658568/apple-iphone-17-pro-max-256-go-ecran-69-puce-a19-pro-orange-removebg-preview_vmy8i6.png';
+
+export function IPhone3DViewer({
+  onBuyClick,
+  modelUrl = DEFAULT_MODEL_URL,
+  mediaType = '3d',
+  imageUrl = DEFAULT_IMAGE_URL,
+  title = 'iPhone 17 Pro Max',
+}: IPhone3DViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [is3DActiveMobile, setIs3DActiveMobile] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  const activeModelUrl = modelUrl?.trim() || DEFAULT_MODEL_URL;
+  const activeImageUrl = imageUrl?.trim() || DEFAULT_IMAGE_URL;
 
   // Détection du tactile
   useEffect(() => {
@@ -45,12 +68,10 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
     const dx = Math.abs(touch.clientX - touchStartPosRef.current.x);
     const dy = Math.abs(touch.clientY - touchStartPosRef.current.y);
 
-    // Si l'utilisateur a glissé pour faire défiler la page (> 12px), ce n'est pas un tap
     if (dx > 12 || dy > 12) return;
 
     const now = Date.now();
     if (now - lastTapRef.current < 380) {
-      // Double tap détecté !
       setIs3DActiveMobile(prev => !prev);
       lastTapRef.current = 0;
     } else {
@@ -58,10 +79,20 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
     }
   };
 
+  // Three.js 3D Initialization
   useEffect(() => {
+    if (mediaType === 'image') return;
     if (!containerRef.current) return;
+
     const container = containerRef.current;
     let isMounted = true;
+    setIsLoading(true);
+    setLoadError(null);
+
+    // Clean any prior children
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
 
     const width = container.clientWidth || 500;
     const height = container.clientHeight || 500;
@@ -105,7 +136,7 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
     frontLight.position.set(0, 0, 6);
     scene.add(frontLight);
 
-    // === 3D PHONE GROUP ===
+    // === 3D GROUP ===
     const phoneGroup = new THREE.Group();
     scene.add(phoneGroup);
 
@@ -121,24 +152,22 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
       .then(([{ GLTFLoader }, { OrbitControls }]) => {
         if (!isMounted) return;
 
-        // Setup OrbitControls for butter-smooth 360 rotation without gimbal lock
         const controls = new OrbitControls(camera, renderer.domElement);
         controlsInstance = controls;
         controlsRef.current = controls;
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.enablePan = false;
-        controls.enableZoom = false; // Keep hero phone perfectly framed without hijacking page scroll
+        controls.enableZoom = false;
         controls.autoRotate = true;
         controls.autoRotateSpeed = 1.2;
 
-        // Prevent flipping upside-down or flattening against camera
-        controls.minPolarAngle = Math.PI / 4; // ~45 deg
-        controls.maxPolarAngle = (Math.PI * 3) / 4; // ~135 deg
+        controls.minPolarAngle = Math.PI / 4;
+        controls.maxPolarAngle = (Math.PI * 3) / 4;
 
         const loader = new GLTFLoader();
         loader.load(
-          'https://res.cloudinary.com/dm6yuokre/image/upload/v1785360868/iphone_17_pro_max_1_vznyvo.glb',
+          activeModelUrl,
           (gltf) => {
             if (!isMounted) return;
             const model = gltf.scene;
@@ -151,7 +180,7 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
             // Scale model proportionally to comfortably fill view
             const size = box.getSize(new THREE.Vector3());
             const maxDim = Math.max(size.x, size.y, size.z);
-            const scale = 5.2 / maxDim;
+            const scale = maxDim > 0 ? 5.2 / maxDim : 1;
             model.scale.setScalar(scale);
 
             model.traverse((child) => {
@@ -167,13 +196,20 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
           },
           undefined,
           (error) => {
-            console.error('Error loading GLTF model:', error);
-            if (isMounted) setIsLoading(false);
+            console.error('Error loading GLTF model from:', activeModelUrl, error);
+            if (isMounted) {
+              setIsLoading(false);
+              setLoadError("Impossible de charger le modèle 3D. Affichage de l'image de secours.");
+            }
           }
         );
       })
       .catch((err) => {
         console.error('Failed to load Three.js addons:', err);
+        if (isMounted) {
+          setIsLoading(false);
+          setLoadError("Erreur d'initialisation 3D.");
+        }
       });
 
     // Initial slight tilt
@@ -213,13 +249,54 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
       if (controlsInstance) {
         controlsInstance.dispose();
       }
-      if (container.contains(renderer.domElement)) {
+      if (container && container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
       renderer.dispose();
     };
-  }, []);
+  }, [activeModelUrl, mediaType]);
 
+  // === RENDU DU MODE IMAGE (Si mediaType === 'image' ou erreur 3D fatale) ===
+  if (mediaType === 'image' || (loadError && activeImageUrl)) {
+    return (
+      <div className="relative w-full max-w-xl mx-auto flex flex-col items-center justify-center py-6 px-4">
+        {/* Ambient Halo Glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 md:w-96 md:h-96 bg-amber-500/20 rounded-full blur-[110px] pointer-events-none" />
+        
+        {/* Subtle Luxury Card Container */}
+        <div className="relative w-full h-[400px] md:h-[500px] flex items-center justify-center group">
+          <div
+            className="relative w-full h-full max-w-md flex items-center justify-center transition-all duration-700 group-hover:scale-105"
+            style={{ animation: 'floatYSlow 12s ease-in-out infinite' }}
+          >
+            <Image
+              src={getOptimizedImageUrl(activeImageUrl)}
+              alt={title || 'Produit Phare'}
+              fill
+              className="object-contain drop-shadow-[0_25px_50px_rgba(245,158,11,0.25)] select-none pointer-events-none"
+              priority
+              sizes="(max-width: 768px) 100vw, 550px"
+            />
+          </div>
+
+          {/* Badge Photo Pro */}
+          <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[11px] font-medium text-amber-300 pointer-events-none select-none shadow-lg">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            Édition Titanium Haute Résolution
+          </div>
+
+          {loadError && (
+            <div className="absolute bottom-4 z-10 flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/80 border border-red-500/40 text-[10px] text-red-300 backdrop-blur-md">
+              <AlertCircle className="w-3 h-3 text-red-400" />
+              <span>Modèle 3D indisponible : aperçu photo actif</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // === RENDU DU MODE 3D INTERACTIF ===
   return (
     <div
       className={cn(
@@ -229,9 +306,7 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* 3D Canvas Container
-          Sur mobile : si non actif, pointer-events-none permet au défilement tactile de glisser librement sans blocage.
-          Sur Desktop (md:) : toujours interactif à la souris */}
+      {/* 3D Canvas Container */}
       <div
         ref={containerRef}
         className={cn(
@@ -247,7 +322,7 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 pointer-events-none">
             <div className="w-10 h-10 border-2 border-amber-400/20 border-t-amber-400 rounded-full animate-spin" />
             <span className="text-xs text-zinc-400 font-medium tracking-wide">
-              Chargement de l'iPhone 17 Pro Max...
+              Chargement 3D de {title}...
             </span>
           </div>
         )}

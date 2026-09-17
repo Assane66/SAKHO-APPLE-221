@@ -288,7 +288,7 @@ export function BentoGridSection({ products = [], featuredSlots, onQuickBuy }: B
 
                     {/* Storage Pills */}
                     <div className="flex flex-wrap gap-1.5 pt-1">
-                      {item.storageOptions.map((stg) => (
+                      {item.storageOptions.map((stg: string) => (
                         <span
                           key={stg}
                           className="px-2.5 py-0.5 rounded-md bg-white/5 text-[11px] font-mono text-zinc-300 border border-white/10"
