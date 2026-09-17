@@ -11,31 +11,61 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { createOrder } from './actions';
 import { useState, useEffect } from 'react';
-import { Loader2, Truck, Store } from 'lucide-react';
+import { Loader2, Truck, Store, MapPin, Phone, User, CheckCircle2 } from 'lucide-react';
 import Image from 'next/image';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 
 const checkoutSchema = z.object({
   customerName: z.string().min(2, "Le nom est requis."),
-  customerPhone: z.string().min(9, "Le numéro de téléphone est requis."),
-  customerAddress: z.string().min(5, "L'adresse est requise."),
+  customerPhone: z.string().min(8, "Le numéro de téléphone est requis."),
+  customerAddress: z.string().optional(),
   deliveryMethod: z.enum(['delivery', 'pickup'], {
     required_error: "Vous devez sélectionner un mode de livraison."
   }),
+}).refine(data => {
+  if (data.deliveryMethod === 'delivery' && (!data.customerAddress || data.customerAddress.trim().length < 3)) {
+    return false;
+  }
+  return true;
+}, {
+  message: "L'adresse de livraison est requise pour une livraison à domicile.",
+  path: ["customerAddress"]
 });
-
-const DELIVERY_COST = 3000;
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deliveryFee, setDeliveryFee] = useState(5000);
+  const [whatsappNumber, setWhatsappNumber] = useState('221781395893');
+
+  // Charger les paramètres généraux de la boutique (frais de livraison & téléphone WhatsApp)
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settingsSnap = await getDoc(doc(db, 'settings', 'general'));
+        if (settingsSnap.exists()) {
+          const data = settingsSnap.data();
+          if (typeof data.deliveryFee === 'number') {
+            setDeliveryFee(data.deliveryFee);
+          }
+          if (data.contactPhone) {
+            setWhatsappNumber(String(data.contactPhone).replace(/\D/g, ''));
+          }
+        }
+      } catch (e) {
+        // Conserver les valeurs par défaut
+      }
+    };
+    loadSettings();
+  }, []);
   
   const form = useForm<z.infer<typeof checkoutSchema>>({
     resolver: zodResolver(checkoutSchema),
@@ -48,14 +78,14 @@ export default function CheckoutPage() {
   });
 
   const deliveryMethod = form.watch('deliveryMethod');
-  const deliveryCost = deliveryMethod === 'delivery' ? DELIVERY_COST : 0;
+  const deliveryCost = deliveryMethod === 'delivery' ? deliveryFee : 0;
   const finalTotal = cartTotal + deliveryCost;
 
   useEffect(() => {
-    if (cart.length === 0) {
+    if (cart.length === 0 && !isSubmitting) {
       router.replace('/cart');
     }
-  }, [cart, router]);
+  }, [cart, router, isSubmitting]);
 
   if (cart.length === 0) {
     return null;
@@ -64,32 +94,66 @@ export default function CheckoutPage() {
   async function onSubmit(values: z.infer<typeof checkoutSchema>) {
     setIsSubmitting(true);
     try {
-      const result = await createOrder({
-        ...values,
-        items: cart,
+      const deliveryLabel = values.deliveryMethod === 'delivery'
+        ? `Livraison à domicile (+${deliveryFee.toLocaleString('fr-FR')} CFA)`
+        : 'Retrait en boutique (Gratuit)';
+
+      const plainItems = cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        storage: item.storage,
+        price: item.price,
+        quantity: item.quantity,
+        thumbnail: item.thumbnail || '',
+      }));
+
+      const orderData = {
+        customerName: values.customerName.trim(),
+        customerPhone: values.customerPhone.trim(),
+        customerAddress: values.deliveryMethod === 'delivery' ? (values.customerAddress?.trim() || '') : 'Retrait en boutique',
+        deliveryMethod: deliveryLabel,
+        deliveryFee: deliveryCost,
         subTotal: cartTotal,
-        deliveryMethod: values.deliveryMethod === 'delivery' ? 'Livraison à domicile' : 'Retrait en magasin',
-        deliveryCost,
         total: finalTotal,
+        totalFormatted: `${finalTotal.toLocaleString('fr-FR')} CFA`,
+        status: 'En attente',
+        createdAt: serverTimestamp(),
+        date: serverTimestamp(),
+        items: plainItems,
+      };
+
+      // Enregistrement direct et garanti dans Firestore côté client
+      await addDoc(collection(db, 'orders'), orderData);
+
+      toast({
+        title: "Commande confirmée avec succès !",
+        description: "Merci pour votre commande. Redirection vers WhatsApp...",
       });
 
-      if (result.success) {
-        toast({
-          title: "Commande passée avec succès!",
-          description: "Merci pour votre confiance. Nous vous contacterons bientôt.",
-        });
-        clearCart();
+      // Formatage du message WhatsApp
+      const itemsListText = cart.map(i => `• ${i.name} (${i.storage}) x${i.quantity} : ${(i.price * i.quantity).toLocaleString('fr-FR')} CFA`).join('\n');
+      const adresseInfo = values.deliveryMethod === 'delivery'
+        ? `\n• Adresse de livraison : ${values.customerAddress}`
+        : '\n• Mode : Retrait en magasin (Gratuit)';
+
+      const message = `Bonjour Khalil Apple ! Je viens de passer une commande :\n\n${itemsListText}\n\n• Sous-total : ${cartTotal.toLocaleString('fr-FR')} CFA\n• Livraison : ${deliveryLabel}\n• Total à payer : ${finalTotal.toLocaleString('fr-FR')} CFA\n\n• Client : ${values.customerName}\n• Téléphone : ${values.customerPhone}${adresseInfo}`;
+      const targetNumber = whatsappNumber.replace(/\+/g, '');
+      const whatsappUrl = `https://wa.me/${targetNumber}?text=${encodeURIComponent(message)}`;
+
+      clearCart();
+
+      setTimeout(() => {
+        window.open(whatsappUrl, '_blank');
         router.push('/');
-      } else {
-        throw new Error(result.error || 'Une erreur est survenue.');
-      }
+      }, 600);
+
     } catch (error: any) {
+      console.error('Erreur lors de la validation de la commande:', error);
       toast({
         variant: 'destructive',
         title: 'Erreur lors de la commande',
-        description: error.message,
+        description: error.message || "Une erreur est survenue lors de l'enregistrement. Veuillez réessayer.",
       });
-    } finally {
       setIsSubmitting(false);
     }
   }
@@ -102,7 +166,10 @@ export default function CheckoutPage() {
                 <div className="space-y-8">
                     <Card>
                         <CardHeader>
-                            <CardTitle>1. Informations de livraison</CardTitle>
+                            <CardTitle className="flex items-center gap-2">
+                              <User className="w-5 h-5 text-amber-400" />
+                              1. Vos coordonnées
+                            </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <FormField
@@ -111,7 +178,7 @@ export default function CheckoutPage() {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Nom complet</FormLabel>
-                                        <FormControl><Input placeholder="Prénom Nom" {...field} /></FormControl>
+                                        <FormControl><Input placeholder="Prénom et Nom" {...field} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -121,29 +188,37 @@ export default function CheckoutPage() {
                                 name="customerPhone"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Numéro de téléphone</FormLabel>
+                                        <FormLabel>Numéro de téléphone (WhatsApp)</FormLabel>
                                         <FormControl><Input type="tel" placeholder="Ex: 77 123 45 67" {...field} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
-                            <FormField
-                                control={form.control}
-                                name="customerAddress"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Adresse</FormLabel>
-                                        <FormControl><Input placeholder="Ex: Cité Keur Gorgui, Villa 123" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                            {deliveryMethod === 'delivery' && (
+                              <FormField
+                                  control={form.control}
+                                  name="customerAddress"
+                                  render={({ field }) => (
+                                      <FormItem>
+                                          <FormLabel className="flex items-center gap-1">
+                                            <MapPin className="w-4 h-4 text-amber-400" />
+                                            Adresse de livraison à Dakar
+                                          </FormLabel>
+                                          <FormControl><Input placeholder="Ex: Sacré-Cœur 3, Villa 123, Dakar" {...field} /></FormControl>
+                                          <FormMessage />
+                                      </FormItem>
+                                  )}
+                              />
+                            )}
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>2. Mode de livraison</CardTitle>
+                            <CardTitle className="flex items-center gap-2">
+                              <Truck className="w-5 h-5 text-amber-400" />
+                              2. Mode de livraison
+                            </CardTitle>
                         </CardHeader>
                         <CardContent>
                             <FormField
@@ -161,10 +236,10 @@ export default function CheckoutPage() {
                                             <FormControl>
                                                 <Label htmlFor="delivery" className={cn("flex items-center gap-4 rounded-md border p-4 cursor-pointer hover:bg-accent/50 transition-colors", field.value === 'delivery' && 'bg-accent border-primary ring-2 ring-primary')}>
                                                     <RadioGroupItem value="delivery" id="delivery" />
-                                                    <Truck className="h-6 w-6" />
+                                                    <Truck className="h-6 w-6 text-amber-400" />
                                                     <div className="flex-1">
                                                         <p className="font-semibold">Livraison à domicile</p>
-                                                        <p className="text-sm text-muted-foreground">Frais de {DELIVERY_COST.toLocaleString('fr-FR')} CFA</p>
+                                                        <p className="text-sm text-muted-foreground">Frais de {deliveryFee.toLocaleString('fr-FR')} CFA</p>
                                                     </div>
                                                 </Label>
                                             </FormControl>
@@ -173,10 +248,10 @@ export default function CheckoutPage() {
                                              <FormControl>
                                                 <Label htmlFor="pickup" className={cn("flex items-center gap-4 rounded-md border p-4 cursor-pointer hover:bg-accent/50 transition-colors", field.value === 'pickup' && 'bg-accent border-primary ring-2 ring-primary')}>
                                                     <RadioGroupItem value="pickup" id="pickup" />
-                                                    <Store className="h-6 w-6" />
+                                                    <Store className="h-6 w-6 text-amber-400" />
                                                     <div className="flex-1">
-                                                        <p className="font-semibold">Retrait en magasin</p>
-                                                        <p className="text-sm text-muted-foreground">Gratuit - Dakar, Sénégal</p>
+                                                        <p className="font-semibold">Retrait en boutique</p>
+                                                        <p className="text-sm text-emerald-400 font-medium">Gratuit - Retrait immédiat</p>
                                                     </div>
                                                 </Label>
                                              </FormControl>
@@ -200,10 +275,13 @@ export default function CheckoutPage() {
                             {cart.map(item => (
                                 <div key={item.id} className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
-                                        <Image src={item.thumbnail} alt={item.name} width={64} height={64} className="rounded-md object-cover" />
+                                        <Image src={item.thumbnail || "https://placehold.co/100x100.png"} alt={item.name} width={64} height={64} className="rounded-md object-cover" />
                                         <div>
                                             <p className="font-medium">{item.name} ({item.storage})</p>
-                                            <p className="text-sm text-muted-foreground">Quantité: {item.quantity}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                              Quantité: {item.quantity}
+                                              {item.isSinglePiece && <span className="ml-1 text-[10px] text-amber-400 font-semibold">(Pièce unique)</span>}
+                                            </p>
                                         </div>
                                     </div>
                                     <p className="font-medium">{(item.price * item.quantity).toLocaleString('fr-FR')} CFA</p>
@@ -218,17 +296,25 @@ export default function CheckoutPage() {
                             </div>
                             <div className="flex justify-between w-full">
                                 <span>Livraison</span>
-                                <span>{deliveryCost > 0 ? `${deliveryCost.toLocaleString('fr-FR')} CFA` : 'Gratuite'}</span>
+                                <span className={deliveryCost === 0 ? "text-emerald-400 font-medium" : ""}>
+                                  {deliveryCost > 0 ? `${deliveryCost.toLocaleString('fr-FR')} CFA` : 'Gratuite'}
+                                </span>
                             </div>
                             <Separator />
                             <div className="flex justify-between w-full text-lg font-bold">
                                 <span>Total</span>
-                                <span>{finalTotal.toLocaleString('fr-FR')} CFA</span>
+                                <span className="text-amber-400">{finalTotal.toLocaleString('fr-FR')} CFA</span>
                             </div>
 
-                             <Button type="submit" className="w-full mt-6" size="lg" disabled={isSubmitting}>
-                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Confirmer la commande
+                             <Button type="submit" className="w-full mt-6 bg-amber-400 hover:bg-amber-500 text-black font-extrabold" size="lg" disabled={isSubmitting}>
+                                {isSubmitting ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Finalisation de la commande...
+                                  </>
+                                ) : (
+                                  `Confirmer la commande (${finalTotal.toLocaleString('fr-FR')} CFA)`
+                                )}
                             </Button>
                         </CardFooter>
                     </Card>

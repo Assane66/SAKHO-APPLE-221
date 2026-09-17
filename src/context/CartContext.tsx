@@ -11,6 +11,8 @@ export interface CartItem {
   price: number;
   quantity: number;
   thumbnail: string;
+  isSinglePiece?: boolean; // Pièce unique (stock réel en boutique ou vente flash)
+  maxQuantity?: number; // Quantité maximum autorisée
 }
 
 interface CartContextType {
@@ -48,8 +50,14 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     setCart(prevCart => {
       const existingItem = prevCart.find(i => i.id === item.id);
       if (existingItem) {
+        // Si pièce unique ou maxQuantity = 1, ne pas dépasser 1
+        if (existingItem.isSinglePiece || existingItem.maxQuantity === 1) {
+          return prevCart;
+        }
+        const maxQ = existingItem.maxQuantity || Infinity;
+        const newQ = Math.min(existingItem.quantity + 1, maxQ);
         return prevCart.map(i =>
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+          i.id === item.id ? { ...i, quantity: newQ } : i
         );
       }
       return [...prevCart, { ...item, quantity: 1 }];
@@ -65,9 +73,15 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       removeFromCart(itemId);
     } else {
       setCart(prevCart =>
-        prevCart.map(item =>
-          item.id === itemId ? { ...item, quantity } : item
-        )
+        prevCart.map(item => {
+          if (item.id !== itemId) return item;
+          // Si pièce unique ou maxQuantity = 1, forcer la quantité à 1
+          if (item.isSinglePiece || item.maxQuantity === 1) {
+            return { ...item, quantity: 1 };
+          }
+          const maxQ = item.maxQuantity || Infinity;
+          return { ...item, quantity: Math.min(quantity, maxQ) };
+        })
       );
     }
   };

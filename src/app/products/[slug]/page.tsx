@@ -262,6 +262,10 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
         if (!product || !selectedVariant) return;
 
         const price = flashSale?.discountPrice || selectedVariant.promoPrice || selectedVariant.price;
+        // Si le produit est en stock physique ou en vente flash, c'est une pièce unique limitée à 1
+        const inStockStorages = stockItems.map((s: any) => s.storage).filter(Boolean);
+        const isStockUnique = inStockStorages.includes(selectedVariant.storage) || stockItems.length > 0;
+        const isSinglePiece = isStockUnique || !!flashSale;
 
         addToCart({
             id: `${product.id}-${selectedVariant.storage}`,
@@ -271,11 +275,13 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
             price: price,
             quantity: 1,
             thumbnail: product.thumbnail,
+            isSinglePiece: isSinglePiece,
+            maxQuantity: isSinglePiece ? 1 : 99,
         });
 
         toast({
             title: "Produit ajouté au panier",
-            description: `${product.name} (${selectedVariant.storage}) a été ajouté à votre panier.`,
+            description: `${product.name} (${selectedVariant.storage}) a été ajouté à votre panier.${isSinglePiece ? ' (Exemplaire unique en stock)' : ''}`,
         });
     };
     

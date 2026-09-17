@@ -193,6 +193,7 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [visibleCount, setVisibleCount] = useState(6);
+  const [showAllFlashSales, setShowAllFlashSales] = useState(false);
 
   // Fast Checkout Drawer State
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -437,25 +438,33 @@ export default function Home() {
                   Offres Exceptionnelles en Temps Réel
                 </h2>
               </div>
-              <Link 
-                href="/products"
-                className="text-xs font-bold text-red-400 hover:text-red-300 flex items-center gap-1"
-              >
-                Voir toutes les ventes flash <ChevronRight className="w-4 h-4" />
-              </Link>
+              {/* Afficher le bouton uniquement s'il y a plus de 3 ventes flash */}
+              {flashSales.length > 3 && (
+                <button 
+                  onClick={() => setShowAllFlashSales(prev => !prev)}
+                  className="text-xs font-bold text-red-400 hover:text-red-300 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 transition-all cursor-pointer"
+                >
+                  {showAllFlashSales ? "Réduire les ventes flash" : `Voir les autres ventes flash (${flashSales.length})`}
+                  <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${showAllFlashSales ? 'rotate-90' : ''}`} />
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {flashSales.slice(0, 3).map((sale: any) => {
+              {(showAllFlashSales ? flashSales : flashSales.slice(0, 3)).map((sale: any) => {
                 const targetSlug = sale.slug || sale.id;
                 const saleUrl = `/flash-sale/${targetSlug}`;
                 const salePrice = sale.discountPrice || sale.variants?.[0]?.discountPrice || 0;
                 const origPrice = sale.originalPrice || sale.variants?.[0]?.originalPrice || 0;
 
                 return (
-                  <div key={sale.id} className="p-4 rounded-2xl bg-black/60 border border-white/10 hover:border-red-500/40 transition-all flex items-center gap-4">
+                  <Link
+                    key={sale.id}
+                    href={saleUrl}
+                    className="group p-4 rounded-2xl bg-black/60 border border-white/10 hover:border-red-500/60 hover:bg-zinc-950/80 hover:shadow-lg hover:shadow-red-500/10 transition-all flex items-center gap-4 cursor-pointer"
+                  >
                     {sale.thumbnail && (
-                      <div className="relative w-20 h-20 rounded-xl bg-zinc-900/80 flex-shrink-0 overflow-hidden">
+                      <div className="relative w-20 h-20 rounded-xl bg-zinc-900/80 flex-shrink-0 overflow-hidden group-hover:scale-105 transition-transform duration-300">
                         <Image
                           src={getOptimizedImageUrl(sale.thumbnail, 200)}
                           alt={sale.productName || 'Vente flash'}
@@ -466,7 +475,7 @@ export default function Home() {
                     )}
                     <div className="flex-grow min-w-0 space-y-1">
                       <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider">Flash</span>
-                      <h4 className="font-extrabold text-sm text-white truncate">{sale.productName}</h4>
+                      <h4 className="font-extrabold text-sm text-white truncate group-hover:text-red-300 transition-colors">{sale.productName}</h4>
                       <div className="flex items-baseline gap-1.5">
                         <span className="text-amber-400 font-extrabold text-base">
                           {Number(salePrice).toLocaleString('fr-FR')} CFA
@@ -477,14 +486,12 @@ export default function Home() {
                           </span>
                         )}
                       </div>
-                      <Link 
-                        href={saleUrl}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-red-400 hover:underline pt-1"
-                      >
-                        En profiter <ArrowRight className="w-3 h-3" />
-                      </Link>
+                      <div className="inline-flex items-center gap-1 text-[11px] font-bold text-red-400 group-hover:translate-x-1 transition-transform pt-1">
+                        <span>En profiter</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

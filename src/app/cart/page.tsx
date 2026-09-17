@@ -54,13 +54,25 @@ export default function CartPage() {
                         <p className="text-sm">{item.price.toLocaleString('fr-FR')} CFA</p>
                       </TableCell>
                       <TableCell>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) => updateQuantity(item.id, parseInt(e.target.value, 10))}
-                          className="w-20"
-                        />
+                        {item.isSinglePiece || item.maxQuantity === 1 ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="w-10 text-center py-1 font-bold text-sm bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-md">
+                              1
+                            </span>
+                            <span className="text-[10px] text-zinc-400 whitespace-nowrap">
+                              Pièce unique
+                            </span>
+                          </div>
+                        ) : (
+                          <Input
+                            type="number"
+                            min="1"
+                            max={item.maxQuantity || 99}
+                            value={item.quantity}
+                            onChange={(e) => updateQuantity(item.id, Math.max(1, parseInt(e.target.value, 10) || 1))}
+                            className="w-20"
+                          />
+                        )}
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {(item.price * item.quantity).toLocaleString('fr-FR')} CFA

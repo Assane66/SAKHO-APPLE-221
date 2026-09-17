@@ -99,11 +99,13 @@ export default function FlashSalePage({ params }: { params: Promise<{ slug: stri
             price: selectedVariant.discountPrice,
             quantity: 1,
             thumbnail: sale.thumbnail,
+            isSinglePiece: true,
+            maxQuantity: 1,
         });
 
         toast({
             title: "Produit ajouté au panier",
-            description: `${sale.productName} (${selectedVariant.storage}) a été ajouté à votre panier.`,
+            description: `${sale.productName} (${selectedVariant.storage}) a été ajouté à votre panier. (Pièce unique en vente flash)`,
         });
     };
     
