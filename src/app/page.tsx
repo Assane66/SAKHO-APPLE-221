@@ -97,14 +97,33 @@ async function getHomePageData() {
         if (hasVenant) p.isVenant = true;
         if (hasSecondHand && !hasVenant) p.isSecondHand = true;
 
+        // Construire les variantes de stock par stockage (pour le checkout drawer)
+        const stockByStorage = new Map();
+        matchingInv.forEach((i: any) => {
+          if (i.storage) {
+            const p2 = i.unitPrice || i.sellingPrice || 0;
+            if (!stockByStorage.has(i.storage) || p2 < (stockByStorage.get(i.storage) || 0)) {
+              stockByStorage.set(i.storage, p2);
+            }
+          }
+        });
+        if (stockByStorage.size > 0) {
+          (p as any).stockVariants = Array.from(stockByStorage.entries()).map(([storage, price]: [string, number]) => ({
+            storage, price, promoPrice: undefined,
+          }));
+          const firstStorage = matchingInv.find((i: any) => i.storage)?.storage;
+          if (firstStorage) (p as any).stockStorage = firstStorage;
+        }
+
         // Si une unité a un prix personnalisé inférieur
-        const customItems = matchingInv.filter(i => i.unitPrice && i.unitPrice > 0);
+        const customItems = matchingInv.filter((i: any) => i.unitPrice && i.unitPrice > 0);
         if (customItems.length > 0) {
-          const lowestCustom = Math.min(...customItems.map(i => i.unitPrice));
+          const lowestCustom = Math.min(...customItems.map((i: any) => i.unitPrice));
           p.unitPrice = lowestCustom;
           p.originalPrice = customItems[0].originalPrice || customItems[0].catalogPrice || p.variants?.[0]?.price;
         }
       }
+
 
       // Nettoyer strictement toute trace d'IMEI pour les visiteurs
       delete (p as any).imei;
@@ -698,13 +717,21 @@ export default function Home() {
                       {/* Actions */}
                       <div className="flex items-center gap-2 pt-1">
                         <button
-                          onClick={() => handleOpenCheckout(
-                            product.name, 
-                            currentPrice > 0 ? currentPrice.toLocaleString('fr-FR') : getLowestPrice(product.variants), 
-                            storageDisplay || '256 GB', 
-                            product.thumbnail, 
-                            product.variants
-                          )}
+                          onClick={() => {
+                            // Priorité : variantes de stock (stockage réel + prix stock)
+                            // Sinon : variantes catalogue standard
+                            const stockStorage = (product as any).stockStorage || storageDisplay || '256 GB';
+                            const stockVariants = (product as any).stockVariants?.length > 0
+                              ? (product as any).stockVariants
+                              : product.variants;
+                            handleOpenCheckout(
+                              product.name,
+                              currentPrice > 0 ? currentPrice.toLocaleString('fr-FR') : getLowestPrice(product.variants),
+                              stockStorage,
+                              product.thumbnail,
+                              stockVariants
+                            );
+                          }}
                           className="px-3.5 py-1.5 rounded-full bg-amber-400 text-black hover:bg-amber-300 font-bold text-[11px] uppercase tracking-wider transition-colors"
                         >
                           Achat 1-Clic
