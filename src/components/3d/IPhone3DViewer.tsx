@@ -25,7 +25,7 @@ export function IPhone3DViewer({
   imageUrl = DEFAULT_IMAGE_URL,
   title = 'iPhone 17 Pro Max',
 }: IPhone3DViewerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasMountRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -82,20 +82,15 @@ export function IPhone3DViewer({
   // Three.js 3D Initialization
   useEffect(() => {
     if (mediaType === 'image') return;
-    if (!containerRef.current) return;
+    const mountNode = canvasMountRef.current;
+    if (!mountNode) return;
 
-    const container = containerRef.current;
     let isMounted = true;
     setIsLoading(true);
     setLoadError(null);
 
-    // Clean any prior children
-    while (container.firstChild) {
-      container.removeChild(container.firstChild);
-    }
-
-    const width = container.clientWidth || 500;
-    const height = container.clientHeight || 500;
+    const width = mountNode.clientWidth || 500;
+    const height = mountNode.clientHeight || 500;
 
     // === SCENE, CAMERA, RENDERER ===
     const scene = new THREE.Scene();
@@ -113,7 +108,7 @@ export function IPhone3DViewer({
       renderer.outputColorSpace = THREE.SRGBColorSpace;
     }
 
-    container.appendChild(renderer.domElement);
+    mountNode.appendChild(renderer.domElement);
 
     // === LIGHTING FOR LUXURY TITANIUM REFLECTIONS ===
     const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
@@ -199,7 +194,7 @@ export function IPhone3DViewer({
             console.error('Error loading GLTF model from:', activeModelUrl, error);
             if (isMounted) {
               setIsLoading(false);
-              setLoadError("Impossible de charger le modèle 3D. Affichage de l'image de secours.");
+              setLoadError("Impossible de charger le modèle 3D.");
             }
           }
         );
@@ -233,9 +228,9 @@ export function IPhone3DViewer({
 
     // === RESIZE HANDLER ===
     const handleResize = () => {
-      if (!containerRef.current) return;
-      const w = containerRef.current.clientWidth;
-      const h = containerRef.current.clientHeight;
+      if (!canvasMountRef.current) return;
+      const w = canvasMountRef.current.clientWidth;
+      const h = canvasMountRef.current.clientHeight;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
@@ -249,8 +244,8 @@ export function IPhone3DViewer({
       if (controlsInstance) {
         controlsInstance.dispose();
       }
-      if (container && container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
+      if (renderer.domElement && renderer.domElement.parentNode === mountNode) {
+        mountNode.removeChild(renderer.domElement);
       }
       renderer.dispose();
     };
@@ -308,7 +303,6 @@ export function IPhone3DViewer({
     >
       {/* 3D Canvas Container */}
       <div
-        ref={containerRef}
         className={cn(
           "relative w-full h-[440px] md:h-[540px] select-none touch-pan-y transition-all",
           is3DActiveMobile ? "cursor-grab active:cursor-grabbing pointer-events-auto" : "pointer-events-none md:pointer-events-auto cursor-default md:cursor-grab"
@@ -316,6 +310,9 @@ export function IPhone3DViewer({
       >
         {/* Glow backdrop behind 3D phone */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 md:w-80 md:h-80 bg-amber-500/20 rounded-full blur-[100px] pointer-events-none" />
+
+        {/* Dedicated mount node for Three.js canvas ONLY (No React children inside!) */}
+        <div ref={canvasMountRef} className="absolute inset-0 w-full h-full" />
 
         {/* Loading Spinner */}
         {isLoading && (
