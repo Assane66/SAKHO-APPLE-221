@@ -8,7 +8,7 @@ import { Search, Clock, ChevronRight, Shield, Zap, Sparkles, Star, ArrowRight, C
 import { Input } from '@/components/ui/input';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, DocumentData, orderBy, Timestamp, doc, getDoc } from 'firebase/firestore';
-import type { Product } from '@/types';
+import type { Product, FeaturedSlots } from '@/types';
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 
 import dynamic from 'next/dynamic';
@@ -126,6 +126,7 @@ async function getHomePageData() {
     const categoryList = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const activePromo = promotions.length > 0 ? promotions[0] : null;
     const contactPhone = settings.contactPhone || '221770000000';
+    const featuredSlots = settings.featuredSlots || null;
 
     const result = {
       bannerList,
@@ -134,13 +135,14 @@ async function getHomePageData() {
       activePromo,
       flashSalesList,
       contactPhone,
+      featuredSlots,
     };
 
     setCachedHomePageData(result);
     return result;
   } catch (error) {
     console.error('Error fetching homepage data:', error);
-    return { bannerList: [], categoryList: [], productList: [], activePromo: null, flashSalesList: [], contactPhone: '221770000000' };
+    return { bannerList: [], categoryList: [], productList: [], activePromo: null, flashSalesList: [], contactPhone: '221770000000', featuredSlots: null };
   }
 }
 
@@ -164,6 +166,7 @@ export default function Home() {
   const [activePromo, setActivePromo] = useState<DocumentData | null>(null);
   const [flashSales, setFlashSales] = useState<DocumentData[]>([]);
   const [contactPhone, setContactPhone] = useState('221770000000');
+  const [featuredSlots, setFeaturedSlots] = useState<FeaturedSlots | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -195,6 +198,7 @@ export default function Home() {
       setActivePromo(cached.activePromo || null);
       setFlashSales(cached.flashSalesList || []);
       setContactPhone(cached.contactPhone || '221770000000');
+      if (cached.featuredSlots) setFeaturedSlots(cached.featuredSlots);
       setIsLoading(false);
     }
 
@@ -207,6 +211,7 @@ export default function Home() {
       setActivePromo(data.activePromo);
       setFlashSales(data.flashSalesList || []);
       setContactPhone(data.contactPhone);
+      if (data.featuredSlots) setFeaturedSlots(data.featuredSlots);
       setIsLoading(false);
     };
     fetchData();
@@ -434,6 +439,7 @@ export default function Home() {
       <section className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-12 w-full">
         <BentoGridSection
           products={products}
+          featuredSlots={featuredSlots}
           onQuickBuy={(name, price, storage, variants) => handleOpenCheckout(name, price, storage, undefined, variants)}
         />
       </section>

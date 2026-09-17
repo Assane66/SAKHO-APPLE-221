@@ -6,7 +6,56 @@ import { RotateCw, Sparkles } from 'lucide-react';
 
 export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [is3DActiveMobile, setIs3DActiveMobile] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  // Détection du tactile
+  useEffect(() => {
+    const checkTouch = () => {
+      setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    };
+    checkTouch();
+  }, []);
+
+  // Timer d'inactivité pour le mode 3D mobile
+  useEffect(() => {
+    if (!is3DActiveMobile) return;
+    const timer = setTimeout(() => {
+      setIs3DActiveMobile(false);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [is3DActiveMobile]);
+
+  // Détection du double tap sans bloquer le scroll naturel
+  const lastTapRef = useRef<number>(0);
+  const touchStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.changedTouches.length === 0) return;
+    const touch = e.changedTouches[0];
+    const dx = Math.abs(touch.clientX - touchStartPosRef.current.x);
+    const dy = Math.abs(touch.clientY - touchStartPosRef.current.y);
+
+    // Si l'utilisateur a glissé pour faire défiler la page (> 12px), ce n'est pas un tap
+    if (dx > 12 || dy > 12) return;
+
+    const now = Date.now();
+    if (now - lastTapRef.current < 380) {
+      // Double tap détecté !
+      setIs3DActiveMobile(prev => !prev);
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  };
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -74,6 +123,7 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
         // Setup OrbitControls for butter-smooth 360 rotation without gimbal lock
         const controls = new OrbitControls(camera, renderer.domElement);
         controlsInstance = controls;
+        controlsRef.current = controls;
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.enablePan = false;
@@ -170,20 +220,26 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
   }, []);
 
   return (
-    <div className="relative w-full max-w-xl mx-auto flex flex-col items-center">
-      {/* 3D Canvas Container */}
+    <div
+      className={cn(
+        "relative w-full max-w-xl mx-auto flex flex-col items-center rounded-3xl transition-all duration-300",
+        is3DActiveMobile && "ring-2 ring-amber-400/50 shadow-[0_0_35px_rgba(245,158,11,0.2)] bg-black/20"
+      )}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* 3D Canvas Container
+          Sur mobile : si non actif, pointer-events-none permet au défilement tactile de glisser librement sans blocage.
+          Sur Desktop (md:) : toujours interactif à la souris */}
       <div
         ref={containerRef}
-        className="relative w-full h-[440px] md:h-[540px] cursor-grab active:cursor-grabbing select-none"
+        className={cn(
+          "relative w-full h-[440px] md:h-[540px] select-none touch-pan-y transition-all",
+          is3DActiveMobile ? "cursor-grab active:cursor-grabbing pointer-events-auto" : "pointer-events-none md:pointer-events-auto cursor-default md:cursor-grab"
+        )}
       >
         {/* Glow backdrop behind 3D phone */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 md:w-80 md:h-80 bg-amber-500/20 rounded-full blur-[100px] pointer-events-none" />
-
-        {/* 3D Rotation Badge */}
-        <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[11px] font-medium text-amber-300 pointer-events-none select-none shadow-lg">
-          <RotateCw className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '7s' }} />
-          Glissez pour pivoter à 360°
-        </div>
 
         {/* Loading Spinner */}
         {isLoading && (
@@ -195,6 +251,50 @@ export function IPhone3DViewer({ onBuyClick }: { onBuyClick?: () => void }) {
           </div>
         )}
       </div>
+
+      {/* ── Badge & Contrôles Interactifs ── */}
+      {/* Sur Desktop : Badge d'information standard */}
+      <div className="hidden md:flex absolute top-4 left-4 z-10 items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[11px] font-medium text-amber-300 pointer-events-none select-none shadow-lg">
+        <RotateCw className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '7s' }} />
+        Glissez pour pivoter à 360°
+      </div>
+
+      {/* Sur Mobile : Bouton d'activation / désactivation élégant */}
+      <div className="flex md:hidden absolute top-4 z-20 items-center justify-center w-full px-4 pointer-events-auto">
+        {is3DActiveMobile ? (
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-400 text-black font-bold text-xs shadow-xl animate-in fade-in zoom-in-95 duration-200">
+            <RotateCw className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '4s' }} />
+            <span>Mode 3D Actif (Tournez avec le doigt)</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIs3DActiveMobile(false);
+              }}
+              className="ml-2 px-2 py-0.5 rounded-full bg-black/20 hover:bg-black/30 text-[10px] uppercase font-black tracking-wide"
+            >
+              Fermer ✕
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIs3DActiveMobile(true);
+            }}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/75 backdrop-blur-md border border-amber-400/40 text-amber-300 font-semibold text-xs shadow-lg hover:bg-black/90 active:scale-95 transition-all"
+          >
+            <RotateCw className="w-3.5 h-3.5 text-amber-400" />
+            <span>Double-cliquez ou touchez pour pivoter en 3D</span>
+          </button>
+        )}
+      </div>
+
+      {/* Indication sous l'iPhone sur mobile quand inactif */}
+      {!is3DActiveMobile && (
+        <div className="md:hidden absolute bottom-3 z-10 text-[10px] text-zinc-400 bg-black/50 px-2.5 py-1 rounded-full pointer-events-none backdrop-blur-sm">
+          ↓ Faites défiler la page librement
+        </div>
+      )}
     </div>
   );
 }

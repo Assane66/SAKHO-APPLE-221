@@ -57,8 +57,13 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // === INVENTORY (STOCK) ===
+    // === INVENTORY & STOCK ===
     match /inventory/{itemId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /stock/{itemId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }

@@ -10,7 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Sparkles, ChevronRight } from "lucide-react";
 
 interface SettingsData {
   shopName: string;
@@ -105,7 +106,31 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">Paramètres</h1>
-      
+
+      {/* Bento Grid Featured Card */}
+      <Card className="border-amber-500/30 bg-gradient-to-r from-amber-950/20 via-zinc-950 to-zinc-900">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/10 text-amber-400 text-xs font-bold uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5" />
+                Mises en avant Accueil
+              </div>
+              <CardTitle className="text-xl">Bento Grid (Flagship, Best-Seller, Offre Spéciale, Nouveauté)</CardTitle>
+              <CardDescription>
+                Sélectionnez vous-même les 4 modèles d'iPhone affichés sur les grandes cartes vedettes.
+              </CardDescription>
+            </div>
+            <Link href="/admin/featured" className="flex-shrink-0">
+              <Button className="bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs gap-1.5">
+                Gérer les sélections
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
+        </CardHeader>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Informations générales</CardTitle>

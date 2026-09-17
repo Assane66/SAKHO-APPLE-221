@@ -6,15 +6,16 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Sparkles, ArrowRight, ShieldCheck, Zap, Cpu, HardDrive, CheckCircle2, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Product } from '@/types';
+import type { Product, FeaturedSlots } from '@/types';
 import { getOptimizedImageUrl } from '@/lib/image-optimizer';
 
 interface BentoGridSectionProps {
   products?: Product[];
+  featuredSlots?: FeaturedSlots;
   onQuickBuy?: (productName: string, price: string, storage: string, variants?: any[]) => void;
 }
 
-export function BentoGridSection({ products = [], onQuickBuy }: BentoGridSectionProps) {
+export function BentoGridSection({ products = [], featuredSlots, onQuickBuy }: BentoGridSectionProps) {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
   // Mouse position inside active card for interactive liquid gradient
@@ -51,39 +52,109 @@ export function BentoGridSection({ products = [], onQuickBuy }: BentoGridSection
   const bentoLayouts = [
     {
       gridSpan: 'md:col-span-8 lg:col-span-8 md:row-span-2',
-      badgeColor: 'bg-amber-400 text-black',
+      badgeColor: 'bg-amber-400 text-black font-extrabold',
       accentColor: 'rgba(234, 179, 8, 0.18)',
-      badge: 'Flagship',
+      defaultBadge: 'Flagship',
     },
     {
       gridSpan: 'md:col-span-4 lg:col-span-4',
-      badgeColor: 'bg-zinc-800 text-amber-300 border border-amber-500/30',
+      badgeColor: 'bg-zinc-800 text-amber-300 border border-amber-500/40 font-bold',
       accentColor: 'rgba(217, 119, 6, 0.18)',
-      badge: 'Best-Seller',
+      defaultBadge: 'Best-Seller',
     },
     {
       gridSpan: 'md:col-span-4 lg:col-span-4',
-      badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold',
       accentColor: 'rgba(16, 185, 129, 0.15)',
-      badge: 'Offre Spéciale',
+      defaultBadge: 'Offre Spéciale',
     },
     {
       gridSpan: 'md:col-span-6 lg:col-span-6',
-      badgeColor: 'bg-sky-500/20 text-sky-300 border border-sky-500/40',
+      badgeColor: 'bg-sky-500/20 text-sky-300 border border-sky-500/40 font-bold',
       accentColor: 'rgba(56, 189, 248, 0.15)',
-      badge: 'Nouveauté',
+      defaultBadge: 'Nouveauté',
     }
   ];
 
-  // Prioriser les produits avec isFeatured ou un customBadge
-  const sortedFeaturedProducts = [...products].sort((a, b) => {
-    const aScore = (a.isFeatured ? 2 : 0) + (a.customBadge ? 1 : 0) + (a.inStock ? 1 : 0);
-    const bScore = (b.isFeatured ? 2 : 0) + (b.customBadge ? 1 : 0) + (b.inStock ? 1 : 0);
-    return bScore - aScore;
-  });
+  // Sélection intelligente et administrable des 4 produits
+  const usedProductIds = new Set<string>();
 
-  const dynamicBentoItems = sortedFeaturedProducts.slice(0, 4).map((product, index) => {
+  const pickProductForSlot = (
+    explicitId?: string,
+    badgeKeywords: string[] = [],
+    fallbackFilter?: (p: Product) => boolean
+  ): Product | undefined => {
+    // 1. ID spécifique choisi par l'administrateur
+    if (explicitId) {
+      const explicitProduct = products.find(p => p.id === explicitId);
+      if (explicitProduct) {
+        usedProductIds.add(explicitProduct.id);
+        return explicitProduct;
+      }
+    }
+
+    // 2. Par mot-clé du badge administrable
+    if (badgeKeywords.length > 0) {
+      const byBadge = products.find(p => {
+        if (usedProductIds.has(p.id)) return false;
+        const b = (p.customBadge || '').toLowerCase();
+        return badgeKeywords.some(k => b.includes(k.toLowerCase()));
+      });
+      if (byBadge) {
+        usedProductIds.add(byBadge.id);
+        return byBadge;
+      }
+    }
+
+    // 3. Filtre de secours intelligent (promo, vedette...)
+    if (fallbackFilter) {
+      const byFilter = products.find(p => !usedProductIds.has(p.id) && fallbackFilter(p));
+      if (byFilter) {
+        usedProductIds.add(byFilter.id);
+        return byFilter;
+      }
+    }
+
+    // 4. N'importe quel autre produit disponible
+    const remaining = products.find(p => !usedProductIds.has(p.id));
+    if (remaining) {
+      usedProductIds.add(remaining.id);
+      return remaining;
+    }
+
+    return products[0];
+  };
+
+  const flagshipProduct = pickProductForSlot(
+    featuredSlots?.flagshipId,
+    ['flagship'],
+    (p) => Boolean(p.isFeatured)
+  );
+
+  const bestSellerProduct = pickProductForSlot(
+    featuredSlots?.bestSellerId,
+    ['bestseller', 'best-seller', 'populaire'],
+    (p) => (p.sales || 0) > 0
+  );
+
+  const specialOfferProduct = pickProductForSlot(
+    featuredSlots?.specialOfferId,
+    ['offre', 'promo', 'spéciale', 'speciale'],
+    (p) => Boolean(p.isFlashSale || p.variants?.some(v => v.isPromo))
+  );
+
+  const newArrivalProduct = pickProductForSlot(
+    featuredSlots?.newArrivalId,
+    ['nouveauté', 'nouveaute', 'nouveau', 'new'],
+    () => true
+  );
+
+  const selectedSlotProducts = [flagshipProduct, bestSellerProduct, specialOfferProduct, newArrivalProduct];
+
+  const dynamicBentoItems = selectedSlotProducts.map((product, index) => {
     const layout = bentoLayouts[index] || bentoLayouts[0];
+    if (!product) return null;
+
     let minPrice = 0;
     let isPromo = false;
     let originalPrice = '';
@@ -105,7 +176,7 @@ export function BentoGridSection({ products = [], onQuickBuy }: BentoGridSection
        }
     }
 
-    const itemBadge = product.customBadge || layout.badge;
+    const itemBadge = product.customBadge || layout.defaultBadge;
     const itemCondition = product.isVenant ? 'Venant' : (product.isSecondHand ? '2ème main' : (product.inStock ? 'En stock' : 'Sur commande'));
 
     return {
@@ -127,7 +198,7 @@ export function BentoGridSection({ products = [], onQuickBuy }: BentoGridSection
       isTradeIn: false,
       variants: product.variants,
     };
-  });
+  }).filter(Boolean) as any[];
 
   const bentoItems = [...dynamicBentoItems, tradeInCard];
 

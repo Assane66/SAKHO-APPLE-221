@@ -150,3 +150,10 @@ export interface Promotion {
   originalPrice?: number;
   discountPrice?: number;
 }
+
+export interface FeaturedSlots {
+  flagshipId?: string;       // ID du produit 👑 Flagship (grande carte principale)
+  bestSellerId?: string;     // ID du produit ✦ Best-Seller (carte haut droite)
+  specialOfferId?: string;   // ID du produit 🔥 Offre Spéciale (carte milieu droite)
+  newArrivalId?: string;     // ID du produit ✨ Nouveauté (carte bas gauche)
+}

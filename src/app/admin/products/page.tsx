@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle, MoreHorizontal, Loader2, Trash, Edit } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Loader2, Trash, Edit, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from "react";
@@ -185,14 +185,22 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">Produits</h1>
-        <Link href="/admin/products/new">
-          <Button>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Ajouter un produit
-          </Button>
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/admin/featured">
+            <Button variant="outline" className="border-amber-500/40 text-amber-400 hover:bg-amber-400/10">
+              <Sparkles className="mr-2 h-4 w-4 text-amber-400" />
+              Mises en avant (Bento Grid)
+            </Button>
+          </Link>
+          <Link href="/admin/products/new">
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Ajouter un produit
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Card>
