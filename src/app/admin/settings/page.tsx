@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import Link from "next/link";
-import { Loader2, Sparkles, ChevronRight, Truck } from "lucide-react";
+import { Loader2, Sparkles, ChevronRight, Truck, ImageIcon } from "lucide-react";
 
 interface SettingsData {
   shopName: string;
@@ -25,6 +25,11 @@ interface SettingsData {
   instagramUrl?: string;
   tiktokUrl?: string;
   deliveryFee?: number;
+  logoUrl?: string;
+  faviconUrl?: string;
+  slogan?: string;
+  description?: string;
+  footerText?: string;
 }
 
 export default function SettingsPage() {
@@ -40,6 +45,11 @@ export default function SettingsPage() {
     instagramUrl: '',
     tiktokUrl: 'https://vm.tiktok.com/ZMHgBjJwjqgsS-ysH6R/',
     deliveryFee: 5000,
+    logoUrl: 'https://res.cloudinary.com/dm6yuokre/image/upload/v1773361864/IMG-20260313-WA0005_2_zsrrym.jpg',
+    faviconUrl: 'https://res.cloudinary.com/dm6yuokre/image/upload/v1773361864/IMG-20260313-WA0005_2_zsrrym.jpg',
+    slogan: '',
+    description: '',
+    footerText: '',
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -177,6 +187,47 @@ export default function SettingsPage() {
           <Button onClick={handleSave} disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Enregistrer les modifications
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <ImageIcon className="h-5 w-5 text-amber-400" />
+            <div>
+              <CardTitle>Identité de la boutique</CardTitle>
+              <CardDescription>Ces informations alimentent automatiquement le site public.</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="logoUrl">Logo principal (URL d’image)</Label>
+            <Input id="logoUrl" type="url" placeholder="https://..." value={settings.logoUrl || ''} onChange={handleChange} />
+            {settings.logoUrl && <img src={settings.logoUrl} alt="Aperçu du logo" className="mt-3 h-20 w-20 rounded-xl border object-contain p-2" />}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="faviconUrl">Favicon (URL d’image)</Label>
+            <Input id="faviconUrl" type="url" placeholder="https://..." value={settings.faviconUrl || ''} onChange={handleChange} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="slogan">Slogan</Label>
+            <Input id="slogan" placeholder="Votre technologie, autrement." value={settings.slogan || ''} onChange={handleChange} />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="description">Description courte</Label>
+            <Input id="description" placeholder="Présentez votre boutique en une phrase." value={settings.description || ''} onChange={handleChange} />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="footerText">Texte du footer</Label>
+            <Input id="footerText" placeholder="Une phrase de confiance affichée en bas du site." value={settings.footerText || ''} onChange={handleChange} />
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Enregistrer l’identité
           </Button>
         </CardFooter>
       </Card>

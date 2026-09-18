@@ -2,7 +2,7 @@
 'use client';
 
 import Link from "next/link";
-import { Menu, User, ShoppingCart, QrCode } from "lucide-react";
+import { Menu, User, ShoppingCart, QrCode, Search, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import Image from "next/image";
@@ -23,7 +23,7 @@ export function Header() {
   const router = useRouter();
   const { toast } = useToast();
   const { cart } = useCart();
-  const [brand, setBrand] = useState({ name: 'Khalil Apple', logo: 'https://res.cloudinary.com/dm6yuokre/image/upload/v1789773966/ChatGPT_Image_18_sept._2026_23_25_46_obdboq.png' });
+  const [brand, setBrand] = useState({ name: 'Khalil Apple', logo: 'https://res.cloudinary.com/dm6yuokre/image/upload/v1773361864/IMG-20260313-WA0005_2_zsrrym.jpg' });
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   useEffect(() => {
@@ -38,8 +38,12 @@ export function Header() {
       const data = snapshot.data();
       setBrand({
         name: data.shopName || 'Khalil Apple',
-        logo: data.logoUrl || data.logo || 'https://res.cloudinary.com/dm6yuokre/image/upload/v1789773966/ChatGPT_Image_18_sept._2026_23_25_46_obdboq.png',
+        logo: data.logoUrl || data.logo || 'https://res.cloudinary.com/dm6yuokre/image/upload/v1773361864/IMG-20260313-WA0005_2_zsrrym.jpg',
       });
+      const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+      if (favicon && (data.faviconUrl || data.logoUrl || data.logo)) {
+        favicon.href = data.faviconUrl || data.logoUrl || data.logo;
+      }
     }).catch((error) => console.error('Erreur chargement identité boutique:', error));
   }, []);
 
@@ -50,7 +54,7 @@ export function Header() {
         ? "bg-background/80 backdrop-blur-xl border-b border-border shadow-lg shadow-black/10"
         : "bg-background/50 border-b border-transparent"
     )}>
-      <div className="container flex h-[4.75rem] items-center px-4 md:px-6">
+      <div className="container flex h-[4.75rem] items-center gap-4 px-4 md:px-6">
         {/* Logo */}
         <div className="mr-auto flex items-center">
           <Link href="/" className="flex items-center space-x-3 group">
@@ -63,8 +67,12 @@ export function Header() {
           </Link>
         </div>
 
+        <div className="hidden lg:flex items-center gap-2 rounded-full border border-foreground/10 bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
+          <Search className="h-3.5 w-3.5" />
+          <span>Explorer la collection</span>
+        </div>
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center space-x-8 mr-6">
+        <nav className="hidden md:flex items-center gap-7 mr-3">
           {[
             { href: '/products', label: 'Produits' },
             { href: '/exchange', label: 'Échange' },
@@ -73,7 +81,7 @@ export function Header() {
             <Link
               key={link.href}
               href={link.href}
-              className="relative text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 group"
+              className="relative text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors duration-200 group"
             >
               {link.label}
               <span className="absolute -bottom-1 left-0 h-px w-0 bg-primary transition-all duration-300 group-hover:w-full" />
@@ -109,6 +117,9 @@ export function Header() {
               <ShoppingCart className="h-5 w-5" />
               <span className="sr-only">Panier</span>
             </Button>
+          </Link>
+          <Link href="/products" className="hidden sm:inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-primary hover:text-foreground">
+            Collection <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
 
           <Link href="/admin/login">

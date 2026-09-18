@@ -62,7 +62,7 @@ export function Footer() {
           <div className="space-y-4">
             <Link href="/" className="flex items-center space-x-3 group">
               <Image
-                src={settings.logoUrl || settings.logo || 'https://res.cloudinary.com/dm6yuokre/image/upload/v1789773966/ChatGPT_Image_18_sept._2026_23_25_46_obdboq.png'}
+                src={settings.logoUrl || settings.logo || 'https://res.cloudinary.com/dm6yuokre/image/upload/v1773361864/IMG-20260313-WA0005_2_zsrrym.jpg'}
                 alt={`${shopName} Logo`} width={42} height={42}
                 className="h-10 w-10 object-contain transition-transform duration-300 group-hover:scale-105"
               />

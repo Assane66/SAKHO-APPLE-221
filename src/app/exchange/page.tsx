@@ -96,8 +96,8 @@ export default function ExchangePage() {
 
   if (submitted) {
     return (
-        <div className="container mx-auto max-w-3xl py-12 px-4 md:px-6 flex justify-center">
-            <Card className="w-full max-w-lg text-center">
+        <div className="public-surface flex justify-center px-4 py-12 md:px-8 md:py-20">
+            <Card className="public-panel w-full max-w-lg text-center">
                  <CardHeader>
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
                         <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -125,7 +125,7 @@ export default function ExchangePage() {
 
 
   return (
-    <div className="container mx-auto max-w-3xl py-12 px-4 md:px-6">
+    <div className="public-surface px-4 py-12 md:px-8 md:py-20">
       <div className="space-y-4 text-center">
         <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl font-headline">
           Faire une demande d'échange
@@ -134,7 +134,7 @@ export default function ExchangePage() {
           Remplissez le formulaire ci-dessous et nous vous contacterons pour finaliser votre demande de reprise.
         </p>
       </div>
-      <Card className="w-full mt-12">
+      <Card className="public-panel mx-auto mt-12 w-full max-w-4xl">
         <CardHeader>
           <CardTitle className="font-headline text-2xl">Détails de l'échange</CardTitle>
           <CardDescription>Fournissez les informations sur votre appareil pour obtenir une offre.</CardDescription>

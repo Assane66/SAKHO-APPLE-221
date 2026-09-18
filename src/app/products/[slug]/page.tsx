@@ -287,7 +287,7 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
     
     if (isLoading || !product) {
         return (
-            <div className="flex h-[60vh] items-center justify-center">
+            <div className="public-surface flex h-[60vh] items-center justify-center">
                 <Loader2 className="h-12 w-12 animate-spin" />
             </div>
         )
@@ -304,9 +304,10 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
         : (selectedVariant?.isPromo ? selectedVariant.price : null);
 
     return (
-    <div className="container mx-auto max-w-6xl py-8 px-4 md:px-6">
-      <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
-        <div className="flex items-center justify-center bg-secondary/30 rounded-lg p-4">
+    <div className="public-surface px-4 py-8 md:px-8 md:py-16">
+      <div className="mx-auto max-w-6xl">
+      <div className="product-detail-layout">
+        <div className="product-detail-gallery flex items-center justify-center">
           <Image
             src={product.thumbnail || "https://placehold.co/600x600.png"}
             alt={product.name}
@@ -315,9 +316,10 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
             className="aspect-square object-contain rounded-md"
           />
         </div>
-        <div className="flex flex-col space-y-6">
+        <div className="public-panel flex flex-col space-y-6 p-6 md:p-8">
           <div className="space-y-2">
-            <h1 className="text-3xl lg:text-4xl font-bold font-headline">{product.name}</h1>
+            <p className="section-kicker mb-2">Collection certifiée</p>
+            <h1 className="text-4xl lg:text-6xl font-bold tracking-tight font-headline">{product.name}</h1>
             <div className="flex items-center gap-2">
               {product.batteryHealth && (
                 <Badge variant="secondary" className="flex items-center gap-2 py-1 px-3">
@@ -328,7 +330,7 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
             </div>
           </div>
           
-          <Separator />
+          <div className="h-px bg-foreground/10" />
           
           <div>
             {(() => {
@@ -374,7 +376,7 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
                         <Label
                           key={variant.storage}
                           htmlFor={variant.storage}
-                          className={`flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer transition-all ${
+                          className={`flex flex-col items-center justify-center rounded-2xl border p-4 cursor-pointer transition-all ${
                             selectedVariant?.storage === variant.storage
                               ? 'border-primary ring-2 ring-primary'
                               : 'border-muted hover:border-primary/50'
@@ -404,7 +406,7 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
 
           {/* Stock Réel & Disponibilité (IMEI strictement masqué et sécurisé) */}
           {stockItems.length > 0 ? (
-            <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 space-y-2">
+            <div className="rounded-2xl border border-emerald-700/20 bg-emerald-700/5 p-5 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                   <CheckCircle className="w-4 h-4 text-emerald-400" />
@@ -413,7 +415,7 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
                 <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
                   {stockItems.length} disponible{stockItems.length > 1 ? 's' : ''}
                 </Badge>
-              </div>
+                </div>
               <p className="text-xs text-zinc-300">
                 Cet appareil est physiquement présent dans notre magasin. Disponible pour retrait immédiat ou livraison expresse en 24h.
               </p>
@@ -524,6 +526,7 @@ function ProductDetailsContent({ params }: { params: Promise<{ slug: string }> }
               </div>
           </div>
       )}
+    </div>
     </div>
   );
 }

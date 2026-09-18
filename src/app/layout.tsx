@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   icons: [
     {
       rel: 'icon',
-      url: 'https://res.cloudinary.com/dm6yuokre/image/upload/v1789773966/ChatGPT_Image_18_sept._2026_23_25_46_obdboq.png',
+      url: 'https://res.cloudinary.com/dm6yuokre/image/upload/v1773361864/IMG-20260313-WA0005_2_zsrrym.jpg',
     },
   ],
 };

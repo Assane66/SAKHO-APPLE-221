@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function AboutPage() {
   return (
-    <div className="container mx-auto max-w-3xl py-12 px-4 md:px-6">
-      <Card>
+    <div className="public-surface px-4 py-12 md:px-8 md:py-20">
+      <Card className="public-panel mx-auto max-w-4xl overflow-hidden">
         <CardHeader>
           <CardTitle className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline text-center">
             Qui sommes-nous ?

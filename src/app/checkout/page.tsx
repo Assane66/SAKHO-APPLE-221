@@ -169,8 +169,10 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-6xl py-12 px-4 md:px-6">
-        <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline mb-8">Finaliser ma commande</h1>
+    <div className="public-surface px-4 py-10 md:px-8 md:py-16">
+        <div className="mx-auto max-w-6xl">
+        <p className="section-kicker mb-3">Commande sécurisée</p>
+        <h1 className="text-4xl font-bold tracking-tight sm:text-6xl font-headline mb-10">On finalise ensemble.</h1>
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="grid md:grid-cols-2 gap-12 items-start">
                 <div className="space-y-8">
@@ -277,7 +279,7 @@ export default function CheckoutPage() {
 
                 </div>
                 <div>
-                    <Card className="sticky top-20">
+                    <Card className="public-panel sticky top-24">
                         <CardHeader>
                             <CardTitle>Votre commande</CardTitle>
                         </CardHeader>
@@ -331,6 +333,7 @@ export default function CheckoutPage() {
                 </div>
             </form>
         </Form>
+        </div>
     </div>
   );
 }

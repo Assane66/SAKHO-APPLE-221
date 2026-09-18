@@ -14,7 +14,7 @@ export default function CartPage() {
   const { cart, removeFromCart, updateQuantity, cartTotal } = useCart();
 
   return (
-    <div className="cart-shell py-10 px-4 md:px-8 md:py-16">
+    <div className="public-surface cart-shell py-10 px-4 md:px-8 md:py-16">
       <p className="section-kicker mb-3">Votre sélection</p>
       <h1 className="text-4xl font-bold tracking-tight sm:text-5xl font-headline mb-10">Un dernier regard.</h1>
       
