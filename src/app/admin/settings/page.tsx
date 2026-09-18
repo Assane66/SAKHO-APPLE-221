@@ -17,6 +17,7 @@ interface SettingsData {
   shopName: string;
   contactEmail: string;
   contactPhone: string;
+  whatsappNumber: string;
   address?: string;
   paymentCashOnDelivery: boolean;
   paymentMobileMoney: boolean;
@@ -31,6 +32,7 @@ export default function SettingsPage() {
     shopName: 'Khalil Apple',
     contactEmail: 'baalhassane521@gmail.com',
     contactPhone: '+221781395893',
+    whatsappNumber: '221781395893',
     address: 'Tivaouane Peulh',
     paymentCashOnDelivery: true,
     paymentMobileMoney: true,
@@ -50,7 +52,12 @@ export default function SettingsPage() {
         const settingsRef = doc(db, 'settings', 'general');
         const docSnap = await getDoc(settingsRef);
         if (docSnap.exists()) {
-          setSettings(docSnap.data() as SettingsData);
+          const data = docSnap.data() as Partial<SettingsData>;
+          setSettings(prev => ({
+            ...prev,
+            ...data,
+            whatsappNumber: data.whatsappNumber || data.contactPhone?.split('/')[0] || prev.whatsappNumber,
+          }));
         }
       } catch (error) {
         console.error("Error fetching settings:", error);
@@ -148,8 +155,18 @@ export default function SettingsPage() {
             <Input id="contactEmail" type="email" value={settings.contactEmail} onChange={handleChange} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="contactPhone">Téléphone</Label>
-            <Input id="contactPhone" type="tel" value={settings.contactPhone} onChange={handleChange} />
+            <Label htmlFor="contactPhone">Numéros de téléphone</Label>
+            <Input id="contactPhone" type="text" placeholder="+221781395893 / +221770000000" value={settings.contactPhone} onChange={handleChange} />
+            <p className="text-xs text-muted-foreground">
+              Vous pouvez saisir plusieurs numéros en les séparant par un slash (/).
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="whatsappNumber">Numéro WhatsApp</Label>
+            <Input id="whatsappNumber" type="tel" placeholder="+221781395893" value={settings.whatsappNumber || ''} onChange={handleChange} />
+            <p className="text-xs text-muted-foreground">
+              Ce numéro sera utilisé par le bouton WhatsApp et pour recevoir les commandes.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="address">Adresse</Label>

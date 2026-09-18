@@ -145,6 +145,7 @@ async function getHomePageData() {
     const categoryList = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const activePromo = promotions.length > 0 ? promotions[0] : null;
     const contactPhone = settings.contactPhone || '221770000000';
+    const whatsappNumber = settings.whatsappNumber || contactPhone.split('/')[0];
     const featuredSlots = settings.featuredSlots || null;
     const heroConfig = settings.heroConfig || null;
 
@@ -155,6 +156,7 @@ async function getHomePageData() {
       activePromo,
       flashSalesList,
       contactPhone,
+      whatsappNumber,
       featuredSlots,
       heroConfig,
     };
@@ -163,7 +165,7 @@ async function getHomePageData() {
     return result;
   } catch (error) {
     console.error('Error fetching homepage data:', error);
-    return { bannerList: [], categoryList: [], productList: [], activePromo: null, flashSalesList: [], contactPhone: '221770000000', featuredSlots: null, heroConfig: null };
+    return { bannerList: [], categoryList: [], productList: [], activePromo: null, flashSalesList: [], contactPhone: '221770000000', whatsappNumber: '221770000000', featuredSlots: null, heroConfig: null };
   }
 }
 
@@ -187,6 +189,7 @@ export default function Home() {
   const [activePromo, setActivePromo] = useState<DocumentData | null>(null);
   const [flashSales, setFlashSales] = useState<DocumentData[]>([]);
   const [contactPhone, setContactPhone] = useState('221770000000');
+  const [whatsappNumber, setWhatsappNumber] = useState('221770000000');
   const [featuredSlots, setFeaturedSlots] = useState<FeaturedSlots | undefined>(undefined);
   const [heroConfig, setHeroConfig] = useState<HeroConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -221,6 +224,7 @@ export default function Home() {
       setActivePromo(cached.activePromo || null);
       setFlashSales(cached.flashSalesList || []);
       setContactPhone(cached.contactPhone || '221770000000');
+      setWhatsappNumber(cached.whatsappNumber || cached.contactPhone?.split('/')[0] || '221770000000');
       if (cached.featuredSlots) setFeaturedSlots(cached.featuredSlots);
       if (cached.heroConfig) setHeroConfig(cached.heroConfig);
       setIsLoading(false);
@@ -235,6 +239,7 @@ export default function Home() {
       setActivePromo(data.activePromo);
       setFlashSales(data.flashSalesList || []);
       setContactPhone(data.contactPhone);
+      setWhatsappNumber(data.whatsappNumber || data.contactPhone.split('/')[0]);
       if (data.featuredSlots) setFeaturedSlots(data.featuredSlots);
       if (data.heroConfig) setHeroConfig(data.heroConfig);
       setIsLoading(false);
@@ -780,7 +785,7 @@ export default function Home() {
         price={selectedCheckoutProduct.price}
         storage={selectedCheckoutProduct.storage}
         image={selectedCheckoutProduct.image}
-        whatsappNumber={contactPhone}
+        whatsappNumber={whatsappNumber}
         variants={selectedCheckoutProduct.variants}
       />
 

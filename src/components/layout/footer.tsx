@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import { splitPhoneNumbers } from "@/lib/phone-utils";
 
 interface SettingsData {
   shopName?: string;
@@ -40,7 +41,7 @@ export function Footer() {
 
   const shopName = settings.shopName || 'Khalil Apple';
   const address = settings.address || 'Tivaouane Peulh';
-  const contactPhone = settings.contactPhone || '+221781395893';
+  const contactPhones = splitPhoneNumbers(settings.contactPhone || '+221781395893');
   const contactEmail = settings.contactEmail || 'baalhassane521@gmail.com';
   const facebookUrl = settings.facebookUrl;
   const instagramUrl = settings.instagramUrl;
@@ -101,14 +102,19 @@ export function Footer() {
                 <MapPin className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
                 <span>{address}</span>
               </li>
-              <li className="flex items-center gap-3">
+              <li className="flex items-start gap-3">
                 <Phone className="h-4 w-4 text-primary flex-shrink-0" />
-                <a
-                  href={`tel:${contactPhone}`}
-                  className="text-muted-foreground hover:text-primary transition-colors duration-200"
-                >
-                  {contactPhone}
-                </a>
+                <div className="flex flex-col gap-1">
+                  {contactPhones.map((phone) => (
+                    <a
+                      key={phone}
+                      href={`tel:${phone}`}
+                      className="text-muted-foreground hover:text-primary transition-colors duration-200"
+                    >
+                      {phone}
+                    </a>
+                  ))}
+                </div>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-4 w-4 text-primary flex-shrink-0" />

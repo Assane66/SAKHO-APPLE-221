@@ -8,6 +8,7 @@ export interface HomePageCachedData {
   activePromo: DocumentData | null;
   flashSalesList?: DocumentData[];
   contactPhone: string;
+  whatsappNumber?: string;
   featuredSlots?: FeaturedSlots | null;
   heroConfig?: HeroConfig | null;
 }

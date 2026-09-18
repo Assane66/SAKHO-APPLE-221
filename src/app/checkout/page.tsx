@@ -56,8 +56,8 @@ export default function CheckoutPage() {
           if (typeof data.deliveryFee === 'number') {
             setDeliveryFee(data.deliveryFee);
           }
-          if (data.contactPhone) {
-            setWhatsappNumber(String(data.contactPhone).replace(/\D/g, ''));
+          if (data.whatsappNumber || data.contactPhone) {
+            setWhatsappNumber(String(data.whatsappNumber || String(data.contactPhone).split('/')[0]).replace(/\D/g, ''));
           }
         }
       } catch (e) {
