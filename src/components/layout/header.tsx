@@ -54,6 +54,12 @@ export function Header() {
         ? "bg-background/80 backdrop-blur-xl border-b border-border shadow-lg shadow-black/10"
         : "bg-background/50 border-b border-transparent"
     )}>
+      <div className="public-topline hidden md:flex">
+        <div className="container flex items-center justify-between px-4 text-[10px] font-bold uppercase tracking-[.18em]">
+          <span>Authenticité vérifiée · Livraison Dakar</span>
+          <span>Service client WhatsApp disponible</span>
+        </div>
+      </div>
       <div className="container flex h-[4.75rem] items-center gap-4 px-4 md:px-6">
         {/* Logo */}
         <div className="mr-auto flex items-center">
@@ -67,7 +73,7 @@ export function Header() {
           </Link>
         </div>
 
-        <div className="hidden lg:flex items-center gap-2 rounded-full border border-foreground/10 bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
+        <div className="hidden lg:flex public-search-chip items-center gap-2 px-3 py-2 text-xs">
           <Search className="h-3.5 w-3.5" />
           <span>Explorer la collection</span>
         </div>
@@ -148,6 +154,12 @@ export function Header() {
               <div className="flex flex-col pt-8 space-y-1">
                 <div className="mb-6 pb-6 border-b border-border/50">
                   <span className="brand-wordmark">{brand.name}</span>
+                </div>
+                <div className="public-mobile-rail md:hidden">
+                  <Link href="/products">Tout voir</Link>
+                  <Link href="/products?sort=price-asc">Petits prix</Link>
+                  <Link href="/exchange">Échange</Link>
+                  <Link href="/about">Notre histoire</Link>
                 </div>
                 {[
                   { href: '/', label: 'Accueil' },
