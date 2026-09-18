@@ -7,12 +7,12 @@ import { getStorage } from "firebase/storage";
 import { getPerformance, FirebasePerformance } from "firebase/performance";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCSEIftELB1fPvQ6wVogoUSlKIwWy-bkgA",
-  authDomain: "khalil-premium.firebaseapp.com",
-  projectId: "khalil-premium",
-  storageBucket: "khalil-premium.appspot.com",
-  messagingSenderId: "379342311651",
-  appId: "1:379342311651:web:4e495393564f3fe2b3f5d6"
+  apiKey: "AIzaSyDqxfcc4iv3Ao5rOJvhadfIjvcTcrOY-Wg",
+  authDomain: "sakho-apple-221.firebaseapp.com",
+  projectId: "sakho-apple-221",
+  storageBucket: "sakho-apple-221.firebasestorage.app",
+  messagingSenderId: "673137479413",
+  appId: "1:673137479413:web:f4bf429c817eddc3f0ffbc"
 };
 
 // Initialize Firebase

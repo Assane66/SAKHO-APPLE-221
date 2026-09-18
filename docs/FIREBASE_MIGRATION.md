@@ -225,10 +225,9 @@ Cette migration ne modifie volontairement pas
 [`src/lib/firebase.ts`](../src/lib/firebase.ts). Après validation des données,
 des règles, du Storage et de l'Authentication :
 
-1. remplacez la configuration Firebase de l'application par celle de
+1. la configuration de l'application et `.firebaserc` pointent maintenant vers
    `sakho-apple-221` ;
-2. mettez à jour `.firebaserc` et les variables d'environnement concernées ;
-3. déployez une prévisualisation ;
+2. déployez une prévisualisation ;
 4. testez catalogue, stock, IMEI, commandes, administration, images et
    connexion ;
 5. seulement ensuite, déployez la version cible en production.
