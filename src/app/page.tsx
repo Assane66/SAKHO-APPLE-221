@@ -335,7 +335,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen relative bg-black text-foreground overflow-x-hidden">
+    <div className="home-page flex flex-col min-h-screen relative bg-background text-foreground overflow-x-hidden">
 
       {/* ═══ LUXURY AMBIENT BACKGROUND GLOW ORBS ═══ */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -351,7 +351,7 @@ export default function Home() {
 
       {/* ═══ 1. HERO SECTION : 3D IPHONE + TYPOGRAPHY + MAGNETIC CTA ═══ */}
       {heroConfig ? (
-      <section className="relative z-10 pt-8 pb-16 md:pt-16 md:pb-24 px-4 md:px-8 max-w-7xl mx-auto w-full">
+      <section className="editorial-hero relative z-10 pt-12 pb-16 md:pt-20 md:pb-24 px-5 md:px-12 max-w-[88rem] mx-auto w-full overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
 
           {/* Left Text Column */}

@@ -10,7 +10,7 @@ import { ThemeToggle } from "../theme-toggle";
 import { useCart } from "@/context/CartContext";
 import { useState, useEffect } from "react";
 import { QRScanner } from "../admin/qr-scanner";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,7 @@ export function Header() {
   const router = useRouter();
   const { toast } = useToast();
   const { cart } = useCart();
+  const [brand, setBrand] = useState({ name: 'Khalil Apple', logo: 'https://res.cloudinary.com/dm6yuokre/image/upload/v1789773966/ChatGPT_Image_18_sept._2026_23_25_46_obdboq.png' });
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   useEffect(() => {
@@ -31,26 +32,33 @@ export function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    getDoc(doc(db, 'settings', 'general')).then((snapshot) => {
+      if (!snapshot.exists()) return;
+      const data = snapshot.data();
+      setBrand({
+        name: data.shopName || 'Khalil Apple',
+        logo: data.logoUrl || data.logo || 'https://res.cloudinary.com/dm6yuokre/image/upload/v1789773966/ChatGPT_Image_18_sept._2026_23_25_46_obdboq.png',
+      });
+    }).catch((error) => console.error('Erreur chargement identité boutique:', error));
+  }, []);
+
   return (
     <header className={cn(
-      "sticky top-0 z-50 w-full transition-all duration-500",
+      "site-header sticky top-0 z-50 w-full transition-all duration-500",
       isScrolled
         ? "bg-background/80 backdrop-blur-xl border-b border-border shadow-lg shadow-black/10"
         : "bg-background/50 border-b border-transparent"
     )}>
-      <div className="container flex h-16 items-center px-4 md:px-6">
+      <div className="container flex h-[4.75rem] items-center px-4 md:px-6">
         {/* Logo */}
         <div className="mr-auto flex items-center">
           <Link href="/" className="flex items-center space-x-3 group">
-            <Image
-              src="https://res.cloudinary.com/dm6yuokre/image/upload/v1752163215/IMG-20250710-WA0000-removebg-preview_uunwq2.png"
-              alt="Khalil Apple Logo"
-              width={32}
-              height={32}
-              className="h-8 w-8 transition-transform duration-300 group-hover:scale-110"
+            <Image src={brand.logo} alt={`${brand.name} logo`} width={42} height={42}
+              className="h-10 w-10 object-contain transition-transform duration-300 group-hover:scale-105"
             />
-            <span className="font-headline font-bold text-xl gold-text tracking-wide" translate="no">
-              Khalil Apple
+            <span className="brand-wordmark" translate="no">
+              {brand.name}
             </span>
           </Link>
         </div>
@@ -117,7 +125,7 @@ export function Header() {
           {/* Mobile Menu */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden hover:bg-primary/10">
+              <Button variant="ghost" size="icon" className="md:hidden hover:bg-primary/10 rounded-xl">
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Toggle Menu</span>
               </Button>
@@ -128,7 +136,7 @@ export function Header() {
               </SheetHeader>
               <div className="flex flex-col pt-8 space-y-1">
                 <div className="mb-6 pb-6 border-b border-border/50">
-                  <span className="font-headline font-bold text-xl gold-text">Khalil Apple</span>
+                  <span className="brand-wordmark">{brand.name}</span>
                 </div>
                 {[
                   { href: '/', label: 'Accueil' },

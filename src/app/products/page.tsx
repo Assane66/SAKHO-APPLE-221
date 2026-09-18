@@ -261,13 +261,14 @@ function ProductsPageContent() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">Catalogue des iPhones</h1>
-        <p className="text-muted-foreground">Trouvez l&apos;iPhone parfait pour vous — Modèles en stock immédiat et sur commande.</p>
+    <div className="catalog-shell px-4 py-10 md:px-8 md:py-16">
+      <div className="mb-10 max-w-2xl">
+        <p className="section-kicker mb-3">La collection Khalil Apple</p>
+        <h1 className="text-4xl font-bold tracking-tight sm:text-6xl font-headline">Le bon iPhone,<br /><span className="gold-text-static">sans compromis.</span></h1>
+        <p className="mt-4 text-muted-foreground">Des modèles contrôlés, des prix clairs et une expérience d’achat pensée pour aller à l’essentiel.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 sticky top-16 bg-background/95 backdrop-blur py-4 z-10">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-10 sticky top-[4.75rem] bg-background/90 backdrop-blur py-4 z-10 rounded-2xl">
         <div className="md:col-span-2 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
@@ -319,7 +320,7 @@ function ProductsPageContent() {
                 const isLower = initialPrice > 0 && currentPrice < initialPrice;
 
                 return (
-                <Card key={product.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 flex flex-col group relative">
+                <Card key={product.id} className="product-card overflow-hidden flex flex-col group relative">
                   {/* Badges top left: En stock / Custom Badge */}
                   <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
                     {product.inStock ? (
@@ -350,7 +351,7 @@ function ProductsPageContent() {
                     </div>
                   )}
 
-                  <CardContent className="p-4 text-center flex-grow flex flex-col">
+                  <CardContent className="p-5 text-left flex-grow flex flex-col">
                       {getCategoryName(product.categoryId) && (
                           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">{getCategoryName(product.categoryId)}</p>
                       )}
@@ -362,7 +363,7 @@ function ProductsPageContent() {
                             <span className="px-2 py-0.5 rounded-md bg-muted/40 text-[10px] font-mono font-bold text-muted-foreground border border-border/50">{storageDisplay}</span>
                           )}
                       </CardTitle>
-                      <Link href={productUrl} className="block relative overflow-hidden rounded-xl bg-muted/20">
+                      <Link href={productUrl} className="product-media block relative overflow-hidden">
                           <Image
                             src={optimizedImageUrl}
                             width={400}

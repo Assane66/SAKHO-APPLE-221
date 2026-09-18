@@ -14,11 +14,12 @@ export default function CartPage() {
   const { cart, removeFromCart, updateQuantity, cartTotal } = useCart();
 
   return (
-    <div className="container mx-auto max-w-4xl py-12 px-4 md:px-6">
-      <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline mb-8">Votre Panier</h1>
+    <div className="cart-shell py-10 px-4 md:px-8 md:py-16">
+      <p className="section-kicker mb-3">Votre sélection</p>
+      <h1 className="text-4xl font-bold tracking-tight sm:text-5xl font-headline mb-10">Un dernier regard.</h1>
       
       {cart.length === 0 ? (
-        <Card>
+        <Card className="product-card border-dashed">
           <CardContent className="flex flex-col items-center justify-center p-12 space-y-4">
             <ShoppingCart className="h-16 w-16 text-muted-foreground" />
             <p className="text-xl font-medium">Votre panier est vide.</p>
@@ -30,7 +31,7 @@ export default function CartPage() {
         </Card>
       ) : (
         <div className="grid md:grid-cols-[2fr_1fr] gap-8 items-start">
-          <Card>
+          <Card className="product-card overflow-hidden">
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
@@ -89,7 +90,7 @@ export default function CartPage() {
               </Table>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="product-card sticky top-24">
             <CardHeader>
               <CardTitle>Résumé de la commande</CardTitle>
             </CardHeader>

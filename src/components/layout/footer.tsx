@@ -16,6 +16,9 @@ interface SettingsData {
   facebookUrl?: string;
   instagramUrl?: string;
   tiktokUrl?: string;
+  logoUrl?: string;
+  logo?: string;
+  footerText?: string;
 }
 
 async function getSettings(): Promise<SettingsData> {
@@ -59,16 +62,14 @@ export function Footer() {
           <div className="space-y-4">
             <Link href="/" className="flex items-center space-x-3 group">
               <Image
-                src="https://res.cloudinary.com/dm6yuokre/image/upload/v1752163215/IMG-20250710-WA0000-removebg-preview_uunwq2.png"
-                alt="Khalil Apple Logo"
-                width={32}
-                height={32}
-                className="h-8 w-8 transition-transform duration-300 group-hover:scale-110"
+                src={settings.logoUrl || settings.logo || 'https://res.cloudinary.com/dm6yuokre/image/upload/v1789773966/ChatGPT_Image_18_sept._2026_23_25_46_obdboq.png'}
+                alt={`${shopName} Logo`} width={42} height={42}
+                className="h-10 w-10 object-contain transition-transform duration-300 group-hover:scale-105"
               />
-              <span className="font-headline font-bold text-xl gold-text" translate="no">{shopName}</span>
+              <span className="brand-wordmark" translate="no">{shopName}</span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Votre expert iPhone au Sénégal.<br />Qualité, authenticité et service garantis.
+              {settings.footerText || 'Votre expert iPhone au Sénégal. Qualité, authenticité et service garantis.'}
             </p>
           </div>
 

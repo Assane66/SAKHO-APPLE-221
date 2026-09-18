@@ -9,11 +9,11 @@ import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
   title: 'Khalil Apple',
-  description: 'Boutique premium d\'iPhones au Sénégal avec service d\'échange assisté par IA.',
+  description: 'Une sélection d’iPhone fiables, disponibles au Sénégal.',
   icons: [
     {
       rel: 'icon',
-      url: 'https://res.cloudinary.com/dm6yuokre/image/upload/v1752163215/IMG-20250710-WA0000-removebg-preview_uunwq2.png',
+      url: 'https://res.cloudinary.com/dm6yuokre/image/upload/v1789773966/ChatGPT_Image_18_sept._2026_23_25_46_obdboq.png',
     },
   ],
 };

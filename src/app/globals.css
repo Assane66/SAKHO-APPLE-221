@@ -88,7 +88,64 @@
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', sans-serif;
     overflow-x: hidden;
+    background:
+      radial-gradient(circle at 8% 0%, hsl(var(--primary) / 0.08), transparent 28rem),
+      hsl(var(--background));
   }
+}
+
+@layer components {
+  .site-header {
+    background: hsl(var(--background) / .82);
+    border-bottom: 1px solid hsl(var(--foreground) / .08);
+    backdrop-filter: blur(22px);
+  }
+  .brand-wordmark {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.18rem;
+    letter-spacing: -.025em;
+    font-weight: 700;
+    color: hsl(var(--foreground));
+  }
+  .brand-wordmark::first-letter { color: hsl(var(--primary)); }
+  .catalog-shell, .cart-shell {
+    max-width: 76rem;
+    margin-inline: auto;
+  }
+  .product-card {
+    border: 1px solid hsl(var(--foreground) / .09);
+    border-radius: 1.35rem;
+    background: hsl(var(--card) / .78);
+    box-shadow: 0 1rem 3rem hsl(var(--foreground) / .05);
+    transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+  }
+  .product-card:hover {
+    transform: translateY(-6px);
+    border-color: hsl(var(--primary) / .55);
+    box-shadow: 0 1.5rem 4rem hsl(var(--primary) / .13);
+  }
+  .product-media {
+    background: linear-gradient(145deg, hsl(var(--muted)), hsl(var(--background)));
+    border-radius: 1rem;
+  }
+  .editorial-hero {
+    background: linear-gradient(120deg, hsl(var(--foreground)), hsl(220 20% 15%));
+    border-radius: 0 0 2.5rem 2.5rem;
+  }
+  .home-page .editorial-hero h1 { letter-spacing: -.055em; }
+  .home-page section:not(.editorial-hero) { scroll-margin-top: 5rem; }
+  .home-page .gold-text { color: hsl(var(--primary)); }
+  .section-kicker {
+    color: hsl(var(--primary));
+    font-size: .7rem;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    font-weight: 800;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
 
 /* ═══════════════════════════════════════════════
@@ -453,4 +510,3 @@
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
-
