@@ -22,20 +22,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists() && userDoc.data().role === 'admin') {
-          setIsAdmin(true);
+      try {
+        if (user) {
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          setIsAdmin(userDoc.exists() && userDoc.data().role === 'admin');
+          setUser(user);
         } else {
+          setUser(null);
           setIsAdmin(false);
         }
-        setUser(user);
-      } else {
+      } catch (error) {
+        console.error('Erreur de vérification du rôle administrateur:', error);
         setUser(null);
         setIsAdmin(false);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();

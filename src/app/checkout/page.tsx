@@ -22,9 +22,9 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 
 const checkoutSchema = z.object({
-  customerName: z.string().min(2, "Le nom est requis."),
-  customerPhone: z.string().min(8, "Le numéro de téléphone est requis."),
-  customerAddress: z.string().optional(),
+  customerName: z.string().trim().min(2, "Le nom est requis.").max(120, "Le nom est trop long."),
+  customerPhone: z.string().trim().min(8, "Le numéro de téléphone est requis.").max(30, "Le numéro est trop long."),
+  customerAddress: z.string().trim().max(500, "L'adresse est trop longue.").optional(),
   deliveryMethod: z.enum(['delivery', 'pickup'], {
     required_error: "Vous devez sélectionner un mode de livraison."
   }),
@@ -45,6 +45,7 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(5000);
   const [whatsappNumber, setWhatsappNumber] = useState('221781395893');
+  const [settingsError, setSettingsError] = useState(false);
 
   // Charger les paramètres généraux de la boutique (frais de livraison & téléphone WhatsApp)
   useEffect(() => {
@@ -61,7 +62,8 @@ export default function CheckoutPage() {
           }
         }
       } catch (e) {
-        // Conserver les valeurs par défaut
+        console.error('Erreur chargement des paramètres de commande:', e);
+        setSettingsError(true);
       }
     };
     loadSettings();
@@ -92,6 +94,14 @@ export default function CheckoutPage() {
   }
 
   async function onSubmit(values: z.infer<typeof checkoutSchema>) {
+    if (settingsError) {
+      toast({
+        variant: 'destructive',
+        title: 'Paramètres indisponibles',
+        description: 'Impossible de vérifier les frais et le contact WhatsApp. Veuillez actualiser la page.',
+      });
+      return;
+    }
     setIsSubmitting(true);
     try {
       const deliveryLabel = values.deliveryMethod === 'delivery'
