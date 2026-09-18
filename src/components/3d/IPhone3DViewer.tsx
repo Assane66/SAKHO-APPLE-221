@@ -15,15 +15,12 @@ interface IPhone3DViewerProps {
   title?: string;
 }
 
-const DEFAULT_MODEL_URL = 'https://res.cloudinary.com/dm6yuokre/image/upload/v1785360868/iphone_17_pro_max_1_vznyvo.glb';
-const DEFAULT_IMAGE_URL = 'https://res.cloudinary.com/dm6yuokre/image/upload/v1784658568/apple-iphone-17-pro-max-256-go-ecran-69-puce-a19-pro-orange-removebg-preview_vmy8i6.png';
-
 export function IPhone3DViewer({
   onBuyClick,
-  modelUrl = DEFAULT_MODEL_URL,
+  modelUrl,
   mediaType = '3d',
-  imageUrl = DEFAULT_IMAGE_URL,
-  title = 'iPhone 17 Pro Max',
+  imageUrl,
+  title,
 }: IPhone3DViewerProps) {
   const canvasMountRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<any>(null);
@@ -32,8 +29,8 @@ export function IPhone3DViewer({
   const [is3DActiveMobile, setIs3DActiveMobile] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
 
-  const activeModelUrl = modelUrl?.trim() || DEFAULT_MODEL_URL;
-  const activeImageUrl = imageUrl?.trim() || DEFAULT_IMAGE_URL;
+  const activeModelUrl = modelUrl?.trim() || '';
+  const activeImageUrl = imageUrl?.trim() || '';
 
   // Détection du tactile
   useEffect(() => {
@@ -82,6 +79,10 @@ export function IPhone3DViewer({
   // Three.js 3D Initialization
   useEffect(() => {
     if (mediaType === 'image') return;
+    if (!activeModelUrl) {
+      setIsLoading(false);
+      return;
+    }
     const mountNode = canvasMountRef.current;
     if (!mountNode) return;
 
@@ -252,7 +253,7 @@ export function IPhone3DViewer({
   }, [activeModelUrl, mediaType]);
 
   // === RENDU DU MODE IMAGE (Si mediaType === 'image' ou erreur 3D fatale) ===
-  if (mediaType === 'image' || (loadError && activeImageUrl)) {
+  if ((mediaType === 'image' && activeImageUrl) || (loadError && activeImageUrl)) {
     return (
       <div className="relative w-full max-w-xl mx-auto flex flex-col items-center justify-center py-6 px-4">
         {/* Ambient Halo Glow */}

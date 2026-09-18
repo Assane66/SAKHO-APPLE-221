@@ -291,19 +291,19 @@ export default function Home() {
   };
 
   // ── Configuration Hero Dynamique (ou valeurs par défaut) ──
-  const heroBadge = heroConfig?.badge || "L'Excellence Khalil Apple au Sénégal";
-  const heroTitle = heroConfig?.title || "iPhone 17 Pro Max.";
-  const heroSubtitle = heroConfig?.subtitle || "Design Titane Absolu.";
-  const heroDescription = heroConfig?.description || "Découvrez la toute nouvelle génération d'iPhones scellés et reconditionnés premium. Garantie 1 mois, livraison express en 24h et estimation IA instantanée.";
-  const heroBtnText = heroConfig?.buttonText || "Acheter Maintenant";
-  const heroBtnPrice = heroConfig?.buttonPrice || "890 000";
-  const heroBtnStorage = heroConfig?.buttonStorage || "256 GB";
-  const heroStat1Value = heroConfig?.stat1Value || "100%";
-  const heroStat1Label = heroConfig?.stat1Label || "Authentique";
-  const heroStat2Value = heroConfig?.stat2Value || "1 Mois";
-  const heroStat2Label = heroConfig?.stat2Label || "Garantie";
-  const heroStat3Value = heroConfig?.stat3Value || "24h";
-  const heroStat3Label = heroConfig?.stat3Label || "Livraison Dakar";
+  const heroBadge = heroConfig?.badge || "";
+  const heroTitle = heroConfig?.title || "";
+  const heroSubtitle = heroConfig?.subtitle || "";
+  const heroDescription = heroConfig?.description || "";
+  const heroBtnText = heroConfig?.buttonText || "";
+  const heroBtnPrice = heroConfig?.buttonPrice || "";
+  const heroBtnStorage = heroConfig?.buttonStorage || "";
+  const heroStat1Value = heroConfig?.stat1Value || "";
+  const heroStat1Label = heroConfig?.stat1Label || "";
+  const heroStat2Value = heroConfig?.stat2Value || "";
+  const heroStat2Label = heroConfig?.stat2Label || "";
+  const heroStat3Value = heroConfig?.stat3Value || "";
+  const heroStat3Label = heroConfig?.stat3Label || "";
 
   // Produit lié s'il est spécifié dans la config
   const heroLinkedProduct = useMemo(() => {
