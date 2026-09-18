@@ -4,6 +4,7 @@ import { getAnalytics } from "firebase/analytics";
 import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, Firestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getPerformance, FirebasePerformance } from "firebase/performance";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCSEIftELB1fPvQ6wVogoUSlKIwWy-bkgA",
@@ -39,8 +40,14 @@ try {
 const storage = getStorage(app);
 
 // Initialize Analytics only on the client-side
+let performance: FirebasePerformance | undefined;
 if (typeof window !== 'undefined') {
   getAnalytics(app);
+  try {
+    performance = getPerformance(app);
+  } catch (error) {
+    console.error('Firebase Performance Monitoring unavailable:', error);
+  }
 }
 
-export { app, auth, db, storage };
+export { app, auth, db, storage, performance };
