@@ -5,6 +5,10 @@ export function splitPhoneNumbers(value?: string): string[] {
     .filter(Boolean);
 }
 
-export function normalizePhoneNumber(value?: string): string {
+export function normalizeDigits(value?: string): string {
   return (value || '').replace(/\D/g, '');
+}
+
+export function normalizePhoneNumber(value?: string): string {
+  return normalizeDigits(value);
 }

@@ -226,7 +226,6 @@ export default function Home() {
       setContactPhone(cached.contactPhone || '221770000000');
       setWhatsappNumber(cached.whatsappNumber || cached.contactPhone?.split('/')[0] || '221770000000');
       if (cached.featuredSlots) setFeaturedSlots(cached.featuredSlots);
-      if (cached.heroConfig) setHeroConfig(cached.heroConfig);
       setIsLoading(false);
     }
 
@@ -241,7 +240,7 @@ export default function Home() {
       setContactPhone(data.contactPhone);
       setWhatsappNumber(data.whatsappNumber || data.contactPhone.split('/')[0]);
       if (data.featuredSlots) setFeaturedSlots(data.featuredSlots);
-      if (data.heroConfig) setHeroConfig(data.heroConfig);
+      setHeroConfig(data.heroConfig);
       setIsLoading(false);
     };
     fetchData();
@@ -351,6 +350,7 @@ export default function Home() {
       </div>
 
       {/* ═══ 1. HERO SECTION : 3D IPHONE + TYPOGRAPHY + MAGNETIC CTA ═══ */}
+      {heroConfig ? (
       <section className="relative z-10 pt-8 pb-16 md:pt-16 md:pb-24 px-4 md:px-8 max-w-7xl mx-auto w-full">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
 
@@ -423,6 +423,12 @@ export default function Home() {
           </div>
         </div>
       </section>
+      ) : (
+        <section
+          aria-label="Chargement de la vitrine"
+          className="relative z-10 min-h-[620px] max-w-7xl mx-auto w-full animate-pulse"
+        />
+      )}
 
       {/* ═══ 2. INFINITE MARQUEE REASSURANCE BANNER ═══ */}
       <section className="relative z-10 my-4">

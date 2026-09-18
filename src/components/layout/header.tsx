@@ -15,6 +15,7 @@ import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { normalizeDigits } from "@/lib/phone-utils";
 
 export function Header() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -155,7 +156,8 @@ export function Header() {
           onScan={async (imei) => {
             setIsScannerOpen(false);
             try {
-              const q = query(collection(db, 'inventory'), where('imei', '==', imei));
+              const cleanImei = normalizeDigits(imei);
+              const q = query(collection(db, 'inventory'), where('imei', '==', cleanImei));
               const snapshot = await getDocs(q);
               if (!snapshot.empty) {
                 const stockData = snapshot.docs[0].data();
@@ -167,7 +169,7 @@ export function Header() {
                   toast({ title: "Produit trouvé !", description: `Redirection vers ${productData.name}` });
                 }
               } else {
-                toast({ variant: "destructive", title: "Non trouvé", description: "Cet IMEI n'est pas répertorié dans notre stock." });
+                toast({ variant: "destructive", title: "Non trouvé", description: `Cet IMEI (${cleanImei || imei}) n'est pas répertorié dans notre stock.` });
               }
             } catch (error) {
               console.error(error);

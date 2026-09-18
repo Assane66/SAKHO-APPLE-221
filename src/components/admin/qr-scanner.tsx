@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Button } from '@/components/ui/button';
 import { X, Upload, Camera, AlertTriangle, RefreshCw, CheckCircle2, Image as ImageIcon } from 'lucide-react';
 
@@ -19,6 +19,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isStoppingRef = useRef<boolean>(false);
+  const hasScannedRef = useRef(false);
   const containerId = 'qr-camera-stream';
 
   // Nettoyage strict et arrêt de la caméra
@@ -67,6 +68,8 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
 
   // Succès de détection
   const handleSuccess = useCallback(async (decodedText: string) => {
+    if (hasScannedRef.current) return;
+    hasScannedRef.current = true;
     setStatus('success');
     await stopCamera();
     onScan(decodedText);
@@ -77,6 +80,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
     try {
       setStatus('initializing');
       setErrorMessage(null);
+      hasScannedRef.current = false;
       await stopCamera();
 
       // Créer une nouvelle instance Html5Qrcode
@@ -95,8 +99,22 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
 
       const qrConfig = {
         fps: 15,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0,
+        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+          const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.78);
+          return { width: size, height: size };
+        },
+        aspectRatio: 1.333334,
+        disableFlip: false,
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
+          Html5QrcodeSupportedFormats.DATA_MATRIX,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.PDF_417,
+        ],
       };
 
       const cameraConfig = cameraId 

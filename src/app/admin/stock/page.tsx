@@ -42,6 +42,7 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { QRScanner } from '@/components/admin/qr-scanner';
 import { invalidateCatalogCache } from '@/lib/product-cache';
+import { normalizeDigits } from '@/lib/phone-utils';
 import type { StockItem, Product, ProductVariant } from '@/types';
 import { 
   Dialog, 
@@ -75,6 +76,7 @@ export default function StockPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannerMode, setScannerMode] = useState<'lookup' | 'fillImei'>('lookup');
   
   // Dialogs
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -207,8 +209,8 @@ export default function StockPage() {
   };
 
   const handleAddStock = async () => {
-    const cleanImei = newImei.trim();
-    if (!cleanImei || !selectedProductId || !selectedStorage) {
+    const cleanImei = normalizeDigits(newImei);
+    if (!/^\d{15}$/.test(cleanImei) || !selectedProductId || !selectedStorage) {
       toast({ variant: 'destructive', title: 'Erreur', description: 'Veuillez renseigner le produit, le stockage et l\'IMEI.' });
       return;
     }
@@ -263,7 +265,14 @@ export default function StockPage() {
 
   const handleScan = async (imei: string) => {
     setIsScannerOpen(false);
-    const cleanImei = imei.trim();
+    const cleanImei = normalizeDigits(imei);
+
+    if (scannerMode === 'fillImei') {
+      setNewImei(cleanImei);
+      toast({ title: 'IMEI détecté', description: 'Le numéro a été rempli automatiquement.' });
+      return;
+    }
+
     setSearchTerm(cleanImei);
     
     const item = stock.find(s => s.imei.trim().toLowerCase() === cleanImei.toLowerCase());
@@ -279,9 +288,9 @@ export default function StockPage() {
         title: 'Non trouvé dans le stock', 
         description: `Aucun appareil trouvé avec l'IMEI: ${cleanImei}. Vous pouvez l'ajouter via "Ajouter au stock".` 
       });
-      // Préremplir l'IMEI dans le modal d'ajout
-      setNewImei(cleanImei);
       openAddStockDialog();
+      // Préremplir l'IMEI après l'initialisation du formulaire, qui réinitialise ses champs.
+      setNewImei(cleanImei);
     }
   };
 
@@ -872,7 +881,10 @@ export default function StockPage() {
                   variant="ghost" 
                   size="sm" 
                   className="h-6 text-xs text-primary gap-1 px-1.5"
-                  onClick={() => setIsScannerOpen(true)}
+                  onClick={() => {
+                    setScannerMode('fillImei');
+                    setIsScannerOpen(true);
+                  }}
                 >
                   <QrCode className="h-3.5 w-3.5" />
                   Scanner
