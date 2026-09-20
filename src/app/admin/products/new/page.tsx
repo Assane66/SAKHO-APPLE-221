@@ -174,12 +174,12 @@ export default function NewProductPage() {
         keywords: keywords.split(',').map(k => k.trim()).filter(k => k),
         variants,
         hasIMEI,
-        customBadge: customBadge !== 'none' ? customBadge : undefined,
         isFeatured: Boolean(isFeatured),
         isFlashSale: Boolean(isFlashSale),
-        flashSalePrice: isFlashSale && Number(flashSalePrice) > 0 ? Number(flashSalePrice) : undefined,
-        flashSaleEndDate: isFlashSale && flashSaleEndDate ? new Date(flashSaleEndDate) : undefined,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        ...(customBadge !== 'none' ? { customBadge } : {}),
+        ...(isFlashSale && Number(flashSalePrice) > 0 ? { flashSalePrice: Number(flashSalePrice) } : {}),
+        ...(isFlashSale && flashSaleEndDate ? { flashSaleEndDate: new Date(flashSaleEndDate) } : {})
       };
 
       const docRef = await addDoc(collection(db, 'products'), productData);
@@ -216,10 +216,18 @@ export default function NewProductPage() {
       router.push('/admin/products');
     } catch (error) {
       console.error("Erreur lors de l'ajout du produit:", error);
+      const errorCode = error && typeof error === 'object' && 'code' in error
+        ? String(error.code)
+        : '';
+      const errorDescription = errorCode === 'permission-denied'
+        ? "Votre compte n'a pas les droits administrateur dans Firestore."
+        : errorCode === 'invalid-argument'
+          ? "Les données du produit sont invalides. Vérifiez les champs saisis."
+          : "Vérifiez les champs saisis et la connexion à Firebase.";
       toast({
         variant: 'destructive',
         title: "Erreur",
-        description: "Une erreur est survenue lors de la création du produit.",
+        description: errorDescription,
       });
     } finally {
       setIsSubmitting(false);
