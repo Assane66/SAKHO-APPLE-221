@@ -43,9 +43,12 @@ export async function createOrder(data: OrderInput): Promise<ActionResult> {
       customerAddress: data.customerAddress,
       items: plainItems,
       deliveryMethod: data.deliveryMethod,
+      deliveryFee: data.deliveryCost,
+      subTotal: data.subTotal,
       total: data.total,
       totalFormatted: `${data.total.toLocaleString('fr-FR')} CFA`,
       status: 'En attente',
+      createdAt: serverTimestamp(),
       date: serverTimestamp(),
     };
 

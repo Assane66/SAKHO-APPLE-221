@@ -610,10 +610,16 @@
 .animate-marquee {
   display: flex;
   width: max-content;
-  animation: marquee 28s linear infinite;
+  animation: marquee 56s linear infinite;
 }
 .animate-marquee:hover {
   animation-play-state: paused;
+}
+
+@media (max-width: 768px) {
+  .animate-marquee {
+    animation-duration: 72s;
+  }
 }
 
 /* === BENTO GRID CARD INTERACTION === */
