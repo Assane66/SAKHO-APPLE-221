@@ -164,7 +164,7 @@ export function FastCheckoutDrawer({
             </div>
             <h3 className="text-2xl font-extrabold">Tunnel d'Achat 1-Clic</h3>
             <p className="text-xs text-muted-foreground">
-              Validation instantanée par Swipe sans inscription.
+              Validation instantanée sans inscription.
             </p>
           </div>
 
@@ -333,11 +333,11 @@ export function FastCheckoutDrawer({
                 Paiement sécurisé en espèces ou Wave/OM lors de la livraison.
               </div>
 
-              {/* Swipe To Buy Action Slider */}
+              {/* Simple order action */}
               <div className="pt-2">
                 <SlideToBuy 
                   onSuccess={handleOrderSuccess} 
-                  text={isSubmitting ? "ENREGISTREMENT..." : "GLISSER POUR COMMANDER"} 
+                  text="COMMANDER"
                   disabled={!fullName || !phone || (deliveryMethod === 'domicile' && !address) || isSubmitting}
                 />
               </div>
