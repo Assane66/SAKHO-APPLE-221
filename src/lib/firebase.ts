@@ -1,7 +1,7 @@
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
+import { getAnalytics, Analytics } from "firebase/analytics";
+import { getAuth, setPersistence, browserLocalPersistence, Auth } from "firebase/auth";
 import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, Firestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getPerformance, FirebasePerformance } from "firebase/performance";
@@ -15,19 +15,20 @@ const firebaseConfig = {
   appId: "1:673137479413:web:f4bf429c817eddc3f0ffbc"
 };
 
-// Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-// Initialize Auth and persistence safely for SSR
-const auth = getAuth(app);
+
+const enableClientOnlyMonitoring = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_ENABLE_FIREBASE_MONITORING === 'true';
+
+const auth: Auth = getAuth(app);
 if (typeof window !== 'undefined') {
-  setPersistence(auth, browserLocalPersistence);
+  setPersistence(auth, browserLocalPersistence).catch(() => undefined);
 }
 
 let db: Firestore;
 try {
   if (typeof window !== 'undefined') {
     db = initializeFirestore(app, {
-      experimentalForceLongPolling: true,
+      experimentalForceLongPolling: false,
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
     });
   } else {
@@ -39,15 +40,15 @@ try {
 
 const storage = getStorage(app);
 
-// Initialize Analytics only on the client-side
+let analytics: Analytics | undefined;
 let performance: FirebasePerformance | undefined;
-if (typeof window !== 'undefined') {
-  getAnalytics(app);
+if (typeof window !== 'undefined' && enableClientOnlyMonitoring) {
   try {
+    analytics = getAnalytics(app);
     performance = getPerformance(app);
   } catch (error) {
-    console.error('Firebase Performance Monitoring unavailable:', error);
+    console.error('Firebase client monitoring unavailable:', error);
   }
 }
 
-export { app, auth, db, storage, performance };
+export { app, auth, db, storage, analytics, performance };

@@ -1,11 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
+    --font-inter: 'Inter', 'Segoe UI', sans-serif;
+    --font-playfair: 'Playfair Display', Georgia, serif;
     --background: 48 33% 97%;
     --foreground: 160 28% 9%;
     --card: 0 0% 100%;
@@ -86,7 +86,7 @@
   html { scroll-behavior: smooth; }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-inter);
     overflow-x: hidden;
     background:
       radial-gradient(circle at 8% 0%, hsl(var(--primary) / 0.08), transparent 28rem),
@@ -101,7 +101,7 @@
     backdrop-filter: blur(18px);
   }
   .brand-wordmark {
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-playfair);
     font-size: 1.18rem;
     letter-spacing: -.025em;
     font-weight: 700;
